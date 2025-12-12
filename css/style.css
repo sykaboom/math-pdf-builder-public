@@ -65,12 +65,16 @@ body.drag-over #drop-overlay { display: flex; }
 
 .block-handle { position: absolute; left: -24px; top: 0; width: 24px; height: 100%; cursor: grab; display: flex; align-items: flex-start; padding-top: 6px; justify-content: center; opacity: 0; color: #bbb; z-index: 150; transition: opacity 0.2s; user-select: none; }
 .block-wrapper:hover .block-handle { opacity: 1; }
+.block-wrapper:focus-within .block-handle { opacity: 1; }
+.block-wrapper.temp-show-handle .block-handle { opacity: 1; }
 .block-handle::after { content: '≡'; font-size: 18px; line-height: 1; font-weight: bold; }
 .block-handle:active { cursor: grabbing; color: #555; }
 
 .block-actions { position: absolute; right: -30px; top: 2px; display: flex; flex-direction: column; gap: 2px; opacity: 0; transition: opacity 0.2s; z-index: 100; pointer-events: none; }
 .block-actions::before { content: ''; position: absolute; top: 0; bottom: 0; right: 100%; width: 30px; background: transparent; }
 .block-wrapper:hover .block-actions { opacity: 1; pointer-events: auto; }
+.block-wrapper:focus-within .block-actions { opacity: 1; pointer-events: auto; }
+.block-wrapper.temp-show-handle .block-actions { opacity: 1; pointer-events: auto; }
 .block-action-btn { width: 22px; height: 22px; border: 1px solid #ddd; border-radius: 3px; background: #fff; font-size: 12px; cursor: pointer; padding: 0; display: flex; align-items: center; justify-content: center; color: #777; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
 .block-action-btn:hover { background: #007bff; color: white; border-color: #007bff; }
 
