@@ -61,6 +61,7 @@ window.printPreflightAction = async (mode) => {
 window.insertImageBoxSafe = () => Events.insertImageBoxSafe();
 window.addImageBlockBelow = (id) => Events.addImageBlockBelow(id);
 window.insertImagePlaceholderAtEnd = (id) => Events.insertImagePlaceholderAtEnd(id);
+window.applyBlockFont = () => Events.applyBlockFontFromMenu();
 window.openModal = Utils.openModal;
 window.closeModal = Utils.closeModal;
 window.execStyle = (cmd, val) => document.execCommand(cmd, false, val);
@@ -134,6 +135,23 @@ window.addEventListener('DOMContentLoaded', () => {
         State.docData.meta.footerText = e.target.value;
         Renderer.renderPages();
         State.saveHistory(500);
+    });
+
+    const fontFamilySel = document.getElementById('setting-font-family');
+    const fontSizeInp = document.getElementById('setting-font-size');
+    if (fontFamilySel) fontFamilySel.value = meta.fontFamily || 'serif';
+    if (fontSizeInp) fontSizeInp.value = meta.fontSizePt || 10.5;
+    if (fontFamilySel) fontFamilySel.addEventListener('change', async (e) => {
+        State.docData.meta.fontFamily = e.target.value;
+        Renderer.renderPages();
+        await ManualRenderer.renderAll();
+        State.saveHistory();
+    });
+    if (fontSizeInp) fontSizeInp.addEventListener('change', async (e) => {
+        State.docData.meta.fontSizePt = parseFloat(e.target.value) || 10.5;
+        Renderer.renderPages();
+        await ManualRenderer.renderAll();
+        State.saveHistory();
     });
     
     document.getElementById('imgUpload').addEventListener('change', (e) => {

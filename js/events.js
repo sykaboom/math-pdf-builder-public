@@ -84,6 +84,29 @@ export const Events = {
         State.lastEditableId = targetId;
     },
 
+    populateFontMenu(targetId) {
+        const b = State.docData.blocks.find(x => x.id === targetId);
+        const famSel = document.getElementById('block-font-family-select');
+        const sizeInp = document.getElementById('block-font-size-input');
+        if (famSel) famSel.value = b && b.fontFamily ? b.fontFamily : 'default';
+        if (sizeInp) {
+            sizeInp.placeholder = State.docData.meta.fontSizePt || 10.5;
+            sizeInp.value = b && b.fontSizePt ? b.fontSizePt : '';
+        }
+    },
+
+    applyBlockFontFromMenu() {
+        const id = State.contextTargetId;
+        if (!id) return;
+        const famSel = document.getElementById('block-font-family-select');
+        const sizeInp = document.getElementById('block-font-size-input');
+        if (famSel) Actions.setBlockFontFamily(id, famSel.value);
+        if (sizeInp) Actions.setBlockFontSize(id, sizeInp.value);
+        Renderer.renderPages();
+        ManualRenderer.renderAll();
+        Utils.closeModal('context-menu');
+    },
+
     handleBlockMousedown(e, id) {
         State.lastEditableId = id;
         if(e.target.tagName==='IMG') { this.showResizer(e.target); e.stopPropagation(); State.selectedImage=e.target; }

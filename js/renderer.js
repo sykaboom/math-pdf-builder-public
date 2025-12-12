@@ -140,6 +140,7 @@ export const Renderer = {
                 return;
             }
             State.contextTargetId = block.id;
+            Events.populateFontMenu(block.id);
             m.style.display = 'block';
             let left = e.clientX; let top = e.clientY;
             const pad = 8;
@@ -185,6 +186,16 @@ export const Renderer = {
                 answer: "해설 입력… (수식: $...$ / 줄바꿈: Shift+Enter)"
             };
             box.dataset.placeholder = placeholderMap[block.type] || placeholderMap.example;
+
+            const familyKey = block.fontFamily || State.docData.meta.fontFamily || 'serif';
+            const sizePt = block.fontSizePt || State.docData.meta.fontSizePt || 10.5;
+            const familyMap = {
+                serif: "'Noto Serif KR', serif",
+                gothic: "'Nanum Gothic', 'Noto Sans KR', sans-serif",
+                gulim: "Gulim, 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif"
+            };
+            box.style.fontFamily = familyMap[familyKey] || familyMap.serif;
+            box.style.fontSize = sizePt + 'pt';
             
             box.addEventListener('blur', async () => {
                 if(!window.isMathJaxReady) return;

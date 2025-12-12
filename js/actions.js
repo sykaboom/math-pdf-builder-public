@@ -88,6 +88,25 @@ export const Actions = {
         return false;
     },
 
+    setBlockFontFamily(id, familyKey) {
+        const b = State.docData.blocks.find(x => x.id === id);
+        if (!b) return false;
+        if (!familyKey || familyKey === 'default') delete b.fontFamily;
+        else b.fontFamily = familyKey;
+        State.saveHistory();
+        return true;
+    },
+
+    setBlockFontSize(id, sizePt) {
+        const b = State.docData.blocks.find(x => x.id === id);
+        if (!b) return false;
+        const v = parseFloat(sizePt);
+        if (!v || v <= 0) delete b.fontSizePt;
+        else b.fontSizePt = v;
+        State.saveHistory();
+        return true;
+    },
+
     confirmImport(input, overwrite, limit, addSpacer) {
         if(!input) return false;
         let finalBlocks = [];

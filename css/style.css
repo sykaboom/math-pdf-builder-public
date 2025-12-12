@@ -130,6 +130,9 @@ body.drag-over #drop-overlay { display: flex; }
 #context-menu { position: fixed; background: white; border: 1px solid #ccc; box-shadow: 0 4px 15px rgba(0,0,0,0.15); border-radius: 6px; z-index: 9999; display: none; width: 230px; }
 .menu-item { padding: 8px 12px; cursor: pointer; font-size: 13px; display: flex; justify-content: space-between; align-items: center; color: #333; }
 .menu-item:hover { background: #e7f5ff; color: #007bff; }
+.menu-font-row { justify-content: flex-start; gap: 6px; cursor: default; }
+.menu-font-row:hover { background: transparent; color: inherit; }
+.menu-font-row select, .menu-font-row input { font-size: 12px; }
 .menu-sep { height: 1px; background: #eee; margin: 4px 0; }
 .menu-title { font-size: 10px; color: #888; padding: 5px 10px; background: #f8f9fa; font-weight: bold; }
 .shortcut-badge { font-size: 10px; color: #999; background: #f1f3f5; padding: 1px 4px; border-radius: 3px; }

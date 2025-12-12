@@ -5,7 +5,7 @@ Full Content:
 <head>
     <meta charset="UTF-8">
     <title>Math Exam Editor v4.0.1 (Fixed)</title>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;700&family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
+	    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;700&family=Noto+Sans+KR:wght@400;700&family=Nanum+Gothic:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/style.css">
     
     <script src="js/config.js"></script>
@@ -92,10 +92,22 @@ Full Content:
     <div class="menu-sep"></div>
     <div class="menu-item" onclick="addImageBlockBelow()"><span>🖼️ 이미지 블록 아래 추가</span><span class="shortcut-badge">Ctrl+Alt+I</span></div>
     <div class="menu-item" onclick="insertImagePlaceholderAtEnd()"><span>🖼️ 블록 안에 이미지 추가</span><span class="shortcut-badge">-</span></div>
-    <div class="menu-item" onclick="addBlockBelow('spacer')"><span>↕ 여백 블록 추가</span><span class="shortcut-badge">Ctrl+Sh+Click</span></div>
-    <div class="menu-item" onclick="addBlockBelow('break')"><span>⚡ 단 나누기 추가</span><span class="shortcut-badge">Ctrl+Alt+Click</span></div>
-    <div class="menu-sep"></div>
-    <div class="menu-item" onclick="deleteTargetBlock()" style="color:#dc3545;"><span>🗑️ 삭제하기</span><span class="shortcut-badge">Delete</span></div>
+	    <div class="menu-item" onclick="addBlockBelow('spacer')"><span>↕ 여백 블록 추가</span><span class="shortcut-badge">Ctrl+Sh+Click</span></div>
+	    <div class="menu-item" onclick="addBlockBelow('break')"><span>⚡ 단 나누기 추가</span><span class="shortcut-badge">Ctrl+Alt+Click</span></div>
+	    <div class="menu-sep"></div>
+	    <div class="menu-title">폰트</div>
+	    <div class="menu-item menu-font-row">
+	        <select id="block-font-family-select">
+	            <option value="default">기본</option>
+	            <option value="serif">명조</option>
+	            <option value="gulim">굴림</option>
+	            <option value="gothic">나눔고딕</option>
+	        </select>
+	        <input type="number" id="block-font-size-input" min="8" max="20" step="0.5" style="width:60px;">
+	        <button class="btn btn-sm" onclick="applyBlockFont()">적용</button>
+	    </div>
+	    <div class="menu-sep"></div>
+	    <div class="menu-item" onclick="deleteTargetBlock()" style="color:#dc3545;"><span>🗑️ 삭제하기</span><span class="shortcut-badge">Delete</span></div>
 </div>
 
 <nav class="sidebar">
@@ -119,12 +131,24 @@ Full Content:
             <button class="btn btn-success" onclick="FileSystem.openProjectFolder()">📂 작업 폴더 열기</button>
         </div>
 
-        <div class="settings-panel">
-            <div style="font-size:11px; font-weight:bold; margin-bottom:5px; border-bottom:1px solid #ddd; padding-bottom:3px;">⚙️ AI 입력 설정</div>
-            <div class="settings-row"><label>단별 문제 수</label><input type="number" id="setting-limit" value="0"></div>
-            <div class="settings-row"><label>자동 여백</label><input type="checkbox" id="setting-spacer" checked></div>
-        </div>
-    </div>
+	        <div class="settings-panel">
+	            <div style="font-size:11px; font-weight:bold; margin-bottom:5px; border-bottom:1px solid #ddd; padding-bottom:3px;">⚙️ AI 입력 설정</div>
+	            <div class="settings-row"><label>단별 문제 수</label><input type="number" id="setting-limit" value="0"></div>
+	            <div class="settings-row"><label>자동 여백</label><input type="checkbox" id="setting-spacer" checked></div>
+	        </div>
+
+	        <div class="settings-panel" style="margin-bottom:0;">
+	            <div style="font-size:11px; font-weight:bold; margin-bottom:5px; border-bottom:1px solid #ddd; padding-bottom:3px;">🔤 기본 폰트</div>
+	            <div class="settings-row"><label>폰트</label>
+	                <select id="setting-font-family">
+	                    <option value="serif">기본(명조)</option>
+	                    <option value="gulim">굴림체</option>
+	                    <option value="gothic">나눔고딕</option>
+	                </select>
+	            </div>
+	            <div class="settings-row"><label>크기(pt)</label><input type="number" id="setting-font-size" min="8" max="20" step="0.5"></div>
+	        </div>
+	    </div>
 
     <div class="sidebar-section">
         <div class="sidebar-section-title">편집</div>
