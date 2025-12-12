@@ -163,6 +163,12 @@ export const Renderer = {
             if(block.bordered) box.classList.add('bordered-box');
             box.innerHTML=block.content;
             box.contentEditable=true;
+            const placeholderMap = {
+                concept: "개념 내용 입력… (수식: $...$ / 줄바꿈: Shift+Enter)",
+                example: "내용 입력… (수식: $...$ / 줄바꿈: Shift+Enter)",
+                answer: "해설 입력… (수식: $...$ / 줄바꿈: Shift+Enter)"
+            };
+            box.dataset.placeholder = placeholderMap[block.type] || placeholderMap.example;
             
             box.addEventListener('blur', async () => {
                 if(!window.isMathJaxReady) return;
