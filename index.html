@@ -15,6 +15,7 @@ Full Content:
 <body>
 
 <div id="loading-indicator">🔄 처리 중...</div>
+<div id="toast-container"></div>
 <div id="drop-overlay">📂 파일 놓기 (Import)</div>
 <input type="file" id="imgUpload" accept="image/*" style="display:none;">
 
@@ -105,7 +106,7 @@ Full Content:
     
     <div class="settings-panel" style="background:#e8f5e9; border:1px solid #c8e6c9;">
         <div style="font-size:11px; font-weight:bold; margin-bottom:5px;">📂 로컬 작업 폴더 (선택)</div>
-        <div id="folder-status">✅ 폴더 연결됨</div>
+	        <div id="folder-status">⬇️ 저장: 다운로드</div>
         <div class="settings-row"><label>이미지 폴더명</label><input type="text" id="setting-img-folder" value="images" style="width:80px;"></div>
         <button class="btn btn-success" onclick="FileSystem.openProjectFolder()">📂 작업 폴더 열기</button>
     </div>

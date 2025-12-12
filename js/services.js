@@ -77,11 +77,15 @@ export const ManualRenderer = {
 export const FileSystem = {
     dirHandle: null,
     async openProjectFolder() {
-        if (!window.showDirectoryPicker) { alert("브라우저 미지원"); return; }
+        if (!window.showDirectoryPicker) { Utils.showToast("브라우저 미지원", "error"); return; }
         try { 
             this.dirHandle = await window.showDirectoryPicker(); 
-            document.getElementById('folder-status').classList.add('active'); 
-            alert("✅ 폴더 연결됨"); 
+            const statusEl = document.getElementById('folder-status');
+            if (statusEl) {
+                statusEl.classList.add('active');
+                statusEl.textContent = "✅ 폴더 연결됨 (저장: 폴더)";
+            }
+            Utils.showToast("폴더가 연결되었습니다.", "success"); 
             this.loadImagesForDisplay(State.docData.blocks); 
         } catch (e) { }
     },
@@ -118,8 +122,13 @@ export const FileSystem = {
     },
     async saveProjectJSON(syncCallback) {
         syncCallback(); // 저장 전 최신 상태 동기화
-        if (!this.dirHandle) { if(!confirm("로컬 폴더 미연결. 다운로드?")) return; }
         Utils.showLoading("💾 저장 중...");
+
+        const title = (State.docData.meta.title || 'exam').trim();
+        const safeTitle = title.replace(/[\\/:*?"<>|]/g, '').replace(/\s+/g, '_').slice(0, 40) || 'exam';
+        const now = new Date();
+        const stamp = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}`;
+        const filename = `${safeTitle}_${stamp}.json`;
         
         const rawData = JSON.parse(JSON.stringify(State.docData)); 
         rawData.blocks.forEach(block => {
@@ -133,12 +142,13 @@ export const FileSystem = {
 
         if (this.dirHandle) {
             try {
-                const fileHandle = await this.dirHandle.getFileHandle('data.json', { create: true });
+                const fileHandle = await this.dirHandle.getFileHandle(filename, { create: true });
                 const writable = await fileHandle.createWritable(); await writable.write(JSON.stringify(rawData, null, 2)); await writable.close();
-                Utils.hideLoading(); alert("✅ 저장 완료!");
-            } catch(e) { alert("오류: " + e.message); Utils.hideLoading(); }
+                Utils.hideLoading(); Utils.showToast("저장 완료!", "success");
+            } catch(e) { Utils.showToast("저장 실패: " + e.message, "error"); Utils.hideLoading(); }
         } else {
-            const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(rawData, null, 2)], {type:'application/json'})); a.download = 'exam_v3.9.5.json'; a.click(); Utils.hideLoading();
+            const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(rawData, null, 2)], {type:'application/json'})); a.download = filename; a.click(); Utils.hideLoading();
+            Utils.showToast("다운로드로 저장되었습니다.", "success");
         }
     }
 };

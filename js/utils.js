@@ -75,6 +75,19 @@ export const Utils = {
 
     showLoading(msg) { const el=document.getElementById('loading-indicator'); el.innerText=msg; el.style.display='block'; },
     hideLoading() { document.getElementById('loading-indicator').style.display='none'; },
+    showToast(msg, type = 'info', duration = 2000) {
+        const container = document.getElementById('toast-container');
+        if (!container) { alert(msg); return; }
+        const toast = document.createElement('div');
+        toast.className = `toast toast-${type}`;
+        toast.textContent = msg;
+        container.appendChild(toast);
+        requestAnimationFrame(() => toast.classList.add('show'));
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => toast.remove(), 250);
+        }, duration);
+    },
     openModal(id) { document.getElementById(id).style.display = 'flex'; },
     closeModal(id) { document.getElementById(id).style.display = 'none'; }
 };
