@@ -142,13 +142,26 @@ Full Content:
         <button class="btn" onclick="addBlockBelow('break')">⚡ 단 나누기 삽입</button>
     </div>
 
-    <div class="sidebar-section">
-        <div class="sidebar-section-title">보기</div>
-        <div style="margin-bottom:10px;">
-            <span style="font-size:12px;">확대/축소</span>
-            <input type="range" id="zoomRange" min="0.5" max="1.5" step="0.1" value="1.0" style="width: 100%;">
-        </div>
-    </div>
+	    <div class="sidebar-section">
+	        <div class="sidebar-section-title">보기</div>
+	        <div style="margin-bottom:10px;">
+	            <span style="font-size:12px;">확대/축소</span>
+	            <input type="range" id="zoomRange" min="0.5" max="1.5" step="0.1" value="1.0" style="width: 100%;">
+	        </div>
+	        <div class="settings-panel" style="margin-bottom:0;">
+	            <div style="font-size:11px; font-weight:bold; margin-bottom:5px; border-bottom:1px solid #ddd; padding-bottom:3px;">📄 레이아웃</div>
+	            <div class="settings-row"><label>단 구성</label>
+	                <select id="setting-columns">
+	                    <option value="2">2단</option>
+	                    <option value="1">1단</option>
+	                </select>
+	            </div>
+	            <div class="settings-row"><label>상/하 여백(mm)</label><input type="number" id="setting-margin-top" min="5" max="30" step="1"></div>
+	            <div class="settings-row"><label>좌/우 여백(mm)</label><input type="number" id="setting-margin-side" min="5" max="30" step="1"></div>
+	            <div class="settings-row"><label>단 간격(mm)</label><input type="number" id="setting-column-gap" min="0" max="20" step="1"></div>
+	            <div class="settings-row"><label>푸터 텍스트</label><input type="text" id="setting-footer-text"></div>
+	        </div>
+	    </div>
 
 	    <div class="sidebar-section">
 	        <div class="sidebar-section-title">출력</div>

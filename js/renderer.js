@@ -11,8 +11,20 @@ export const Renderer = {
         const meta = State.docData.meta;
         const headerHTML = num === 1 ? 
             `<table class="header-table"><colgroup><col class="col-title"><col class="col-label"><col class="col-input-wide"><col class="col-label"><col class="col-input-narrow"></colgroup><tr><td rowspan="2" class="col-title">TEST</td><td class="col-label">과정</td><td><input class="header-input meta-title" value="${meta.title}"></td><td class="col-label">성명</td><td><input class="header-input"></td></tr><tr><td class="col-label">단원</td><td><input class="header-input meta-subtitle" value="${meta.subtitle}"></td><td class="col-label">점수</td><td></td></tr></table>` : `<div class="header-line"></div>`;
-        const footerHTML = num === 1 ? `<div class="footer-content-first">- ${num} -</div>` : `<div class="footer-line"></div><div>- ${num} -</div>`;
-        div.innerHTML=`<div class="header-area">${headerHTML}</div><div class="body-container"><div class="column left"></div><div class="column right"></div></div><div class="page-footer">${footerHTML}</div>`;
+        const footerText = meta.footerText ? `<div class="footer-text">${meta.footerText}</div>` : '';
+        const footerHTML = num === 1 ? `<div class="footer-content-first">${footerText}<div>- ${num} -</div></div>` : `<div class="footer-line"></div>${footerText}<div>- ${num} -</div>`;
+        const columnsCount = parseInt(meta.columns) === 1 ? 1 : 2;
+        const columnsHTML = columnsCount === 1 ? `<div class="column single"></div>` : `<div class="column left"></div><div class="column right"></div>`;
+        const bodyClass = columnsCount === 1 ? 'body-container single-column' : 'body-container';
+        div.innerHTML=`<div class="header-area">${headerHTML}</div><div class="${bodyClass}">${columnsHTML}</div><div class="page-footer">${footerHTML}</div>`;
+        div.style.padding = `${meta.marginTopMm || 15}mm ${meta.marginSideMm || 10}mm`;
+        if (columnsCount === 2) {
+            const gap = meta.columnGapMm || 5;
+            const leftCol = div.querySelector('.column.left');
+            const rightCol = div.querySelector('.column.right');
+            if (leftCol) leftCol.style.paddingRight = gap + 'mm';
+            if (rightCol) rightCol.style.paddingLeft = gap + 'mm';
+        }
         
         if(num === 1) {
             const titleInp = div.querySelector('.meta-title'); const subInp = div.querySelector('.meta-subtitle');
@@ -41,15 +53,18 @@ export const Renderer = {
         if(State.docData.meta.zoom) { container.style.transform = `scale(${State.docData.meta.zoom})`; container.style.transformOrigin = 'top center'; document.getElementById('zoomRange').value = State.docData.meta.zoom; }
 
         let pageNum = 1; let currentPage = this.createPage(pageNum); container.appendChild(currentPage);
-        let colL = currentPage.querySelector('.left'); let colR = currentPage.querySelector('.right'); let curCol = colL; 
+        const columnsCount = parseInt(State.docData.meta.columns) === 1 ? 1 : 2;
+        let columns = columnsCount === 1 ? [currentPage.querySelector('.column.single')] : [currentPage.querySelector('.column.left'), currentPage.querySelector('.column.right')];
+        let colIndex = 0; let curCol = columns[colIndex];
 
-        // [Fix] 화살표 함수로 this 컨텍스트 유지
         const moveToNextColumn = () => {
-            if (curCol === colL) { curCol = colR; } 
-            else {
+            colIndex++;
+            if (colIndex >= columns.length) {
                 pageNum++; currentPage = this.createPage(pageNum); container.appendChild(currentPage);
-                colL = currentPage.querySelector('.left'); colR = currentPage.querySelector('.right'); curCol = colL;
+                columns = columnsCount === 1 ? [currentPage.querySelector('.column.single')] : [currentPage.querySelector('.column.left'), currentPage.querySelector('.column.right')];
+                colIndex = 0;
             }
+            curCol = columns[colIndex];
         };
 
         State.docData.blocks.forEach((block) => { 
@@ -198,7 +213,11 @@ export const Renderer = {
         const container = document.getElementById('paper-container');
         let pages = Array.from(container.querySelectorAll('.page'));
         let columns = [];
-        pages.forEach(p => { columns.push(p.querySelector('.column.left')); columns.push(p.querySelector('.column.right')); });
+        const columnsCount = parseInt(State.docData.meta.columns) === 1 ? 1 : 2;
+        pages.forEach(p => {
+            if (columnsCount === 1) columns.push(p.querySelector('.column.single'));
+            else { columns.push(p.querySelector('.column.left')); columns.push(p.querySelector('.column.right')); }
+        });
         const MAX_LOOPS = 50; let loopCount = 0;
         for (let i = 0; i < columns.length; i++) {
             let col = columns[i];
@@ -209,8 +228,13 @@ export const Renderer = {
                 let nextCol = columns[i + 1];
                 if (!nextCol) {
                     const newPageNum = pages.length + 1; const newPage = this.createPage(newPageNum); container.appendChild(newPage); pages.push(newPage);
-                    const nl = newPage.querySelector('.column.left'); const nr = newPage.querySelector('.column.right');
-                    columns.push(nl); columns.push(nr); nextCol = nl;
+                    if (columnsCount === 1) {
+                        const ns = newPage.querySelector('.column.single');
+                        columns.push(ns); nextCol = ns;
+                    } else {
+                        const nl = newPage.querySelector('.column.left'); const nr = newPage.querySelector('.column.right');
+                        columns.push(nl); columns.push(nr); nextCol = nl;
+                    }
                 }
                 if (nextCol.firstChild) nextCol.insertBefore(lastBlock, nextCol.firstChild); else nextCol.appendChild(lastBlock);
             }

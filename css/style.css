@@ -60,10 +60,13 @@ body.drag-over #drop-overlay { display: flex; }
 .page-footer { flex-shrink: 0; margin-top: auto; width: 100%; z-index: 10; background: white; text-align: center; font-size: 10pt; }
 .footer-content-first { border-top: 1px solid #000; padding-top: 5px; }
 .footer-line { width: 100%; border-top: 1px solid #000; height: 1px; margin-bottom: 5px; }
+.footer-text { font-size: 9pt; margin-bottom: 2px; }
 .body-container { flex-grow: 1; display: flex; position: relative; width: 100%; align-items: flex-start; }
 .body-container::after { content: ''; position: absolute; left: 50%; top: 0; bottom: 0; width: 0; border-left: 1px solid #000; transform: translateX(-0.5px); z-index: 0; }
 .column { width: 50%; height: 100%; display: flex; flex-direction: column; padding-right: 5mm; z-index: 1; }
 .column.right { padding-right: 0; padding-left: 5mm; }
+.body-container.single-column::after { display: none; }
+.column.single { width: 100%; padding-right: 0; padding-left: 0; }
 
 /* [블록] */
 .block-wrapper { position: relative; margin-bottom: 2px; width: 100%; flex-shrink: 0; border-radius: 4px; border: 1px solid transparent; transition: background 0.1s; padding-right: 0; overflow: visible; }
@@ -149,6 +152,7 @@ body.drag-over #drop-overlay { display: flex; }
 .settings-row { display:flex; justify-content:space-between; align-items:center; font-size:11px; margin-bottom:5px; }
 .settings-row label { color:#333; font-weight:bold; }
 .settings-row input[type="number"], .settings-row input[type="text"] { width:60px; padding:2px; text-align:center; border:1px solid #ddd; border-radius:3px; }
+.settings-row select { width: 80px; padding: 2px; text-align: center; border:1px solid #ddd; border-radius:3px; background:#fff; font-size:11px; }
 #folder-status { font-size: 11px; color: #666; font-weight: bold; display: block; margin-bottom: 5px; }
 #folder-status.active { color: #28a745; }
 
