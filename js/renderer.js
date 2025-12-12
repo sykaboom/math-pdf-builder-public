@@ -124,7 +124,15 @@ export const Renderer = {
                 return;
             }
             State.contextTargetId = block.id;
-            m.style.display = 'block'; m.style.left = e.clientX + 'px'; m.style.top = e.clientY + 'px';
+            m.style.display = 'block';
+            let left = e.clientX; let top = e.clientY;
+            const pad = 8;
+            const rect = m.getBoundingClientRect();
+            if (left + rect.width > window.innerWidth - pad) left = window.innerWidth - rect.width - pad;
+            if (top + rect.height > window.innerHeight - pad) top = window.innerHeight - rect.height - pad;
+            if (left < pad) left = pad;
+            if (top < pad) top = pad;
+            m.style.left = left + 'px'; m.style.top = top + 'px';
         };
         wrap.appendChild(handle);
 

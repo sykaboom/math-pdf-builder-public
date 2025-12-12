@@ -179,7 +179,32 @@ export const Events = {
             if (menu && menu.style.display === 'block') { if (!e.target.closest('#context-menu') && !e.target.closest('.block-handle')) menu.style.display = 'none'; }
             if (!e.target.closest('.image-placeholder') && !e.target.closest('#imgUpload')) { if(State.selectedPlaceholder) { State.selectedPlaceholder.classList.remove('selected'); State.selectedPlaceholder.setAttribute('contenteditable', 'false'); } State.selectedPlaceholder = null; } 
         });
-        document.addEventListener('mouseup', (e) => { setTimeout(() => { const sel = window.getSelection(); if (sel.rangeCount && !sel.isCollapsed) { const range = sel.getRangeAt(0); const container = range.commonAncestorContainer.nodeType===1 ? range.commonAncestorContainer : range.commonAncestorContainer.parentNode; if (container.closest('.editable-box')) { const rect = range.getBoundingClientRect(); const tb = document.getElementById('floating-toolbar'); tb.style.display = 'flex'; tb.style.top = (rect.top + window.scrollY - 45) + 'px'; tb.style.left = (rect.left + window.scrollX + rect.width / 2) + 'px'; } } }, 10); });
+        document.addEventListener('mouseup', (e) => { setTimeout(() => {
+            const sel = window.getSelection();
+            if (sel.rangeCount && !sel.isCollapsed) {
+                const range = sel.getRangeAt(0);
+                const container = range.commonAncestorContainer.nodeType===1 ? range.commonAncestorContainer : range.commonAncestorContainer.parentNode;
+                if (container.closest('.editable-box')) {
+                    const rect = range.getBoundingClientRect();
+                    const tb = document.getElementById('floating-toolbar');
+                    const desiredTop = rect.top + window.scrollY - 45;
+                    const desiredLeft = rect.left + window.scrollX + rect.width / 2;
+                    tb.style.display = 'flex';
+                    tb.style.top = desiredTop + 'px';
+                    tb.style.left = desiredLeft + 'px';
+
+                    const pad = 8;
+                    const tbRect = tb.getBoundingClientRect();
+                    let top = desiredTop; let left = desiredLeft;
+                    if (tbRect.left < pad) left += pad - tbRect.left;
+                    if (tbRect.right > window.innerWidth - pad) left -= tbRect.right - (window.innerWidth - pad);
+                    if (tbRect.top < pad) top += pad - tbRect.top;
+                    if (tbRect.bottom > window.innerHeight - pad) top -= tbRect.bottom - (window.innerHeight - pad);
+                    tb.style.top = top + 'px';
+                    tb.style.left = left + 'px';
+                }
+            }
+        }, 10); });
 
         document.addEventListener('click', (e) => {
             const btn = e.target.closest('.image-load-btn');
