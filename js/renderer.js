@@ -92,8 +92,8 @@ export const Renderer = {
         if(block.bgGray) wrap.classList.add('bg-gray-block'); 
 
         const actions = document.createElement('div'); actions.className = 'block-actions';
-        const btnBr = document.createElement('button'); btnBr.className = 'block-action-btn'; btnBr.innerText = '⤵'; btnBr.onclick=(e)=>{ e.stopPropagation(); this.performAndRender(() => Actions.addBlockBelow('break', block.id)); };
-        const btnSp = document.createElement('button'); btnSp.className = 'block-action-btn'; btnSp.innerText = '▱'; btnSp.onclick=(e)=>{ e.stopPropagation(); this.performAndRender(() => Actions.addBlockBelow('spacer', block.id)); };
+        const btnBr = document.createElement('button'); btnBr.className = 'block-action-btn'; btnBr.innerText = '⤵'; btnBr.title = '단 나누기 추가'; btnBr.onclick=(e)=>{ e.stopPropagation(); this.performAndRender(() => Actions.addBlockBelow('break', block.id)); };
+        const btnSp = document.createElement('button'); btnSp.className = 'block-action-btn'; btnSp.innerText = '▱'; btnSp.title = '여백 블록 추가'; btnSp.onclick=(e)=>{ e.stopPropagation(); this.performAndRender(() => Actions.addBlockBelow('spacer', block.id)); };
         actions.appendChild(btnBr); actions.appendChild(btnSp); wrap.appendChild(actions);
 
         wrap.addEventListener('click', (e) => {
