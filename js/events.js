@@ -254,8 +254,21 @@ export const Events = {
         
         document.addEventListener('dblclick', (e) => {
             if (!State.renderingEnabled) return;
-            const mjx = e.target.closest('mjx-container'); if (mjx) { e.preventDefault(); e.stopPropagation(); ManualRenderer.revertToSource(mjx); Renderer.syncBlock(mjx.closest('.block-wrapper').dataset.id); return; }
-            const blank = e.target.closest('.blank-box'); if (blank) { e.preventDefault(); e.stopPropagation(); const text = blank.innerText; blank.replaceWith(document.createTextNode(`[빈칸:${text}]`)); Renderer.syncBlock(blank.closest('.block-wrapper').dataset.id); return; }
+            const mjx = e.target.closest('mjx-container');
+            if (mjx) {
+                e.preventDefault(); e.stopPropagation();
+                ManualRenderer.revertToSource(mjx);
+                Renderer.syncBlock(mjx.closest('.block-wrapper').dataset.id);
+                return;
+            }
+            const blank = e.target.closest('.blank-box');
+            if (blank) {
+                e.preventDefault(); e.stopPropagation();
+                const text = blank.innerText;
+                blank.replaceWith(document.createTextNode(`[빈칸:${text}]`));
+                Renderer.syncBlock(blank.closest('.block-wrapper').dataset.id);
+                return;
+            }
             const placeholder = e.target.closest('.image-placeholder');
             if (placeholder) {
                 e.preventDefault(); e.stopPropagation();
@@ -263,6 +276,42 @@ export const Events = {
                 const id = wrap ? wrap.dataset.id : null;
                 const label = placeholder.dataset ? (placeholder.dataset.label || '') : '';
                 placeholder.replaceWith(document.createTextNode(`[이미지:${label}]`));
+                if (id) Renderer.syncBlock(id);
+                return;
+            }
+            const customBox = e.target.closest('.custom-box');
+            if (customBox) {
+                e.preventDefault(); e.stopPropagation();
+                const wrap = customBox.closest('.block-wrapper');
+                const id = wrap ? wrap.dataset.id : null;
+                let labelText = '';
+                const labelEl = customBox.querySelector('.box-label');
+                if (labelEl) {
+                    labelText = labelEl.textContent.replace(/[<>]/g, '').trim();
+                }
+                const contentEl = customBox.querySelector('.box-content');
+                let bodyText = '';
+                if (contentEl) {
+                    const cleaned = Utils.cleanRichContentToTex(contentEl.innerHTML);
+                    const tmp = document.createElement('div');
+                    tmp.innerHTML = cleaned;
+                    bodyText = (tmp.innerText || '').replace(/\u00A0/g, ' ').trim();
+                }
+                const startToken = labelText ? `[블록박스_${labelText}]` : `[블록박스]`;
+                const endToken = `[/블록박스]`;
+                const frag = document.createDocumentFragment();
+                frag.appendChild(document.createTextNode(startToken));
+                frag.appendChild(document.createElement('br'));
+                if (bodyText) {
+                    const lines = bodyText.split(/\n/);
+                    lines.forEach((ln, idx) => {
+                        frag.appendChild(document.createTextNode(ln));
+                        if (idx < lines.length - 1) frag.appendChild(document.createElement('br'));
+                    });
+                }
+                frag.appendChild(document.createElement('br'));
+                frag.appendChild(document.createTextNode(endToken));
+                customBox.replaceWith(frag);
                 if (id) Renderer.syncBlock(id);
                 return;
             }
