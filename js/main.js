@@ -54,9 +54,28 @@ window.printWithMath = () => {
 window.printPreflightAction = async (mode) => {
     Utils.closeModal('print-preflight-modal');
     if (mode === 'cancel') { printPreflightData = null; return; }
-    if (mode === 'render') await ManualRenderer.renderAll();
+    if (mode === 'render') await ManualRenderer.renderAll(null, { force: true });
     doPrint();
     printPreflightData = null;
+};
+
+const updateRenderingToggleUI = () => {
+    const btn = document.getElementById('toggle-rendering-btn');
+    if (!btn) return;
+    btn.textContent = State.renderingEnabled ? '🔓 렌더링 해제 (편집 모드)' : '🔒 렌더링 적용 (렌더 모드)';
+};
+
+window.toggleRenderingMode = async (forceState) => {
+    const next = (typeof forceState === 'boolean') ? forceState : !State.renderingEnabled;
+    State.renderingEnabled = next;
+    Renderer.renderPages();
+    if (next) await ManualRenderer.renderAll();
+    updateRenderingToggleUI();
+};
+
+window.renderAllSafe = async () => {
+    if (!State.renderingEnabled) { await window.toggleRenderingMode(true); return; }
+    await ManualRenderer.renderAll();
 };
 window.insertImageBoxSafe = () => Events.insertImageBoxSafe();
 window.addImageBlockBelow = (id) => Events.addImageBlockBelow(id);
@@ -82,6 +101,7 @@ window.addEventListener('DOMContentLoaded', () => {
     Renderer.renderPages(); 
     State.saveHistory(); 
     Events.initGlobalListeners();
+    updateRenderingToggleUI();
 
     // [Fix] 줌 최적화 로직 복구 (입력시 CSS Transform, 놓으면 렌더링)
     const zoomRange = document.getElementById('zoomRange');

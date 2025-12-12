@@ -198,12 +198,19 @@ export const Renderer = {
             box.style.fontSize = sizePt + 'pt';
             
             box.addEventListener('blur', async () => {
+                if (!State.renderingEnabled) {
+                    Actions.updateBlockContent(block.id, Utils.cleanRichContentToTex(box.innerHTML), true);
+                    this.debouncedRebalance();
+                    this.updatePreflightPanel();
+                    return;
+                }
                 if(!window.isMathJaxReady) return;
                 if(box.innerText.includes('[빈칸:') || box.innerText.includes('$') || box.innerText.includes('[이미지')) {
                     await ManualRenderer.typesetElement(box);
                 }
                 Actions.updateBlockContent(block.id, Utils.cleanRichContentToTex(box.innerHTML), true);
                 this.debouncedRebalance(); 
+                this.updatePreflightPanel();
             });
             box.oninput=()=>{ 
                 const cleanHTML = Utils.cleanRichContentToTex(box.innerHTML); 

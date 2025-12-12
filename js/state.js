@@ -18,6 +18,7 @@ export const State = {
     selectedImage: null,
     lastFocusId: null,
     lastEditableId: null,
+    renderingEnabled: true,
     keysPressed: {},
 
     saveHistory(debounceTime = 0) {

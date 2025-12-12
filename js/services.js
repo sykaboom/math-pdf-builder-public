@@ -6,7 +6,8 @@ export const ManualRenderer = {
     mathCache: new Map(),
     isRendering: false,
 
-    async renderAll(callback) {
+    async renderAll(callback, options = {}) {
+        if (!options.force && State.renderingEnabled === false) return;
         if (!window.isMathJaxReady) { console.log("MathJax Waiting..."); return; }
         if (this.isRendering) return; 
         this.isRendering = true;

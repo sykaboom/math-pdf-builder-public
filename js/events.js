@@ -253,6 +253,7 @@ export const Events = {
         });
         
         document.addEventListener('dblclick', (e) => {
+            if (!State.renderingEnabled) return;
             const mjx = e.target.closest('mjx-container'); if (mjx) { e.preventDefault(); e.stopPropagation(); ManualRenderer.revertToSource(mjx); Renderer.syncBlock(mjx.closest('.block-wrapper').dataset.id); return; }
             const blank = e.target.closest('.blank-box'); if (blank) { e.preventDefault(); e.stopPropagation(); const text = blank.innerText; blank.replaceWith(document.createTextNode(`[빈칸:${text}]`)); Renderer.syncBlock(blank.closest('.block-wrapper').dataset.id); return; }
             const placeholder = e.target.closest('.image-placeholder');
