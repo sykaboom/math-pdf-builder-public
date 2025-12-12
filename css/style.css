@@ -141,6 +141,11 @@ body.drag-over #drop-overlay { display: flex; }
 .btn-sm { padding: 4px 8px; width: auto; font-size: 12px; }
 
 .settings-panel { background:#f8f9fa; border:1px solid #dee2e6; border-radius:6px; padding:10px; margin-bottom:15px; }
+.preflight-panel { font-size: 12px; }
+.preflight-item { padding: 6px 4px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed #e5e5e5; }
+.preflight-item:last-child { border-bottom: none; }
+.preflight-item.warn { color: #dc3545; font-weight: 700; }
+.block-wrapper.preflight-highlight { box-shadow: 0 0 0 2px #dc3545; background-color: rgba(220, 53, 69, 0.06); }
 .settings-row { display:flex; justify-content:space-between; align-items:center; font-size:11px; margin-bottom:5px; }
 .settings-row label { color:#333; font-weight:bold; }
 .settings-row input[type="number"], .settings-row input[type="text"] { width:60px; padding:2px; text-align:center; border:1px solid #ddd; border-radius:3px; }

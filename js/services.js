@@ -16,7 +16,7 @@ export const ManualRenderer = {
             for (let box of boxes) await this.typesetElement(box);
             if (callback) callback(); 
         } catch(e) { console.error("Render Error:", e); } 
-        finally { this.isRendering = false; Utils.hideLoading(); }
+        finally { this.isRendering = false; Utils.hideLoading(); document.dispatchEvent(new Event('preflight:update')); }
     },
 
     async typesetElement(element) {

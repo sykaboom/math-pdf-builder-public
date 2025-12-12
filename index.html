@@ -150,12 +150,16 @@ Full Content:
         </div>
     </div>
 
-    <div class="sidebar-section">
-        <div class="sidebar-section-title">출력</div>
-        <button class="btn btn-purple" onclick="ManualRenderer.renderAll()" style="margin-bottom:8px; padding: 12px;">
-            ⚡ 수식 변환 (Render)<br>
-            <span style="font-size:10px; opacity:0.8;">Click: $..$ → SVG / DblClick: Edit</span>
-        </button>
+	    <div class="sidebar-section">
+	        <div class="sidebar-section-title">출력</div>
+	        <div id="preflight-panel" class="settings-panel preflight-panel" style="margin-bottom:8px;">
+	            <div class="preflight-item" data-type="math">미렌더 수식: <span id="preflight-math-count">0</span>개</div>
+	            <div class="preflight-item" data-type="image">미삽입 이미지 박스: <span id="preflight-image-count">0</span>개</div>
+	        </div>
+	        <button class="btn btn-purple" onclick="ManualRenderer.renderAll()" style="margin-bottom:8px; padding: 12px;">
+	            ⚡ 수식 변환 (Render)<br>
+	            <span style="font-size:10px; opacity:0.8;">Click: $..$ → SVG / DblClick: Edit</span>
+	        </button>
         <button class="btn btn-danger" onclick="printWithMath()">🖨️ 인쇄하기</button>
     </div>
 

@@ -154,6 +154,16 @@ export const Events = {
             }
         });
 
+        const preflightPanel = document.getElementById('preflight-panel');
+        if (preflightPanel) {
+            preflightPanel.addEventListener('click', (e) => {
+                const item = e.target.closest('.preflight-item');
+                if (!item) return;
+                Renderer.jumpToPreflight(item.dataset.type);
+            });
+        }
+        document.addEventListener('preflight:update', () => Renderer.updatePreflightPanel());
+
         // [Fix] 스크롤 시 팝업 닫기 추가
         window.addEventListener('scroll', () => {
             document.getElementById('context-menu').style.display = 'none';

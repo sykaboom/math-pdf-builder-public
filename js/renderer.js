@@ -62,6 +62,7 @@ export const Renderer = {
         });
 
         if (workspace) workspace.scrollTop = scrollTop;
+        this.updatePreflightPanel();
         
         if(State.lastFocusId) {
             const focusId = State.lastFocusId;
@@ -183,6 +184,7 @@ export const Renderer = {
                 Actions.updateBlockContent(block.id, cleanHTML, false); 
                 State.autosaveDraft(1000);
                 this.debouncedRebalance(); // 입력 시 자동 레이아웃 조정
+                this.updatePreflightPanel();
             };
             // 렌더링 콜백을 Events로 전달
             box.onkeydown = (e) => Events.handleBlockKeydown(e, block.id, box, () => { this.renderPages(); ManualRenderer.renderAll(); });
@@ -216,6 +218,43 @@ export const Renderer = {
     }, 300),
 
     debouncedRebalance: function() { this.rebalanceLayout(); },
+
+    updatePreflightPanel() {
+        const panel = document.getElementById('preflight-panel');
+        if (!panel) return;
+        const mathBoxes = Array.from(document.querySelectorAll('.editable-box')).filter(b => (b.textContent || '').includes('$'));
+        const placeholders = document.querySelectorAll('.image-placeholder');
+        const mathCount = mathBoxes.length;
+        const imageCount = placeholders.length;
+
+        const mathEl = document.getElementById('preflight-math-count');
+        const imgEl = document.getElementById('preflight-image-count');
+        if (mathEl) mathEl.textContent = mathCount;
+        if (imgEl) imgEl.textContent = imageCount;
+
+        panel.querySelectorAll('.preflight-item').forEach(item => {
+            const type = item.dataset.type;
+            const count = type === 'math' ? mathCount : imageCount;
+            if (count > 0) item.classList.add('warn'); else item.classList.remove('warn');
+        });
+    },
+
+    jumpToPreflight(type) {
+        let wrap = null;
+        if (type === 'math') {
+            const box = Array.from(document.querySelectorAll('.editable-box')).find(b => (b.textContent || '').includes('$'));
+            if (box) wrap = box.closest('.block-wrapper');
+        } else if (type === 'image') {
+            const ph = document.querySelector('.image-placeholder');
+            if (ph) wrap = ph.closest('.block-wrapper');
+        }
+        if (!wrap) return;
+        wrap.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        wrap.classList.add('preflight-highlight');
+        setTimeout(() => wrap.classList.remove('preflight-highlight'), 1500);
+        const box = wrap.querySelector('.editable-box');
+        if (box) box.focus();
+    },
     
     // [Fix] 누락된 수식 동기화 함수 복구
     syncBlock(id) {
