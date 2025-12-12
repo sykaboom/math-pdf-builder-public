@@ -1,8 +1,10 @@
 /* Filename: css/style.css */
 
 /* [기본 설정] */
-* { box-sizing: border-box; outline: none; }
+* { box-sizing: border-box; }
 body { margin: 0; padding: 0; height: 100vh; overflow: hidden; display: flex; font-family: 'Noto Sans KR', sans-serif; background-color: #525659; }
+
+:focus-visible { outline: 2px solid #007bff; outline-offset: 2px; }
 
 /* [수식 Atom 스타일] */
 mjx-container { display: inline-block !important; vertical-align: middle !important; margin: 0 2px; cursor: pointer; user-select: none; color: inherit !important; }
@@ -73,6 +75,7 @@ body.drag-over #drop-overlay { display: flex; }
 .block-action-btn:hover { background: #007bff; color: white; border-color: #007bff; }
 
 .editable-box { border-radius: 4px; padding: 2px 2px; font-family: 'Noto Serif KR', serif; font-size: 10.5pt; line-height: 1.6; text-align: inherit; word-break: break-all; min-height: 28px; width: 100%; cursor: text; }
+.editable-box:focus { box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.35); border-radius: 4px; }
 .editable-box.bordered-box { border: 1px solid #333; padding: 8px 10px; border-radius: 6px; background: #fff; }
 .editable-box img { max-width: 100%; cursor: pointer; } 
 .editable-box img[src=""]::before { content: '❌ 이미지 없음'; color: red; border: 1px dashed red; padding: 10px; display: block; }
