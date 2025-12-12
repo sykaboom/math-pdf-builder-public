@@ -134,13 +134,14 @@ Full Content:
         <div class="settings-row"><label>자동 여백</label><input type="checkbox" id="setting-spacer" checked></div>
     </div>
 
-    <div style="border-top:1px solid #eee; padding-top:10px;">
-        <button class="btn" onclick="openModal('import-modal')" style="border-left: 3px solid #6f42c1; color: #6f42c1; font-weight:bold;">📥 AI 데이터 입력 (Alt+I)</button>
-        <button class="btn btn-warning" onclick="resetProject()">🗑️ 초기화 (Alt+N)</button>
-        <button class="btn btn-primary" onclick="saveProjectJSON()">💾 저장 (Ctrl+S)</button>
-        <button class="btn" onclick="document.getElementById('fileInput').click()">📂 열기 (Ctrl+O)</button>
-        <input type="file" id="fileInput" accept=".json" style="display:none" onchange="loadProjectJSONFromInput(this)">
-    </div>
+	    <div style="border-top:1px solid #eee; padding-top:10px;">
+	        <button class="btn" onclick="openModal('import-modal')" style="border-left: 3px solid #6f42c1; color: #6f42c1; font-weight:bold;">📥 AI 데이터 입력 (Alt+I)</button>
+	        <button class="btn btn-warning" onclick="resetProject()">🗑️ 초기화 (Alt+N)</button>
+	        <button class="btn btn-primary" onclick="saveProjectJSON()">💾 저장 (Ctrl+S)</button>
+	        <button class="btn" onclick="openModal('find-replace-modal'); document.getElementById('fr-find-input').focus()">🔍 찾기/바꾸기 (Ctrl+Shift+H)</button>
+	        <button class="btn" onclick="document.getElementById('fileInput').click()">📂 열기 (Ctrl+O)</button>
+	        <input type="file" id="fileInput" accept=".json" style="display:none" onchange="loadProjectJSONFromInput(this)">
+	    </div>
 
     <div class="shortcut-guide">
         <div class="shortcut-header">⌨️ 단축키 가이드</div>
@@ -155,10 +156,11 @@ Full Content:
             <div class="shortcut-item"><span>이미지 박스</span><span class="shortcut-key">Ctrl+Alt+I</span></div>
             <div class="shortcut-item"><span>회색 배경</span><span class="shortcut-key">Ctrl+Alt+G</span></div>
             <div class="shortcut-item"><span>테두리 박스</span><span class="shortcut-key">Ctrl+Alt+B</span></div>
-            <div class="shortcut-item"><span>실행 취소</span><span class="shortcut-key">Ctrl+Z</span></div>
-            <div class="shortcut-item"><span>저장하기</span><span class="shortcut-key">Ctrl+S</span></div>
-        </div>
-    </div>
+	            <div class="shortcut-item"><span>실행 취소</span><span class="shortcut-key">Ctrl+Z</span></div>
+	            <div class="shortcut-item"><span>저장하기</span><span class="shortcut-key">Ctrl+S</span></div>
+	            <div class="shortcut-item"><span>찾기/바꾸기</span><span class="shortcut-key">Ctrl+Shift+H</span></div>
+	        </div>
+	    </div>
 
     <div style="margin-top:auto;">
         <button class="btn btn-danger" onclick="printWithMath()">🖨️ 인쇄하기</button>
