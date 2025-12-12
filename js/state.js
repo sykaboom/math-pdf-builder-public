@@ -9,6 +9,7 @@ export const State = {
     historyStack: [],
     historyIndex: -1,
     renderTimer: null,
+    draftTimer: null,
     
     // 런타임 상태
     contextTargetId: null,
@@ -40,6 +41,22 @@ export const State = {
         if (debounceTime > 0) {
             clearTimeout(this.renderTimer);
             this.renderTimer = setTimeout(doSave, debounceTime);
+        } else {
+            doSave();
+        }
+    },
+
+    autosaveDraft(debounceTime = 0) {
+        const doSave = () => {
+            const cleanData = JSON.parse(JSON.stringify(this.docData));
+            cleanData.blocks.forEach(b => b.content = Utils.cleanRichContentToTex(b.content));
+            const str = JSON.stringify(cleanData);
+            localStorage.setItem('editorAutoSave', str);
+        };
+
+        if (debounceTime > 0) {
+            clearTimeout(this.draftTimer);
+            this.draftTimer = setTimeout(doSave, debounceTime);
         } else {
             doSave();
         }
