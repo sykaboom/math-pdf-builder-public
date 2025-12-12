@@ -24,6 +24,33 @@ export const ManualRenderer = {
         if (element.querySelector('mjx-container') || element.querySelector('.blank-box') || element.querySelector('.image-placeholder')) {
             element.innerHTML = Utils.cleanRichContentToTex(element.innerHTML);
         }
+        // [Fix] 에디터에서 직접 타이핑한 블록박스 문법도 렌더링
+        const renderBox = (label, bodyHtml) => {
+            let body = (bodyHtml || '').trim();
+            body = body.replace(/^(<br\s*\/?>)+/gi, '').replace(/(<br\s*\/?>)+$/gi, '');
+            body = body.replace(/\n/g, '<br>');
+            if (label) {
+                const safeLabel = label
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;');
+                return `<div class="custom-box labeled-box"><div class="box-label">&lt; ${safeLabel} &gt;</div><div class="box-content">${body}</div></div>`;
+            }
+            return `<div class="custom-box simple-box"><div class="box-content">${body}</div></div>`;
+        };
+
+        const multilineBoxRegex = /\[블록박스(?:_([^\]]+))?\]\s*(?::)?\s*([\s\S]*?)\[\/블록박스\]/g;
+        element.innerHTML = element.innerHTML.replace(multilineBoxRegex, (m, label, body) => {
+            return renderBox((label || '').trim(), body);
+        });
+
+        const inlineBoxRegex = /\[블록박스(?:_([^\]]+))?\]\s*(?::)?\s*([\s\S]*?)(?=(<br\s*\/?>|<\/div>|<\/p>|$))/gi;
+        element.innerHTML = element.innerHTML.replace(inlineBoxRegex, (m, label, body) => {
+            const trimmedBody = (body || '').replace(/^\s+/, '');
+            if (!trimmedBody.trim()) return m; // 종료 토큰 누락 등은 원문 유지
+            return renderBox((label || '').trim(), trimmedBody);
+        });
         element.innerHTML = element.innerHTML.replace(/\[빈칸:(.*?)\]/g, '<span class="blank-box" contenteditable="false">$1</span>');
         element.innerHTML = element.innerHTML.replace(/\[이미지\s*:\s*(.*?)\]/g, (m, label) => Utils.getImagePlaceholderHTML(label));
 
