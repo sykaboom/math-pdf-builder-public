@@ -29,19 +29,66 @@ export const Events = {
     },
     
     insertImageBoxSafe() {
-        if(document.activeElement && document.activeElement.isContentEditable) { document.execCommand('insertHTML', false, `<span class="image-placeholder" contenteditable="false">이미지 박스 (Click to Select)</span>`); } 
-        else { 
-             // Actions 호출 후 결과에 따라 렌더링
-             if(Actions.addBlockBelow('image')) {
-                 Renderer.renderPages();
-                 ManualRenderer.renderAll();
-             }
+        const active = document.activeElement;
+        if(active && active.isContentEditable) {
+            const wrap = active.closest('.block-wrapper');
+            const id = wrap ? wrap.dataset.id : null;
+            document.execCommand('insertHTML', false, Utils.getImagePlaceholderHTML());
+            if (id) {
+                Actions.updateBlockContent(id, Utils.cleanRichContentToTex(active.innerHTML), true);
+                Renderer.debouncedRebalance();
+                State.lastEditableId = id;
+            }
+            return;
+        }
+
+        const targetId = State.lastEditableId || State.contextTargetId;
+        if (targetId) {
+            const box = document.querySelector(`.block-wrapper[data-id="${targetId}"] .editable-box`);
+            if (box) {
+                box.focus();
+                const r = document.createRange(); r.selectNodeContents(box); r.collapse(false);
+                const s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+                document.execCommand('insertHTML', false, Utils.getImagePlaceholderHTML());
+                Actions.updateBlockContent(targetId, Utils.cleanRichContentToTex(box.innerHTML), true);
+                Renderer.debouncedRebalance();
+                return;
+            }
+        }
+
+        if(Actions.addBlockBelow('image')) {
+            Renderer.renderPages();
+            ManualRenderer.renderAll();
         }
     },
 
+    addImageBlockBelow(refId) {
+        const targetId = refId || State.contextTargetId;
+        if (Actions.addBlockBelow('image', targetId)) {
+            Renderer.renderPages();
+            ManualRenderer.renderAll();
+        }
+    },
+
+    insertImagePlaceholderAtEnd(refId) {
+        const targetId = refId || State.contextTargetId;
+        if (!targetId) return;
+        const box = document.querySelector(`.block-wrapper[data-id="${targetId}"] .editable-box`);
+        if (!box) return;
+        box.focus();
+        const r = document.createRange(); r.selectNodeContents(box); r.collapse(false);
+        const s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+        document.execCommand('insertHTML', false, `<br>${Utils.getImagePlaceholderHTML()}`);
+        Actions.updateBlockContent(targetId, Utils.cleanRichContentToTex(box.innerHTML), true);
+        Renderer.debouncedRebalance();
+        State.lastEditableId = targetId;
+    },
+
     handleBlockMousedown(e, id) {
+        State.lastEditableId = id;
         if(e.target.tagName==='IMG') { this.showResizer(e.target); e.stopPropagation(); State.selectedImage=e.target; }
-        if(e.target.classList.contains('image-placeholder')) { e.stopPropagation(); if(State.selectedPlaceholder) State.selectedPlaceholder.classList.remove('selected'); State.selectedPlaceholder = e.target; State.selectedPlaceholder.classList.add('selected'); State.selectedPlaceholder.setAttribute('contenteditable', 'false'); }
+        const placeholder = e.target.closest('.image-placeholder');
+        if(placeholder) { e.stopPropagation(); if(State.selectedPlaceholder) State.selectedPlaceholder.classList.remove('selected'); State.selectedPlaceholder = placeholder; State.selectedPlaceholder.classList.add('selected'); State.selectedPlaceholder.setAttribute('contenteditable', 'false'); }
     },
 
     handleBlockKeydown(e, id, box, renderCallback) {
@@ -130,14 +177,36 @@ export const Events = {
             if (!e.target.closest('img') && !e.target.closest('#image-resizer')) this.hideResizer(); 
             const menu = document.getElementById('context-menu');
             if (menu && menu.style.display === 'block') { if (!e.target.closest('#context-menu') && !e.target.closest('.block-handle')) menu.style.display = 'none'; }
-            if (!e.target.classList.contains('image-placeholder') && !e.target.closest('#imgUpload')) { if(State.selectedPlaceholder) { State.selectedPlaceholder.classList.remove('selected'); State.selectedPlaceholder.setAttribute('contenteditable', 'false'); } State.selectedPlaceholder = null; } 
+            if (!e.target.closest('.image-placeholder') && !e.target.closest('#imgUpload')) { if(State.selectedPlaceholder) { State.selectedPlaceholder.classList.remove('selected'); State.selectedPlaceholder.setAttribute('contenteditable', 'false'); } State.selectedPlaceholder = null; } 
         });
         document.addEventListener('mouseup', (e) => { setTimeout(() => { const sel = window.getSelection(); if (sel.rangeCount && !sel.isCollapsed) { const range = sel.getRangeAt(0); const container = range.commonAncestorContainer.nodeType===1 ? range.commonAncestorContainer : range.commonAncestorContainer.parentNode; if (container.closest('.editable-box')) { const rect = range.getBoundingClientRect(); const tb = document.getElementById('floating-toolbar'); tb.style.display = 'flex'; tb.style.top = (rect.top + window.scrollY - 45) + 'px'; tb.style.left = (rect.left + window.scrollX + rect.width / 2) + 'px'; } } }, 10); });
+
+        document.addEventListener('click', (e) => {
+            const btn = e.target.closest('.image-load-btn');
+            if (!btn) return;
+            const placeholder = btn.closest('.image-placeholder');
+            if (!placeholder) return;
+            e.preventDefault(); e.stopPropagation();
+            if(State.selectedPlaceholder) State.selectedPlaceholder.classList.remove('selected');
+            State.selectedPlaceholder = placeholder;
+            placeholder.classList.add('selected');
+            placeholder.setAttribute('contenteditable', 'false');
+            document.getElementById('imgUpload').click();
+        });
         
         document.addEventListener('dblclick', (e) => {
             const mjx = e.target.closest('mjx-container'); if (mjx) { e.preventDefault(); e.stopPropagation(); ManualRenderer.revertToSource(mjx); Renderer.syncBlock(mjx.closest('.block-wrapper').dataset.id); return; }
             const blank = e.target.closest('.blank-box'); if (blank) { e.preventDefault(); e.stopPropagation(); const text = blank.innerText; blank.replaceWith(document.createTextNode(`[빈칸:${text}]`)); Renderer.syncBlock(blank.closest('.block-wrapper').dataset.id); return; }
-            const placeholder = e.target.closest('.image-placeholder'); if (placeholder) { e.preventDefault(); e.stopPropagation(); if(State.selectedPlaceholder) State.selectedPlaceholder.classList.remove('selected'); State.selectedPlaceholder = placeholder; placeholder.classList.add('selected'); placeholder.setAttribute('contenteditable', 'false'); document.getElementById('imgUpload').click(); }
+            const placeholder = e.target.closest('.image-placeholder');
+            if (placeholder) {
+                e.preventDefault(); e.stopPropagation();
+                const wrap = placeholder.closest('.block-wrapper');
+                const id = wrap ? wrap.dataset.id : null;
+                const label = placeholder.dataset ? (placeholder.dataset.label || '') : '';
+                placeholder.replaceWith(document.createTextNode(`[이미지:${label}]`));
+                if (id) Renderer.syncBlock(id);
+                return;
+            }
         });
         document.addEventListener('paste', async (e) => {
             let target = null; if (State.selectedPlaceholder && State.selectedPlaceholder.getAttribute('contenteditable') === 'false') target = State.selectedPlaceholder; else { const sel = window.getSelection(); if (sel.rangeCount) { const node = sel.anchorNode; const el = node.nodeType === 1 ? node : node.parentElement; if (el.closest('.editable-box')) target = 'cursor'; } } 

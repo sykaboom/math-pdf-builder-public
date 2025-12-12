@@ -20,7 +20,22 @@ export const Utils = {
         div.querySelectorAll('.blank-box').forEach(blank => {
             blank.replaceWith(document.createTextNode(`[빈칸:${blank.innerText}]`));
         });
+        div.querySelectorAll('.image-placeholder').forEach(ph => {
+            const label = ph.getAttribute('data-label') || '';
+            ph.replaceWith(document.createTextNode(`[이미지:${label}]`));
+        });
         return div.innerHTML;
+    },
+
+    getImagePlaceholderHTML(labelText = '') {
+        const label = (labelText || '').trim();
+        const safeLabel = label
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+        const display = label ? `[이미지: ${safeLabel}]` : '이미지 박스';
+        return `<span class="image-placeholder" contenteditable="false" data-label="${safeLabel}">${display}<button class="image-load-btn" contenteditable="false" tabindex="-1">불러오기</button></span>`;
     },
 
     getAtomBeforeCaret(container) { 

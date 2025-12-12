@@ -25,7 +25,7 @@ export const Actions = {
     createNewBlockData(type) {
         const newBlock = { id: 'b_' + Date.now(), type: type, content: '' };
         if (type === 'concept') newBlock.content = '<span class="q-label">개념</span> ';
-        if (type === 'image') { newBlock.type = 'example'; newBlock.content = '<span class="image-placeholder" contenteditable="false">이미지 박스 (Click to Select)</span>'; }
+        if (type === 'image') { newBlock.type = 'example'; newBlock.content = Utils.getImagePlaceholderHTML(); }
         if (type === 'break') newBlock.type = 'break';
         if (type === 'spacer') { newBlock.type = 'spacer'; newBlock.height = 50; }
         return newBlock;

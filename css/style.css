@@ -92,6 +92,8 @@ body.drag-over #drop-overlay { display: flex; }
 
 .image-placeholder { display: inline-block; width: 100%; padding: 20px; border: 2px dashed #007bff; background-color: #f0f7ff; color: #0056b3; text-align: center; cursor: pointer; font-size: 12px; border-radius: 6px; font-weight: bold; user-select: none; }
 .image-placeholder.selected { border: 2px solid #0056b3; background-color: #dbeafe; box-shadow: 0 0 0 3px rgba(0,123,255,0.25); outline: none; }
+.image-load-btn { margin-left: 8px; padding: 2px 8px; font-size: 11px; border: 1px solid #007bff; background: #fff; color: #0056b3; border-radius: 4px; cursor: pointer; }
+.image-load-btn:hover { background: #007bff; color: #fff; }
 
 /* [도구] */
 #floating-toolbar { position: absolute; background: #333; border-radius: 6px; padding: 5px; display: none; gap: 5px; z-index: 10000; box-shadow: 0 4px 12px rgba(0,0,0,0.3); transform: translate(-50%, -120%); }

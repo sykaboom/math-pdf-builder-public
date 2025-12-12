@@ -59,6 +59,8 @@ window.printPreflightAction = async (mode) => {
     printPreflightData = null;
 };
 window.insertImageBoxSafe = () => Events.insertImageBoxSafe();
+window.addImageBlockBelow = (id) => Events.addImageBlockBelow(id);
+window.insertImagePlaceholderAtEnd = (id) => Events.insertImagePlaceholderAtEnd(id);
 window.openModal = Utils.openModal;
 window.closeModal = Utils.closeModal;
 window.execStyle = (cmd, val) => document.execCommand(cmd, false, val);

@@ -17,6 +17,7 @@ export const State = {
     selectedPlaceholder: null,
     selectedImage: null,
     lastFocusId: null,
+    lastEditableId: null,
     keysPressed: {},
 
     saveHistory(debounceTime = 0) {

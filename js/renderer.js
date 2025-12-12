@@ -158,9 +158,8 @@ export const Renderer = {
             
             box.addEventListener('blur', async () => {
                 if(!window.isMathJaxReady) return;
-                if(box.innerText.includes('[빈칸:') || box.innerText.includes('$')) {
-                    if(box.innerText.includes('[빈칸:')) box.innerHTML = box.innerHTML.replace(/\[빈칸:(.*?)\]/g, '<span class="blank-box" contenteditable="false">$1</span>');
-                    if(box.innerText.includes('$')) await ManualRenderer.typesetElement(box);
+                if(box.innerText.includes('[빈칸:') || box.innerText.includes('$') || box.innerText.includes('[이미지')) {
+                    await ManualRenderer.typesetElement(box);
                 }
                 Actions.updateBlockContent(block.id, Utils.cleanRichContentToTex(box.innerHTML), true);
                 this.debouncedRebalance(); 

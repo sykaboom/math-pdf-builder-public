@@ -20,10 +20,11 @@ export const ManualRenderer = {
     },
 
     async typesetElement(element) {
-        if (element.querySelector('mjx-container') || element.querySelector('.blank-box')) {
+        if (element.querySelector('mjx-container') || element.querySelector('.blank-box') || element.querySelector('.image-placeholder')) {
             element.innerHTML = Utils.cleanRichContentToTex(element.innerHTML);
         }
         element.innerHTML = element.innerHTML.replace(/\[빈칸:(.*?)\]/g, '<span class="blank-box" contenteditable="false">$1</span>');
+        element.innerHTML = element.innerHTML.replace(/\[이미지\s*:\s*(.*?)\]/g, (m, label) => Utils.getImagePlaceholderHTML(label));
 
         const regex = /(\$\$[\s\S]+?\$\$|\$[\s\S]+?\$)/g;
         const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT, null, false);
@@ -149,7 +150,7 @@ export const ImportParser = {
             const closeIdx = chunk.indexOf(']]'); if (closeIdx === -1) return;
             const meta = chunk.substring(0, closeIdx); let content = chunk.substring(closeIdx + 2).trim();
             if (content.startsWith(':')) content = content.substring(1).trim();
-            content = content.replace(/\[이미지:(.*?)\]/g, '<span class="image-placeholder">[이미지: $1]</span>');
+            content = content.replace(/\[이미지\s*:\s*(.*?)\]/g, (m, label) => Utils.getImagePlaceholderHTML(label));
             content = content.replace(/\[빈칸:(.*?)\]/g, '<span class="blank-box" contenteditable="false">$1</span>');
             content = content.replace(/\n/g, '<br>');
             const [stylePart, labelPart] = meta.includes('_') ? meta.split('_') : ['기본', meta];
