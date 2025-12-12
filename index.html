@@ -24,12 +24,15 @@ Full Content:
         <div style="font-weight:bold; display:flex; justify-content:space-between;">
             <span>📥 AI 데이터 입력 (호환 모드)</span>
             <span style="cursor:pointer;" onclick="closeModal('import-modal')">×</span>
-        </div>
-        <textarea id="import-textarea" class="modal-textarea" placeholder="데이터를 여기에 붙여넣으세요..."></textarea>
-        <div style="display:flex; justify-content:flex-end; gap:10px;">
-            <button class="btn btn-warning" onclick="confirmImport(true)" style="width:auto;">덮어쓰기</button>
-            <button class="btn btn-primary" onclick="confirmImport(false)" style="width:auto;">이어쓰기</button>
-            <button class="btn" onclick="closeModal('import-modal')" style="width:auto;">취소</button>
+	        </div>
+	        <textarea id="import-textarea" class="modal-textarea" placeholder="데이터를 여기에 붙여넣으세요..."></textarea>
+	        <div style="font-size:11px; color:#666; line-height:1.4;">
+	            블록박스 멀티라인은 `[블록박스_라벨]` 시작 후 `[/블록박스]`로 종료하세요.
+	        </div>
+	        <div style="display:flex; justify-content:flex-end; gap:10px;">
+	            <button class="btn btn-warning" onclick="confirmImport(true)" style="width:auto;">덮어쓰기</button>
+	            <button class="btn btn-primary" onclick="confirmImport(false)" style="width:auto;">이어쓰기</button>
+	            <button class="btn" onclick="closeModal('import-modal')" style="width:auto;">취소</button>
         </div>
     </div>
 </div>
