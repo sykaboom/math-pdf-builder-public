@@ -23,6 +23,19 @@ export const Renderer = {
     },
 
     renderPages() {
+        const workspace = document.getElementById('workspace');
+        const scrollTop = workspace ? workspace.scrollTop : 0;
+
+        let preserveScrollAfterFocus = false;
+        if (!State.lastFocusId) {
+            const activeWrap = document.activeElement ? document.activeElement.closest('.block-wrapper') : null;
+            const activeId = activeWrap && activeWrap.dataset ? activeWrap.dataset.id : null;
+            if (activeId) {
+                State.lastFocusId = activeId;
+                preserveScrollAfterFocus = true;
+            }
+        }
+
         const container = document.getElementById('paper-container'); 
         container.innerHTML = ''; 
         if(State.docData.meta.zoom) { container.style.transform = `scale(${State.docData.meta.zoom})`; container.style.transformOrigin = 'top center'; document.getElementById('zoomRange').value = State.docData.meta.zoom; }
@@ -47,8 +60,22 @@ export const Renderer = {
                 else { curCol.removeChild(el); moveToNextColumn(); curCol.appendChild(el); } 
             } 
         });
+
+        if (workspace) workspace.scrollTop = scrollTop;
         
-        if(State.lastFocusId) { setTimeout(() => { const el = document.querySelector(`.block-wrapper[data-id="${State.lastFocusId}"] .editable-box`); if(el) { el.focus(); const r=document.createRange(); r.selectNodeContents(el); r.collapse(false); const s=window.getSelection(); s.removeAllRanges(); s.addRange(r); State.lastFocusId=null; } }, 0); }
+        if(State.lastFocusId) {
+            const focusId = State.lastFocusId;
+            setTimeout(() => {
+                const el = document.querySelector(`.block-wrapper[data-id="${focusId}"] .editable-box`);
+                if(el) {
+                    el.focus();
+                    const r=document.createRange(); r.selectNodeContents(el); r.collapse(false);
+                    const s=window.getSelection(); s.removeAllRanges(); s.addRange(r);
+                }
+                State.lastFocusId=null;
+                if (preserveScrollAfterFocus && workspace) workspace.scrollTop = scrollTop;
+            }, 0);
+        }
     },
 
     // [Fix] 순환 참조 방지를 위한 렌더링 헬퍼
