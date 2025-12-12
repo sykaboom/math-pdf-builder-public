@@ -29,21 +29,34 @@ window.executeFindReplace = () => {
 window.performUndo = () => { if(State.undo()) { Renderer.renderPages(); ManualRenderer.renderAll(); } };
 window.performRedo = () => { if(State.redo()) { Renderer.renderPages(); ManualRenderer.renderAll(); } };
 window.resetProject = () => { if(confirm('초기화하시겠습니까? (저장되지 않은 내용은 삭제됩니다)')) { State.docData.blocks=[{ id: 'b0', type: 'concept', content: '<span class="q-label">안내</span> 내용 입력...' }]; Renderer.renderPages(); State.saveHistory(); } };
+let printPreflightData = null;
+const doPrint = () => { Utils.showLoading("🖨️ 인쇄 준비 중..."); window.print(); Utils.hideLoading(); };
+
 window.printWithMath = () => {
     const placeholderCount = document.querySelectorAll('.image-placeholder').length;
     const unrenderedMathCount = State.docData.blocks.reduce((acc, b) => acc + (b.content && b.content.includes('$') ? 1 : 0), 0);
 
     if (placeholderCount > 0 || unrenderedMathCount > 0) {
-        const parts = ["인쇄 전 점검:"];
-        if (placeholderCount > 0) parts.push(`- 미삽입 이미지 박스: ${placeholderCount}개`);
-        if (unrenderedMathCount > 0) parts.push(`- 미렌더 수식($ 포함): ${unrenderedMathCount}개`);
-        parts.push("", "그래도 인쇄할까요?");
-        if (!confirm(parts.join('\n'))) return;
+        printPreflightData = { placeholderCount, unrenderedMathCount };
+        const body = document.getElementById('print-preflight-body');
+        if (body) {
+            const lines = [];
+            if (placeholderCount > 0) lines.push(`• 미삽입 이미지 박스: ${placeholderCount}개`);
+            if (unrenderedMathCount > 0) lines.push(`• 미렌더 수식($ 포함): ${unrenderedMathCount}개`);
+            body.innerHTML = lines.join('<br>');
+        }
+        Utils.openModal('print-preflight-modal');
+        return;
     }
+    doPrint();
+};
 
-    Utils.showLoading("🖨️ 인쇄 준비 중...");
-    window.print();
-    Utils.hideLoading();
+window.printPreflightAction = async (mode) => {
+    Utils.closeModal('print-preflight-modal');
+    if (mode === 'cancel') { printPreflightData = null; return; }
+    if (mode === 'render') await ManualRenderer.renderAll();
+    doPrint();
+    printPreflightData = null;
 };
 window.insertImageBoxSafe = () => Events.insertImageBoxSafe();
 window.openModal = Utils.openModal;
