@@ -11,8 +11,20 @@ export const Renderer = {
         const meta = State.docData.meta;
         const headerHTML = num === 1 ? 
             `<table class="header-table"><colgroup><col class="col-title"><col class="col-label"><col class="col-input-wide"><col class="col-label"><col class="col-input-narrow"></colgroup><tr><td rowspan="2" class="col-title">TEST</td><td class="col-label">과정</td><td><input class="header-input meta-title" value="${meta.title}"></td><td class="col-label">성명</td><td><input class="header-input"></td></tr><tr><td class="col-label">단원</td><td><input class="header-input meta-subtitle" value="${meta.subtitle}"></td><td class="col-label">점수</td><td></td></tr></table>` : `<div class="header-line"></div>`;
-        const footerHTML = num === 1 ? `<div class="footer-content-first">- ${num} -</div>` : `<div class="footer-line"></div><div>- ${num} -</div>`;
-        div.innerHTML=`<div class="header-area">${headerHTML}</div><div class="body-container"><div class="column left"></div><div class="column right"></div></div><div class="page-footer">${footerHTML}</div>`;
+        const footerText = meta.footerText ? `<div class="footer-text">${meta.footerText}</div>` : '';
+        const footerHTML = num === 1 ? `<div class="footer-content-first">${footerText}<div>- ${num} -</div></div>` : `<div class="footer-line"></div>${footerText}<div>- ${num} -</div>`;
+        const columnsCount = parseInt(meta.columns) === 1 ? 1 : 2;
+        const columnsHTML = columnsCount === 1 ? `<div class="column single"></div>` : `<div class="column left"></div><div class="column right"></div>`;
+        const bodyClass = columnsCount === 1 ? 'body-container single-column' : 'body-container';
+        div.innerHTML=`<div class="header-area">${headerHTML}</div><div class="${bodyClass}">${columnsHTML}</div><div class="page-footer">${footerHTML}</div>`;
+        div.style.padding = `${meta.marginTopMm || 15}mm ${meta.marginSideMm || 10}mm`;
+        if (columnsCount === 2) {
+            const gap = meta.columnGapMm || 5;
+            const leftCol = div.querySelector('.column.left');
+            const rightCol = div.querySelector('.column.right');
+            if (leftCol) leftCol.style.paddingRight = gap + 'mm';
+            if (rightCol) rightCol.style.paddingLeft = gap + 'mm';
+        }
         
         if(num === 1) {
             const titleInp = div.querySelector('.meta-title'); const subInp = div.querySelector('.meta-subtitle');
@@ -23,20 +35,36 @@ export const Renderer = {
     },
 
     renderPages() {
+        const workspace = document.getElementById('workspace');
+        const scrollTop = workspace ? workspace.scrollTop : 0;
+
+        let preserveScrollAfterFocus = false;
+        if (!State.lastFocusId) {
+            const activeWrap = document.activeElement ? document.activeElement.closest('.block-wrapper') : null;
+            const activeId = activeWrap && activeWrap.dataset ? activeWrap.dataset.id : null;
+            if (activeId) {
+                State.lastFocusId = activeId;
+                preserveScrollAfterFocus = true;
+            }
+        }
+
         const container = document.getElementById('paper-container'); 
         container.innerHTML = ''; 
         if(State.docData.meta.zoom) { container.style.transform = `scale(${State.docData.meta.zoom})`; container.style.transformOrigin = 'top center'; document.getElementById('zoomRange').value = State.docData.meta.zoom; }
 
         let pageNum = 1; let currentPage = this.createPage(pageNum); container.appendChild(currentPage);
-        let colL = currentPage.querySelector('.left'); let colR = currentPage.querySelector('.right'); let curCol = colL; 
+        const columnsCount = parseInt(State.docData.meta.columns) === 1 ? 1 : 2;
+        let columns = columnsCount === 1 ? [currentPage.querySelector('.column.single')] : [currentPage.querySelector('.column.left'), currentPage.querySelector('.column.right')];
+        let colIndex = 0; let curCol = columns[colIndex];
 
-        // [Fix] 화살표 함수로 this 컨텍스트 유지
         const moveToNextColumn = () => {
-            if (curCol === colL) { curCol = colR; } 
-            else {
+            colIndex++;
+            if (colIndex >= columns.length) {
                 pageNum++; currentPage = this.createPage(pageNum); container.appendChild(currentPage);
-                colL = currentPage.querySelector('.left'); colR = currentPage.querySelector('.right'); curCol = colL;
+                columns = columnsCount === 1 ? [currentPage.querySelector('.column.single')] : [currentPage.querySelector('.column.left'), currentPage.querySelector('.column.right')];
+                colIndex = 0;
             }
+            curCol = columns[colIndex];
         };
 
         State.docData.blocks.forEach((block) => { 
@@ -47,8 +75,23 @@ export const Renderer = {
                 else { curCol.removeChild(el); moveToNextColumn(); curCol.appendChild(el); } 
             } 
         });
+
+        if (workspace) workspace.scrollTop = scrollTop;
+        this.updatePreflightPanel();
         
-        if(State.lastFocusId) { setTimeout(() => { const el = document.querySelector(`.block-wrapper[data-id="${State.lastFocusId}"] .editable-box`); if(el) { el.focus(); const r=document.createRange(); r.selectNodeContents(el); r.collapse(false); const s=window.getSelection(); s.removeAllRanges(); s.addRange(r); State.lastFocusId=null; } }, 0); }
+        if(State.lastFocusId) {
+            const focusId = State.lastFocusId;
+            setTimeout(() => {
+                const el = document.querySelector(`.block-wrapper[data-id="${focusId}"] .editable-box`);
+                if(el) {
+                    el.focus();
+                    const r=document.createRange(); r.selectNodeContents(el); r.collapse(false);
+                    const s=window.getSelection(); s.removeAllRanges(); s.addRange(r);
+                }
+                State.lastFocusId=null;
+                if (preserveScrollAfterFocus && workspace) workspace.scrollTop = scrollTop;
+            }, 0);
+        }
     },
 
     // [Fix] 순환 참조 방지를 위한 렌더링 헬퍼
@@ -65,8 +108,8 @@ export const Renderer = {
         if(block.bgGray) wrap.classList.add('bg-gray-block'); 
 
         const actions = document.createElement('div'); actions.className = 'block-actions';
-        const btnBr = document.createElement('button'); btnBr.className = 'block-action-btn'; btnBr.innerText = '⤵'; btnBr.onclick=(e)=>{ e.stopPropagation(); this.performAndRender(() => Actions.addBlockBelow('break', block.id)); };
-        const btnSp = document.createElement('button'); btnSp.className = 'block-action-btn'; btnSp.innerText = '▱'; btnSp.onclick=(e)=>{ e.stopPropagation(); this.performAndRender(() => Actions.addBlockBelow('spacer', block.id)); };
+        const btnBr = document.createElement('button'); btnBr.className = 'block-action-btn'; btnBr.innerText = '⤵'; btnBr.title = '단 나누기 추가'; btnBr.onclick=(e)=>{ e.stopPropagation(); this.performAndRender(() => Actions.addBlockBelow('break', block.id)); };
+        const btnSp = document.createElement('button'); btnSp.className = 'block-action-btn'; btnSp.innerText = '▱'; btnSp.title = '여백 블록 추가'; btnSp.onclick=(e)=>{ e.stopPropagation(); this.performAndRender(() => Actions.addBlockBelow('spacer', block.id)); };
         actions.appendChild(btnBr); actions.appendChild(btnSp); wrap.appendChild(actions);
 
         wrap.addEventListener('click', (e) => {
@@ -97,7 +140,16 @@ export const Renderer = {
                 return;
             }
             State.contextTargetId = block.id;
-            m.style.display = 'block'; m.style.left = e.clientX + 'px'; m.style.top = e.clientY + 'px';
+            Events.populateFontMenu(block.id);
+            m.style.display = 'block';
+            let left = e.clientX; let top = e.clientY;
+            const pad = 8;
+            const rect = m.getBoundingClientRect();
+            if (left + rect.width > window.innerWidth - pad) left = window.innerWidth - rect.width - pad;
+            if (top + rect.height > window.innerHeight - pad) top = window.innerHeight - rect.height - pad;
+            if (left < pad) left = pad;
+            if (top < pad) top = pad;
+            m.style.left = left + 'px'; m.style.top = top + 'px';
         };
         wrap.appendChild(handle);
 
@@ -128,20 +180,44 @@ export const Renderer = {
             if(block.bordered) box.classList.add('bordered-box');
             box.innerHTML=block.content;
             box.contentEditable=true;
+            const placeholderMap = {
+                concept: "개념 내용 입력… (수식: $...$ / 줄바꿈: Shift+Enter)",
+                example: "내용 입력… (수식: $...$ / 줄바꿈: Shift+Enter)",
+                answer: "해설 입력… (수식: $...$ / 줄바꿈: Shift+Enter)"
+            };
+            box.dataset.placeholder = placeholderMap[block.type] || placeholderMap.example;
+
+            const familyKey = block.fontFamily || State.docData.meta.fontFamily || 'serif';
+            const sizePt = block.fontSizePt || State.docData.meta.fontSizePt || 10.5;
+            const familyMap = {
+                serif: "'Noto Serif KR', serif",
+                gothic: "'Nanum Gothic', 'Noto Sans KR', sans-serif",
+                gulim: "Gulim, 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif"
+            };
+            box.style.fontFamily = familyMap[familyKey] || familyMap.serif;
+            box.style.fontSize = sizePt + 'pt';
             
             box.addEventListener('blur', async () => {
+                if (!State.renderingEnabled) {
+                    Actions.updateBlockContent(block.id, Utils.cleanRichContentToTex(box.innerHTML), true);
+                    this.debouncedRebalance();
+                    this.updatePreflightPanel();
+                    return;
+                }
                 if(!window.isMathJaxReady) return;
-                if(box.innerText.includes('[빈칸:') || box.innerText.includes('$')) {
-                    if(box.innerText.includes('[빈칸:')) box.innerHTML = box.innerHTML.replace(/\[빈칸:(.*?)\]/g, '<span class="blank-box" contenteditable="false">$1</span>');
-                    if(box.innerText.includes('$')) await ManualRenderer.typesetElement(box);
+                if(box.innerText.includes('[빈칸:') || box.innerText.includes('$') || box.innerText.includes('[이미지')) {
+                    await ManualRenderer.typesetElement(box);
                 }
                 Actions.updateBlockContent(block.id, Utils.cleanRichContentToTex(box.innerHTML), true);
                 this.debouncedRebalance(); 
+                this.updatePreflightPanel();
             });
             box.oninput=()=>{ 
                 const cleanHTML = Utils.cleanRichContentToTex(box.innerHTML); 
                 Actions.updateBlockContent(block.id, cleanHTML, false); 
+                State.autosaveDraft(1000);
                 this.debouncedRebalance(); // 입력 시 자동 레이아웃 조정
+                this.updatePreflightPanel();
             };
             // 렌더링 콜백을 Events로 전달
             box.onkeydown = (e) => Events.handleBlockKeydown(e, block.id, box, () => { this.renderPages(); ManualRenderer.renderAll(); });
@@ -155,7 +231,11 @@ export const Renderer = {
         const container = document.getElementById('paper-container');
         let pages = Array.from(container.querySelectorAll('.page'));
         let columns = [];
-        pages.forEach(p => { columns.push(p.querySelector('.column.left')); columns.push(p.querySelector('.column.right')); });
+        const columnsCount = parseInt(State.docData.meta.columns) === 1 ? 1 : 2;
+        pages.forEach(p => {
+            if (columnsCount === 1) columns.push(p.querySelector('.column.single'));
+            else { columns.push(p.querySelector('.column.left')); columns.push(p.querySelector('.column.right')); }
+        });
         const MAX_LOOPS = 50; let loopCount = 0;
         for (let i = 0; i < columns.length; i++) {
             let col = columns[i];
@@ -166,8 +246,13 @@ export const Renderer = {
                 let nextCol = columns[i + 1];
                 if (!nextCol) {
                     const newPageNum = pages.length + 1; const newPage = this.createPage(newPageNum); container.appendChild(newPage); pages.push(newPage);
-                    const nl = newPage.querySelector('.column.left'); const nr = newPage.querySelector('.column.right');
-                    columns.push(nl); columns.push(nr); nextCol = nl;
+                    if (columnsCount === 1) {
+                        const ns = newPage.querySelector('.column.single');
+                        columns.push(ns); nextCol = ns;
+                    } else {
+                        const nl = newPage.querySelector('.column.left'); const nr = newPage.querySelector('.column.right');
+                        columns.push(nl); columns.push(nr); nextCol = nl;
+                    }
                 }
                 if (nextCol.firstChild) nextCol.insertBefore(lastBlock, nextCol.firstChild); else nextCol.appendChild(lastBlock);
             }
@@ -175,6 +260,43 @@ export const Renderer = {
     }, 300),
 
     debouncedRebalance: function() { this.rebalanceLayout(); },
+
+    updatePreflightPanel() {
+        const panel = document.getElementById('preflight-panel');
+        if (!panel) return;
+        const mathBoxes = Array.from(document.querySelectorAll('.editable-box')).filter(b => (b.textContent || '').includes('$'));
+        const placeholders = document.querySelectorAll('.image-placeholder');
+        const mathCount = mathBoxes.length;
+        const imageCount = placeholders.length;
+
+        const mathEl = document.getElementById('preflight-math-count');
+        const imgEl = document.getElementById('preflight-image-count');
+        if (mathEl) mathEl.textContent = mathCount;
+        if (imgEl) imgEl.textContent = imageCount;
+
+        panel.querySelectorAll('.preflight-item').forEach(item => {
+            const type = item.dataset.type;
+            const count = type === 'math' ? mathCount : imageCount;
+            if (count > 0) item.classList.add('warn'); else item.classList.remove('warn');
+        });
+    },
+
+    jumpToPreflight(type) {
+        let wrap = null;
+        if (type === 'math') {
+            const box = Array.from(document.querySelectorAll('.editable-box')).find(b => (b.textContent || '').includes('$'));
+            if (box) wrap = box.closest('.block-wrapper');
+        } else if (type === 'image') {
+            const ph = document.querySelector('.image-placeholder');
+            if (ph) wrap = ph.closest('.block-wrapper');
+        }
+        if (!wrap) return;
+        wrap.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        wrap.classList.add('preflight-highlight');
+        setTimeout(() => wrap.classList.remove('preflight-highlight'), 1500);
+        const box = wrap.querySelector('.editable-box');
+        if (box) box.focus();
+    },
     
     // [Fix] 누락된 수식 동기화 함수 복구
     syncBlock(id) {

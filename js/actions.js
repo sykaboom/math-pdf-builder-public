@@ -25,7 +25,7 @@ export const Actions = {
     createNewBlockData(type) {
         const newBlock = { id: 'b_' + Date.now(), type: type, content: '' };
         if (type === 'concept') newBlock.content = '<span class="q-label">개념</span> ';
-        if (type === 'image') { newBlock.type = 'example'; newBlock.content = '<span class="image-placeholder" contenteditable="false">이미지 박스 (Click to Select)</span>'; }
+        if (type === 'image') { newBlock.type = 'example'; newBlock.content = Utils.getImagePlaceholderHTML(); }
         if (type === 'break') newBlock.type = 'break';
         if (type === 'spacer') { newBlock.type = 'spacer'; newBlock.height = 50; }
         return newBlock;
@@ -86,6 +86,25 @@ export const Actions = {
             return true;
         }
         return false;
+    },
+
+    setBlockFontFamily(id, familyKey) {
+        const b = State.docData.blocks.find(x => x.id === id);
+        if (!b) return false;
+        if (!familyKey || familyKey === 'default') delete b.fontFamily;
+        else b.fontFamily = familyKey;
+        State.saveHistory();
+        return true;
+    },
+
+    setBlockFontSize(id, sizePt) {
+        const b = State.docData.blocks.find(x => x.id === id);
+        if (!b) return false;
+        const v = parseFloat(sizePt);
+        if (!v || v <= 0) delete b.fontSizePt;
+        else b.fontSizePt = v;
+        State.saveHistory();
+        return true;
     },
 
     confirmImport(input, overwrite, limit, addSpacer) {

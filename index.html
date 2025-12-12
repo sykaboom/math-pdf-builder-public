@@ -5,7 +5,7 @@ Full Content:
 <head>
     <meta charset="UTF-8">
     <title>Math Exam Editor v4.0.1 (Fixed)</title>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;700&family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
+	    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;700&family=Noto+Sans+KR:wght@400;700&family=Nanum+Gothic:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/style.css">
     
     <script src="js/config.js"></script>
@@ -15,6 +15,7 @@ Full Content:
 <body>
 
 <div id="loading-indicator">🔄 처리 중...</div>
+<div id="toast-container"></div>
 <div id="drop-overlay">📂 파일 놓기 (Import)</div>
 <input type="file" id="imgUpload" accept="image/*" style="display:none;">
 
@@ -23,12 +24,15 @@ Full Content:
         <div style="font-weight:bold; display:flex; justify-content:space-between;">
             <span>📥 AI 데이터 입력 (호환 모드)</span>
             <span style="cursor:pointer;" onclick="closeModal('import-modal')">×</span>
-        </div>
-        <textarea id="import-textarea" class="modal-textarea" placeholder="데이터를 여기에 붙여넣으세요..."></textarea>
-        <div style="display:flex; justify-content:flex-end; gap:10px;">
-            <button class="btn btn-warning" onclick="confirmImport(true)" style="width:auto;">덮어쓰기</button>
-            <button class="btn btn-primary" onclick="confirmImport(false)" style="width:auto;">이어쓰기</button>
-            <button class="btn" onclick="closeModal('import-modal')" style="width:auto;">취소</button>
+	        </div>
+	        <textarea id="import-textarea" class="modal-textarea" placeholder="데이터를 여기에 붙여넣으세요..."></textarea>
+	        <div style="font-size:11px; color:#666; line-height:1.4;">
+	            블록박스 멀티라인은 `[블록박스_라벨]` 시작 후 `[/블록박스]`로 종료하세요.
+	        </div>
+	        <div style="display:flex; justify-content:flex-end; gap:10px;">
+	            <button class="btn btn-warning" onclick="confirmImport(true)" style="width:auto;">덮어쓰기</button>
+	            <button class="btn btn-primary" onclick="confirmImport(false)" style="width:auto;">이어쓰기</button>
+	            <button class="btn" onclick="closeModal('import-modal')" style="width:auto;">취소</button>
         </div>
     </div>
 </div>
@@ -41,6 +45,21 @@ Full Content:
         <div class="fr-actions">
             <button class="btn btn-primary btn-sm" onclick="executeFindReplace()">모두 바꾸기</button>
             <button class="btn btn-sm" onclick="closeModal('find-replace-modal')">닫기</button>
+        </div>
+    </div>
+</div>
+
+<div id="print-preflight-modal" class="modal-overlay">
+    <div class="modal-content" style="width:420px; gap:12px;">
+        <div style="font-weight:bold; display:flex; justify-content:space-between;">
+            <span>🖨️ 인쇄 전 점검</span>
+            <span style="cursor:pointer;" onclick="closeModal('print-preflight-modal')">×</span>
+        </div>
+        <div id="print-preflight-body" style="font-size:13px; line-height:1.6; color:#333;"></div>
+        <div style="display:flex; justify-content:flex-end; gap:8px;">
+            <button class="btn btn-purple btn-sm" onclick="printPreflightAction('render')">수식 변환 후 인쇄</button>
+            <button class="btn btn-danger btn-sm" onclick="printPreflightAction('print')">그대로 인쇄</button>
+            <button class="btn btn-sm" onclick="printPreflightAction('cancel')">취소</button>
         </div>
     </div>
 </div>
@@ -74,57 +93,116 @@ Full Content:
     <div class="menu-item" onclick="addBlockAbove('example')"><span>➕ 위에 추가</span><span class="shortcut-badge">Alt+Enter</span></div>
     <div class="menu-item" onclick="addBlockBelow('example')"><span>➕ 아래에 추가</span><span class="shortcut-badge">Enter</span></div>
     <div class="menu-sep"></div>
-    <div class="menu-item" onclick="insertImageBoxSafe()"><span>🖼️ 이미지 박스 추가</span><span class="shortcut-badge">Ctrl+Alt+I</span></div>
-    <div class="menu-item" onclick="addBlockBelow('spacer')"><span>↕ 여백 블록 추가</span><span class="shortcut-badge">Ctrl+Sh+Click</span></div>
-    <div class="menu-item" onclick="addBlockBelow('break')"><span>⚡ 단 나누기 추가</span><span class="shortcut-badge">Ctrl+Alt+Click</span></div>
-    <div class="menu-sep"></div>
-    <div class="menu-item" onclick="deleteTargetBlock()" style="color:#dc3545;"><span>🗑️ 삭제하기</span><span class="shortcut-badge">Delete</span></div>
+    <div class="menu-item" onclick="addImageBlockBelow()"><span>🖼️ 이미지 블록 아래 추가</span><span class="shortcut-badge">Ctrl+Alt+I</span></div>
+    <div class="menu-item" onclick="insertImagePlaceholderAtEnd()"><span>🖼️ 블록 안에 이미지 추가</span><span class="shortcut-badge">-</span></div>
+	    <div class="menu-item" onclick="addBlockBelow('spacer')"><span>↕ 여백 블록 추가</span><span class="shortcut-badge">Ctrl+Sh+Click</span></div>
+	    <div class="menu-item" onclick="addBlockBelow('break')"><span>⚡ 단 나누기 추가</span><span class="shortcut-badge">Ctrl+Alt+Click</span></div>
+	    <div class="menu-sep"></div>
+	    <div class="menu-title">폰트</div>
+	    <div class="menu-item menu-font-row">
+	        <select id="block-font-family-select">
+	            <option value="default">기본</option>
+	            <option value="serif">명조</option>
+	            <option value="gulim">굴림</option>
+	            <option value="gothic">나눔고딕</option>
+	        </select>
+	        <input type="number" id="block-font-size-input" min="8" max="20" step="0.5" style="width:60px;">
+	        <button class="btn btn-sm" onclick="applyBlockFont()">적용</button>
+	    </div>
+	    <div class="menu-sep"></div>
+	    <div class="menu-item" onclick="deleteTargetBlock()" style="color:#dc3545;"><span>🗑️ 삭제하기</span><span class="shortcut-badge">Delete</span></div>
 </div>
 
 <nav class="sidebar">
-    <div style="font-weight:bold; font-size:16px; margin-bottom:15px; border-bottom:2px solid #333; padding-bottom:5px;">
+    <div class="sidebar-header" style="font-weight:bold; font-size:16px; margin-bottom:15px; border-bottom:2px solid #333; padding-bottom:5px;">
         📐 수학 에디터 v4.0
         <div style="font-size:10px; color:#666; font-weight:normal;">Modular Architecture (Fixed)</div>
     </div>
-    
-    <div class="settings-panel" style="background:#e8f5e9; border:1px solid #c8e6c9;">
-        <div style="font-size:11px; font-weight:bold; margin-bottom:5px;">📂 로컬 작업 폴더 (선택)</div>
-        <div id="folder-status">✅ 폴더 연결됨</div>
-        <div class="settings-row"><label>이미지 폴더명</label><input type="text" id="setting-img-folder" value="images" style="width:80px;"></div>
-        <button class="btn btn-success" onclick="FileSystem.openProjectFolder()">📂 작업 폴더 열기</button>
-    </div>
 
-    <button class="btn btn-purple" onclick="ManualRenderer.renderAll()" style="margin-bottom:15px; padding: 12px;">
-        ⚡ 수식 변환 (Render)<br>
-        <span style="font-size:10px; opacity:0.8;">Click: $..$ → SVG / DblClick: Edit</span>
-    </button>
-
-    <div style="margin-bottom:10px;">
-        <span style="font-size:12px;">확대/축소</span>
-        <input type="range" id="zoomRange" min="0.5" max="1.5" step="0.1" value="1.0" style="width: 100%;">
-    </div>
-    <div style="display:flex; justify-content:space-between; margin-bottom:15px;">
-        <button class="btn" style="width:48%" onclick="performUndo()" title="실행 취소">↶ Undo<br><span style="font-size:9px;">(Ctrl+Z)</span></button>
-        <button class="btn" style="width:48%" onclick="performRedo()" title="다시 실행">↷ Redo<br><span style="font-size:9px;">(Ctrl+Shift+Z)</span></button>
-    </div>
-
-    <button class="btn btn-success" onclick="insertImageBoxSafe()" style="margin-bottom:15px;">
-        🖼️ 이미지 박스 넣기 (Ctrl+Alt+I)
-    </button>
-
-    <div class="settings-panel">
-        <div style="font-size:11px; font-weight:bold; margin-bottom:5px; border-bottom:1px solid #ddd; padding-bottom:3px;">⚙️ AI 입력 설정</div>
-        <div class="settings-row"><label>단별 문제 수</label><input type="number" id="setting-limit" value="0"></div>
-        <div class="settings-row"><label>자동 여백</label><input type="checkbox" id="setting-spacer" checked></div>
-    </div>
-
-    <div style="border-top:1px solid #eee; padding-top:10px;">
+    <div class="sidebar-section">
+        <div class="sidebar-section-title">프로젝트</div>
         <button class="btn" onclick="openModal('import-modal')" style="border-left: 3px solid #6f42c1; color: #6f42c1; font-weight:bold;">📥 AI 데이터 입력 (Alt+I)</button>
-        <button class="btn btn-warning" onclick="resetProject()">🗑️ 초기화 (Alt+N)</button>
+        <button class="btn btn-warning" onclick="resetProject()">🗑️ 새로 만들기 (Alt+N)</button>
         <button class="btn btn-primary" onclick="saveProjectJSON()">💾 저장 (Ctrl+S)</button>
         <button class="btn" onclick="document.getElementById('fileInput').click()">📂 열기 (Ctrl+O)</button>
         <input type="file" id="fileInput" accept=".json" style="display:none" onchange="loadProjectJSONFromInput(this)">
+
+        <div class="settings-panel" style="background:#e8f5e9; border:1px solid #c8e6c9; margin-top:10px;">
+            <div style="font-size:11px; font-weight:bold; margin-bottom:5px;">📂 로컬 작업 폴더</div>
+            <div id="folder-status">⬇️ 저장: 다운로드</div>
+            <div class="settings-row"><label>이미지 폴더명</label><input type="text" id="setting-img-folder" value="images" style="width:80px;"></div>
+            <button class="btn btn-success" onclick="FileSystem.openProjectFolder()">📂 작업 폴더 열기</button>
+        </div>
+
+	        <div class="settings-panel">
+	            <div style="font-size:11px; font-weight:bold; margin-bottom:5px; border-bottom:1px solid #ddd; padding-bottom:3px;">⚙️ AI 입력 설정</div>
+	            <div class="settings-row"><label>단별 문제 수</label><input type="number" id="setting-limit" value="0"></div>
+	            <div class="settings-row"><label>자동 여백</label><input type="checkbox" id="setting-spacer" checked></div>
+	        </div>
+
+	        <div class="settings-panel" style="margin-bottom:0;">
+	            <div style="font-size:11px; font-weight:bold; margin-bottom:5px; border-bottom:1px solid #ddd; padding-bottom:3px;">🔤 기본 폰트</div>
+	            <div class="settings-row"><label>폰트</label>
+	                <select id="setting-font-family">
+	                    <option value="serif">기본(명조)</option>
+	                    <option value="gulim">굴림체</option>
+	                    <option value="gothic">나눔고딕</option>
+	                </select>
+	            </div>
+	            <div class="settings-row"><label>크기(pt)</label><input type="number" id="setting-font-size" min="8" max="20" step="0.5"></div>
+	        </div>
+	    </div>
+
+    <div class="sidebar-section">
+        <div class="sidebar-section-title">편집</div>
+        <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+            <button class="btn" style="width:48%" onclick="performUndo()" title="실행 취소">↶ Undo<br><span style="font-size:9px;">(Ctrl+Z)</span></button>
+            <button class="btn" style="width:48%" onclick="performRedo()" title="다시 실행">↷ Redo<br><span style="font-size:9px;">(Ctrl+Shift+Z)</span></button>
+        </div>
+        <button class="btn" onclick="openModal('find-replace-modal'); document.getElementById('fr-find-input').focus()">🔍 찾기/바꾸기 (Ctrl+Shift+H)</button>
     </div>
+
+    <div class="sidebar-section">
+        <div class="sidebar-section-title">삽입</div>
+        <button class="btn btn-success" onclick="insertImageBoxSafe()">🖼️ 이미지 삽입 (Ctrl+Alt+I)</button>
+        <button class="btn" onclick="addBlockBelow('spacer')">↕ 여백 삽입</button>
+        <button class="btn" onclick="addBlockBelow('break')">⚡ 단 나누기 삽입</button>
+    </div>
+
+	    <div class="sidebar-section">
+	        <div class="sidebar-section-title">보기</div>
+	        <div style="margin-bottom:10px;">
+	            <span style="font-size:12px;">확대/축소</span>
+	            <input type="range" id="zoomRange" min="0.5" max="1.5" step="0.1" value="1.0" style="width: 100%;">
+	        </div>
+	        <div class="settings-panel" style="margin-bottom:0;">
+	            <div style="font-size:11px; font-weight:bold; margin-bottom:5px; border-bottom:1px solid #ddd; padding-bottom:3px;">📄 레이아웃</div>
+	            <div class="settings-row"><label>단 구성</label>
+	                <select id="setting-columns">
+	                    <option value="2">2단</option>
+	                    <option value="1">1단</option>
+	                </select>
+	            </div>
+	            <div class="settings-row"><label>상/하 여백(mm)</label><input type="number" id="setting-margin-top" min="5" max="30" step="1"></div>
+	            <div class="settings-row"><label>좌/우 여백(mm)</label><input type="number" id="setting-margin-side" min="5" max="30" step="1"></div>
+	            <div class="settings-row"><label>단 간격(mm)</label><input type="number" id="setting-column-gap" min="0" max="20" step="1"></div>
+	            <div class="settings-row"><label>푸터 텍스트</label><input type="text" id="setting-footer-text"></div>
+	        </div>
+	    </div>
+
+	    <div class="sidebar-section">
+	        <div class="sidebar-section-title">출력</div>
+	        <div id="preflight-panel" class="settings-panel preflight-panel" style="margin-bottom:8px;">
+	            <div class="preflight-item" data-type="math">미렌더 수식: <span id="preflight-math-count">0</span>개</div>
+	            <div class="preflight-item" data-type="image">미삽입 이미지 박스: <span id="preflight-image-count">0</span>개</div>
+	        </div>
+	        <button id="toggle-rendering-btn" class="btn" onclick="toggleRenderingMode()" style="margin-bottom:6px;">🔓 렌더링 해제 (편집 모드)</button>
+	        <button class="btn btn-purple" onclick="renderAllSafe()" style="margin-bottom:8px; padding: 12px;">
+	            ⚡ 수식 변환 (Render)<br>
+	            <span style="font-size:10px; opacity:0.8;">Click: $..$ → SVG / DblClick: Edit</span>
+	        </button>
+	        <button class="btn btn-danger" onclick="printWithMath()">🖨️ 인쇄하기</button>
+	    </div>
 
     <div class="shortcut-guide">
         <div class="shortcut-header">⌨️ 단축키 가이드</div>
@@ -139,14 +217,11 @@ Full Content:
             <div class="shortcut-item"><span>이미지 박스</span><span class="shortcut-key">Ctrl+Alt+I</span></div>
             <div class="shortcut-item"><span>회색 배경</span><span class="shortcut-key">Ctrl+Alt+G</span></div>
             <div class="shortcut-item"><span>테두리 박스</span><span class="shortcut-key">Ctrl+Alt+B</span></div>
-            <div class="shortcut-item"><span>실행 취소</span><span class="shortcut-key">Ctrl+Z</span></div>
-            <div class="shortcut-item"><span>저장하기</span><span class="shortcut-key">Ctrl+S</span></div>
-        </div>
-    </div>
-
-    <div style="margin-top:auto;">
-        <button class="btn btn-danger" onclick="printWithMath()">🖨️ 인쇄하기</button>
-    </div>
+	            <div class="shortcut-item"><span>실행 취소</span><span class="shortcut-key">Ctrl+Z</span></div>
+	            <div class="shortcut-item"><span>저장하기</span><span class="shortcut-key">Ctrl+S</span></div>
+	            <div class="shortcut-item"><span>찾기/바꾸기</span><span class="shortcut-key">Ctrl+Shift+H</span></div>
+	        </div>
+	    </div>
 </nav>
 
 <main class="workspace" id="workspace">

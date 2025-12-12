@@ -6,7 +6,8 @@ export const ManualRenderer = {
     mathCache: new Map(),
     isRendering: false,
 
-    async renderAll(callback) {
+    async renderAll(callback, options = {}) {
+        if (!options.force && State.renderingEnabled === false) return;
         if (!window.isMathJaxReady) { console.log("MathJax Waiting..."); return; }
         if (this.isRendering) return; 
         this.isRendering = true;
@@ -16,14 +17,15 @@ export const ManualRenderer = {
             for (let box of boxes) await this.typesetElement(box);
             if (callback) callback(); 
         } catch(e) { console.error("Render Error:", e); } 
-        finally { this.isRendering = false; Utils.hideLoading(); }
+        finally { this.isRendering = false; Utils.hideLoading(); document.dispatchEvent(new Event('preflight:update')); }
     },
 
     async typesetElement(element) {
-        if (element.querySelector('mjx-container') || element.querySelector('.blank-box')) {
+        if (element.querySelector('mjx-container') || element.querySelector('.blank-box') || element.querySelector('.image-placeholder')) {
             element.innerHTML = Utils.cleanRichContentToTex(element.innerHTML);
         }
         element.innerHTML = element.innerHTML.replace(/\[빈칸:(.*?)\]/g, '<span class="blank-box" contenteditable="false">$1</span>');
+        element.innerHTML = element.innerHTML.replace(/\[이미지\s*:\s*(.*?)\]/g, (m, label) => Utils.getImagePlaceholderHTML(label));
 
         const regex = /(\$\$[\s\S]+?\$\$|\$[\s\S]+?\$)/g;
         const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT, null, false);
@@ -76,11 +78,15 @@ export const ManualRenderer = {
 export const FileSystem = {
     dirHandle: null,
     async openProjectFolder() {
-        if (!window.showDirectoryPicker) { alert("브라우저 미지원"); return; }
+        if (!window.showDirectoryPicker) { Utils.showToast("브라우저 미지원", "error"); return; }
         try { 
             this.dirHandle = await window.showDirectoryPicker(); 
-            document.getElementById('folder-status').classList.add('active'); 
-            alert("✅ 폴더 연결됨"); 
+            const statusEl = document.getElementById('folder-status');
+            if (statusEl) {
+                statusEl.classList.add('active');
+                statusEl.textContent = "✅ 폴더 연결됨 (저장: 폴더)";
+            }
+            Utils.showToast("폴더가 연결되었습니다.", "success"); 
             this.loadImagesForDisplay(State.docData.blocks); 
         } catch (e) { }
     },
@@ -117,8 +123,13 @@ export const FileSystem = {
     },
     async saveProjectJSON(syncCallback) {
         syncCallback(); // 저장 전 최신 상태 동기화
-        if (!this.dirHandle) { if(!confirm("로컬 폴더 미연결. 다운로드?")) return; }
         Utils.showLoading("💾 저장 중...");
+
+        const title = (State.docData.meta.title || 'exam').trim();
+        const safeTitle = title.replace(/[\\/:*?"<>|]/g, '').replace(/\s+/g, '_').slice(0, 40) || 'exam';
+        const now = new Date();
+        const stamp = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}`;
+        const filename = `${safeTitle}_${stamp}.json`;
         
         const rawData = JSON.parse(JSON.stringify(State.docData)); 
         rawData.blocks.forEach(block => {
@@ -132,12 +143,13 @@ export const FileSystem = {
 
         if (this.dirHandle) {
             try {
-                const fileHandle = await this.dirHandle.getFileHandle('data.json', { create: true });
+                const fileHandle = await this.dirHandle.getFileHandle(filename, { create: true });
                 const writable = await fileHandle.createWritable(); await writable.write(JSON.stringify(rawData, null, 2)); await writable.close();
-                Utils.hideLoading(); alert("✅ 저장 완료!");
-            } catch(e) { alert("오류: " + e.message); Utils.hideLoading(); }
+                Utils.hideLoading(); Utils.showToast("저장 완료!", "success");
+            } catch(e) { Utils.showToast("저장 실패: " + e.message, "error"); Utils.hideLoading(); }
         } else {
-            const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(rawData, null, 2)], {type:'application/json'})); a.download = 'exam_v3.9.5.json'; a.click(); Utils.hideLoading();
+            const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(rawData, null, 2)], {type:'application/json'})); a.download = filename; a.click(); Utils.hideLoading();
+            Utils.showToast("다운로드로 저장되었습니다.", "success");
         }
     }
 };
@@ -149,7 +161,64 @@ export const ImportParser = {
             const closeIdx = chunk.indexOf(']]'); if (closeIdx === -1) return;
             const meta = chunk.substring(0, closeIdx); let content = chunk.substring(closeIdx + 2).trim();
             if (content.startsWith(':')) content = content.substring(1).trim();
-            content = content.replace(/\[이미지:(.*?)\]/g, '<span class="image-placeholder">[이미지: $1]</span>');
+
+            const renderBox = (label, body) => {
+                const bodyText = (body || '').trim().replace(/\n/g, '<br>');
+                if (label) {
+                    const safeLabel = label
+                        .replace(/&/g, '&amp;')
+                        .replace(/</g, '&lt;')
+                        .replace(/>/g, '&gt;')
+                        .replace(/"/g, '&quot;');
+                    return `<div class="custom-box labeled-box"><div class="box-label">&lt; ${safeLabel} &gt;</div><div class="box-content">${bodyText}</div></div>`;
+                }
+                return `<div class="custom-box simple-box"><div class="box-content">${bodyText}</div></div>`;
+            };
+
+            const convertBlockBoxes = (input) => {
+                const lines = input.split('\n');
+                const outLines = [];
+                for (let i = 0; i < lines.length; ) {
+                    const line = lines[i];
+                    const m = line.match(/^\s*\[블록박스(?:_(.*?))?\]\s*(?::)?\s*(.*)$/);
+                    if (!m) { outLines.push(line); i++; continue; }
+
+                    const label = (m[1] || '').trim();
+                    const rest = (m[2] || '').trim();
+                    if (rest) {
+                        outLines.push(renderBox(label, rest));
+                        i++; continue;
+                    }
+
+                    const bodyLines = [];
+                    let j = i + 1; let foundEnd = false;
+                    for (; j < lines.length; j++) {
+                        const endPos = lines[j].indexOf('[/블록박스]');
+                        if (endPos !== -1) {
+                            foundEnd = true;
+                            const before = lines[j].slice(0, endPos);
+                            if (before.trim() !== '') bodyLines.push(before);
+                            outLines.push(renderBox(label, bodyLines.join('\n')));
+                            const after = lines[j].slice(endPos + '[/블록박스]'.length);
+                            if (after.trim() !== '') outLines.push(after.trim());
+                            break;
+                        }
+                        bodyLines.push(lines[j]);
+                    }
+                    if (foundEnd) i = j + 1;
+                    else { outLines.push(line); outLines.push(...bodyLines); i = j; }
+                }
+                return outLines.join('\n');
+            };
+
+            const convertLegacyBlockBoxes = (input) => {
+                return input.replace(/\[블록박스(?:_(.*?))?\]\s*(?::)?\s*([^\n]*?)\s*\]/g, (m, label, body) => {
+                    return renderBox((label || '').trim(), body);
+                });
+            };
+
+            content = convertLegacyBlockBoxes(convertBlockBoxes(content));
+            content = content.replace(/\[이미지\s*:\s*(.*?)\]/g, (m, label) => Utils.getImagePlaceholderHTML(label));
             content = content.replace(/\[빈칸:(.*?)\]/g, '<span class="blank-box" contenteditable="false">$1</span>');
             content = content.replace(/\n/g, '<br>');
             const [stylePart, labelPart] = meta.includes('_') ? meta.split('_') : ['기본', meta];

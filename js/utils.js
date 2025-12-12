@@ -1,5 +1,6 @@
 // Filename: js/utils.js
 export const Utils = {
+    preservedClasses: ['custom-box', 'labeled-box', 'simple-box', 'box-label', 'box-content'],
     debounce(func, wait) {
         let timeout;
         return function(...args) {
@@ -20,7 +21,22 @@ export const Utils = {
         div.querySelectorAll('.blank-box').forEach(blank => {
             blank.replaceWith(document.createTextNode(`[빈칸:${blank.innerText}]`));
         });
+        div.querySelectorAll('.image-placeholder').forEach(ph => {
+            const label = ph.getAttribute('data-label') || '';
+            ph.replaceWith(document.createTextNode(`[이미지:${label}]`));
+        });
         return div.innerHTML;
+    },
+
+    getImagePlaceholderHTML(labelText = '') {
+        const label = (labelText || '').trim();
+        const safeLabel = label
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+        const display = label ? `[이미지: ${safeLabel}]` : '이미지 박스';
+        return `<span class="image-placeholder" contenteditable="false" data-label="${safeLabel}">${display}<button class="image-load-btn" contenteditable="false" tabindex="-1">불러오기</button></span>`;
     },
 
     getAtomBeforeCaret(container) { 
@@ -59,6 +75,19 @@ export const Utils = {
 
     showLoading(msg) { const el=document.getElementById('loading-indicator'); el.innerText=msg; el.style.display='block'; },
     hideLoading() { document.getElementById('loading-indicator').style.display='none'; },
+    showToast(msg, type = 'info', duration = 2000) {
+        const container = document.getElementById('toast-container');
+        if (!container) { alert(msg); return; }
+        const toast = document.createElement('div');
+        toast.className = `toast toast-${type}`;
+        toast.textContent = msg;
+        container.appendChild(toast);
+        requestAnimationFrame(() => toast.classList.add('show'));
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => toast.remove(), 250);
+        }, duration);
+    },
     openModal(id) { document.getElementById(id).style.display = 'flex'; },
     closeModal(id) { document.getElementById(id).style.display = 'none'; }
 };

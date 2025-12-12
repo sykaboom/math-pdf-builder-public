@@ -3,12 +3,13 @@ import { Utils } from './utils.js';
 
 export const State = {
     docData: {
-        meta: { title: "시험지 제목", subtitle: "단원명", footerText: "학원명", zoom: 1.0 },
+        meta: { title: "시험지 제목", subtitle: "단원명", footerText: "학원명", zoom: 1.0, columns: 2, marginTopMm: 15, marginSideMm: 10, columnGapMm: 5, fontFamily: 'serif', fontSizePt: 10.5 },
         blocks: [ { id: 'b0', type: 'concept', content: '<span class="q-label">안내</span> 내용 입력...' } ]
     },
     historyStack: [],
     historyIndex: -1,
     renderTimer: null,
+    draftTimer: null,
     
     // 런타임 상태
     contextTargetId: null,
@@ -16,6 +17,8 @@ export const State = {
     selectedPlaceholder: null,
     selectedImage: null,
     lastFocusId: null,
+    lastEditableId: null,
+    renderingEnabled: true,
     keysPressed: {},
 
     saveHistory(debounceTime = 0) {
@@ -45,10 +48,39 @@ export const State = {
         }
     },
 
+    autosaveDraft(debounceTime = 0) {
+        const doSave = () => {
+            const cleanData = JSON.parse(JSON.stringify(this.docData));
+            cleanData.blocks.forEach(b => b.content = Utils.cleanRichContentToTex(b.content));
+            const str = JSON.stringify(cleanData);
+            localStorage.setItem('editorAutoSave', str);
+        };
+
+        if (debounceTime > 0) {
+            clearTimeout(this.draftTimer);
+            this.draftTimer = setTimeout(doSave, debounceTime);
+        } else {
+            doSave();
+        }
+    },
+
     loadFromHistory(str) {
         if (!str) return false;
         try {
-            this.docData = JSON.parse(str);
+            const parsed = JSON.parse(str);
+            this.docData = parsed;
+            this.docData.meta = Object.assign({
+                title: "시험지 제목",
+                subtitle: "단원명",
+                footerText: "학원명",
+                zoom: 1.0,
+                columns: 2,
+                marginTopMm: 15,
+                marginSideMm: 10,
+                columnGapMm: 5,
+                fontFamily: 'serif',
+                fontSizePt: 10.5
+            }, parsed.meta || {});
             return true;
         } catch(e) { console.error(e); return false; }
     },

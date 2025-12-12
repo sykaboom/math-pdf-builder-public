@@ -29,8 +29,58 @@ window.executeFindReplace = () => {
 window.performUndo = () => { if(State.undo()) { Renderer.renderPages(); ManualRenderer.renderAll(); } };
 window.performRedo = () => { if(State.redo()) { Renderer.renderPages(); ManualRenderer.renderAll(); } };
 window.resetProject = () => { if(confirm('초기화하시겠습니까? (저장되지 않은 내용은 삭제됩니다)')) { State.docData.blocks=[{ id: 'b0', type: 'concept', content: '<span class="q-label">안내</span> 내용 입력...' }]; Renderer.renderPages(); State.saveHistory(); } };
-window.printWithMath = () => { Utils.showLoading("🖨️ 인쇄 준비 중..."); window.print(); Utils.hideLoading(); };
+let printPreflightData = null;
+const doPrint = () => { Utils.showLoading("🖨️ 인쇄 준비 중..."); window.print(); Utils.hideLoading(); };
+
+window.printWithMath = () => {
+    const placeholderCount = document.querySelectorAll('.image-placeholder').length;
+    const unrenderedMathCount = State.docData.blocks.reduce((acc, b) => acc + (b.content && b.content.includes('$') ? 1 : 0), 0);
+
+    if (placeholderCount > 0 || unrenderedMathCount > 0) {
+        printPreflightData = { placeholderCount, unrenderedMathCount };
+        const body = document.getElementById('print-preflight-body');
+        if (body) {
+            const lines = [];
+            if (placeholderCount > 0) lines.push(`• 미삽입 이미지 박스: ${placeholderCount}개`);
+            if (unrenderedMathCount > 0) lines.push(`• 미렌더 수식($ 포함): ${unrenderedMathCount}개`);
+            body.innerHTML = lines.join('<br>');
+        }
+        Utils.openModal('print-preflight-modal');
+        return;
+    }
+    doPrint();
+};
+
+window.printPreflightAction = async (mode) => {
+    Utils.closeModal('print-preflight-modal');
+    if (mode === 'cancel') { printPreflightData = null; return; }
+    if (mode === 'render') await ManualRenderer.renderAll(null, { force: true });
+    doPrint();
+    printPreflightData = null;
+};
+
+const updateRenderingToggleUI = () => {
+    const btn = document.getElementById('toggle-rendering-btn');
+    if (!btn) return;
+    btn.textContent = State.renderingEnabled ? '🔓 렌더링 해제 (편집 모드)' : '🔒 렌더링 적용 (렌더 모드)';
+};
+
+window.toggleRenderingMode = async (forceState) => {
+    const next = (typeof forceState === 'boolean') ? forceState : !State.renderingEnabled;
+    State.renderingEnabled = next;
+    Renderer.renderPages();
+    if (next) await ManualRenderer.renderAll();
+    updateRenderingToggleUI();
+};
+
+window.renderAllSafe = async () => {
+    if (!State.renderingEnabled) { await window.toggleRenderingMode(true); return; }
+    await ManualRenderer.renderAll();
+};
 window.insertImageBoxSafe = () => Events.insertImageBoxSafe();
+window.addImageBlockBelow = (id) => Events.addImageBlockBelow(id);
+window.insertImagePlaceholderAtEnd = (id) => Events.insertImagePlaceholderAtEnd(id);
+window.applyBlockFont = () => Events.applyBlockFontFromMenu();
 window.openModal = Utils.openModal;
 window.closeModal = Utils.closeModal;
 window.execStyle = (cmd, val) => document.execCommand(cmd, false, val);
@@ -51,6 +101,7 @@ window.addEventListener('DOMContentLoaded', () => {
     Renderer.renderPages(); 
     State.saveHistory(); 
     Events.initGlobalListeners();
+    updateRenderingToggleUI();
 
     // [Fix] 줌 최적화 로직 복구 (입력시 CSS Transform, 놓으면 렌더링)
     const zoomRange = document.getElementById('zoomRange');
@@ -66,6 +117,61 @@ window.addEventListener('DOMContentLoaded', () => {
     zoomRange.addEventListener('change', async () => {
         Renderer.renderPages();
         await ManualRenderer.renderAll();
+    });
+
+    const columnsSel = document.getElementById('setting-columns');
+    const marginTopInp = document.getElementById('setting-margin-top');
+    const marginSideInp = document.getElementById('setting-margin-side');
+    const columnGapInp = document.getElementById('setting-column-gap');
+    const footerTextInp = document.getElementById('setting-footer-text');
+    const meta = State.docData.meta;
+
+    if (columnsSel) columnsSel.value = meta.columns || 2;
+    if (marginTopInp) marginTopInp.value = meta.marginTopMm || 15;
+    if (marginSideInp) marginSideInp.value = meta.marginSideMm || 10;
+    if (columnGapInp) columnGapInp.value = meta.columnGapMm || 5;
+    if (footerTextInp) footerTextInp.value = meta.footerText || '';
+
+    if (columnsSel) columnsSel.addEventListener('change', async (e) => {
+        State.docData.meta.columns = parseInt(e.target.value) === 1 ? 1 : 2;
+        Renderer.renderPages();
+        await ManualRenderer.renderAll();
+        State.saveHistory();
+    });
+    const numberHandler = async (key, inp, def) => {
+        if (!inp) return;
+        inp.addEventListener('change', async (e) => {
+            const v = parseInt(e.target.value) || def;
+            State.docData.meta[key] = v;
+            Renderer.renderPages();
+            await ManualRenderer.renderAll();
+            State.saveHistory();
+        });
+    };
+    numberHandler('marginTopMm', marginTopInp, 15);
+    numberHandler('marginSideMm', marginSideInp, 10);
+    numberHandler('columnGapMm', columnGapInp, 5);
+    if (footerTextInp) footerTextInp.addEventListener('input', (e) => {
+        State.docData.meta.footerText = e.target.value;
+        Renderer.renderPages();
+        State.saveHistory(500);
+    });
+
+    const fontFamilySel = document.getElementById('setting-font-family');
+    const fontSizeInp = document.getElementById('setting-font-size');
+    if (fontFamilySel) fontFamilySel.value = meta.fontFamily || 'serif';
+    if (fontSizeInp) fontSizeInp.value = meta.fontSizePt || 10.5;
+    if (fontFamilySel) fontFamilySel.addEventListener('change', async (e) => {
+        State.docData.meta.fontFamily = e.target.value;
+        Renderer.renderPages();
+        await ManualRenderer.renderAll();
+        State.saveHistory();
+    });
+    if (fontSizeInp) fontSizeInp.addEventListener('change', async (e) => {
+        State.docData.meta.fontSizePt = parseFloat(e.target.value) || 10.5;
+        Renderer.renderPages();
+        await ManualRenderer.renderAll();
+        State.saveHistory();
     });
     
     document.getElementById('imgUpload').addEventListener('change', (e) => {
