@@ -1,5 +1,6 @@
 // Filename: js/utils.js
 export const Utils = {
+    preservedClasses: ['custom-box', 'labeled-box', 'simple-box', 'box-label', 'box-content'],
     debounce(func, wait) {
         let timeout;
         return function(...args) {

@@ -150,6 +150,63 @@ export const ImportParser = {
             const closeIdx = chunk.indexOf(']]'); if (closeIdx === -1) return;
             const meta = chunk.substring(0, closeIdx); let content = chunk.substring(closeIdx + 2).trim();
             if (content.startsWith(':')) content = content.substring(1).trim();
+
+            const convertBlockBoxes = (input) => {
+                let out = ''; let i = 0;
+                while (i < input.length) {
+                    const start = input.indexOf('[블록박스', i);
+                    if (start === -1) { out += input.slice(i); break; }
+                    out += input.slice(i, start);
+
+                    let cursor = start + '[블록박스'.length;
+                    let label = '';
+                    if (input[cursor] === '_') {
+                        const labelEnd = input.indexOf(']', cursor);
+                        if (labelEnd === -1) { out += input.slice(start); break; }
+                        label = input.slice(cursor + 1, labelEnd).trim();
+                        cursor = labelEnd + 1;
+                    } else if (input[cursor] === ']') {
+                        cursor += 1;
+                    } else {
+                        out += input[start];
+                        i = start + 1;
+                        continue;
+                    }
+
+                    while (cursor < input.length && /\s/.test(input[cursor])) cursor++;
+                    if (input[cursor] === ':') cursor++;
+                    while (cursor < input.length && /\s/.test(input[cursor])) cursor++;
+
+                    const bodyStart = cursor;
+                    let depth = 0; let bodyEnd = -1;
+                    for (; cursor < input.length; cursor++) {
+                        const ch = input[cursor];
+                        if (ch === '[') depth++;
+                        else if (ch === ']') {
+                            if (depth === 0) { bodyEnd = cursor; break; }
+                            depth--;
+                        }
+                    }
+                    if (bodyEnd === -1) { out += input.slice(start); break; }
+
+                    const bodyText = input.slice(bodyStart, bodyEnd).trim().replace(/\n/g, '<br>');
+                    if (label) {
+                        const safeLabel = label
+                            .replace(/&/g, '&amp;')
+                            .replace(/</g, '&lt;')
+                            .replace(/>/g, '&gt;')
+                            .replace(/"/g, '&quot;');
+                        out += `<div class="custom-box labeled-box"><div class="box-label">&lt; ${safeLabel} &gt;</div><div class="box-content">${bodyText}</div></div>`;
+                    } else {
+                        out += `<div class="custom-box simple-box"><div class="box-content">${bodyText}</div></div>`;
+                    }
+
+                    i = bodyEnd + 1;
+                }
+                return out;
+            };
+
+            content = convertBlockBoxes(content);
             content = content.replace(/\[이미지\s*:\s*(.*?)\]/g, (m, label) => Utils.getImagePlaceholderHTML(label));
             content = content.replace(/\[빈칸:(.*?)\]/g, '<span class="blank-box" contenteditable="false">$1</span>');
             content = content.replace(/\n/g, '<br>');

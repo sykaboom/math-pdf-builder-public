@@ -86,6 +86,12 @@ body.drag-over #drop-overlay { display: flex; }
 .concept-box { border: 1px solid #333; border-radius: 6px; background: #fff; padding: 8px 10px; margin-bottom: 5px; width: 100%; }
 .q-label { color: #1a6fc0; font-weight: 800; font-family: 'Noto Sans KR', sans-serif; margin-right: 5px; }
 
+.custom-box { width: 100%; margin: 5px 0; background: #fff; }
+.custom-box.labeled-box { border: 1px solid #000; border-radius: 4px; padding: 5px 15px 15px 15px; }
+.custom-box.simple-box { border: 1px solid #333; border-radius: 2px; padding: 10px; }
+.box-label { font-weight: 800; text-align: center; margin-bottom: 8px; color: #000; font-family: 'Noto Sans KR', sans-serif; }
+.box-content { line-height: 1.6; text-align: left; }
+
 .spacer-block { width: 100%; background: repeating-linear-gradient(45deg, #f9f9f9, #f9f9f9 10px, #fff 10px, #fff 20px); border: 1px dashed #ddd; cursor: ns-resize; display: flex; align-items: center; justify-content: center; margin: 5px 0; }
 .break-line { height: 24px; border-bottom: 2px dotted #ff4444; margin: 5px 0 15px 0; text-align: center; color: #ff4444; font-size: 11px; cursor: pointer; background: rgba(255, 200, 200, 0.1); }
 .break-line:hover::after { content: ' (클릭하여 삭제)'; }
