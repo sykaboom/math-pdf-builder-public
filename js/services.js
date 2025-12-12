@@ -35,9 +35,9 @@ export const ManualRenderer = {
                     .replace(/</g, '&lt;')
                     .replace(/>/g, '&gt;')
                     .replace(/"/g, '&quot;');
-                return `<div class="custom-box labeled-box"><div class="box-label">&lt; ${safeLabel} &gt;</div><div class="box-content">${body}</div></div>`;
+                return `<div class="custom-box labeled-box" contenteditable="false"><div class="box-label">&lt; ${safeLabel} &gt;</div><div class="box-content">${body}</div></div>`;
             }
-            return `<div class="custom-box simple-box"><div class="box-content">${body}</div></div>`;
+            return `<div class="custom-box simple-box" contenteditable="false"><div class="box-content">${body}</div></div>`;
         };
 
         const multilineBoxRegex = /\[블록박스(?:_([^\]]+))?\]\s*(?::)?\s*([\s\S]*?)\[\/블록박스\]/g;
@@ -50,6 +50,16 @@ export const ManualRenderer = {
             const trimmedBody = (body || '').replace(/^\s+/, '');
             if (!trimmedBody.trim()) return m; // 종료 토큰 누락 등은 원문 유지
             return renderBox((label || '').trim(), trimmedBody);
+        });
+
+        // [Fix] 블록박스를 원자적 개체로 유지하고, 뒤로 커서가 이동할 수 있도록 줄바꿈 보장
+        element.querySelectorAll('.custom-box').forEach(boxEl => {
+            boxEl.setAttribute('contenteditable', 'false');
+            let next = boxEl.nextSibling;
+            if (next && next.nodeType === Node.TEXT_NODE && next.textContent.trim() === '') next = next.nextSibling;
+            if (!next || !(next.nodeType === Node.ELEMENT_NODE && next.tagName === 'BR')) {
+                boxEl.after(document.createElement('br'));
+            }
         });
         element.innerHTML = element.innerHTML.replace(/\[빈칸:(.*?)\]/g, '<span class="blank-box" contenteditable="false">$1</span>');
         element.innerHTML = element.innerHTML.replace(/\[이미지\s*:\s*(.*?)\]/g, (m, label) => Utils.getImagePlaceholderHTML(label));
@@ -197,9 +207,9 @@ export const ImportParser = {
                         .replace(/</g, '&lt;')
                         .replace(/>/g, '&gt;')
                         .replace(/"/g, '&quot;');
-                    return `<div class="custom-box labeled-box"><div class="box-label">&lt; ${safeLabel} &gt;</div><div class="box-content">${bodyText}</div></div>`;
+                    return `<div class="custom-box labeled-box" contenteditable="false"><div class="box-label">&lt; ${safeLabel} &gt;</div><div class="box-content">${bodyText}</div></div>`;
                 }
-                return `<div class="custom-box simple-box"><div class="box-content">${bodyText}</div></div>`;
+                return `<div class="custom-box simple-box" contenteditable="false"><div class="box-content">${bodyText}</div></div>`;
             };
 
             const convertBlockBoxes = (input) => {
