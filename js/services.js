@@ -73,14 +73,14 @@ export const ManualRenderer = {
         const sanitizeMathTokens = (tex) => {
             if (!tex) return tex;
             const toBoxedText = (label = '') => `\\boxed{\\text{${escapeForMathTex(label)}}}`;
-            tex = tex.replace(/\[빈칸:(.*?)\]/g, (m, label) => toBoxedText(label));
+            tex = tex.replace(/\[빈칸[:_](.*?)\]/g, (m, label) => toBoxedText(label));
             tex = tex.replace(/\[이미지\s*:\s*(.*?)\]/g, (m, label) => toBoxedText(label));
             return tex;
         };
 
         const applyTokenReplacementsOutsideMath = (root) => {
             const mathRegex = /(\$\$[\s\S]+?\$\$|\$[\s\S]+?\$)/g;
-            const tokenRegex = /\[빈칸:(.*?)\]|\[이미지\s*:\s*(.*?)\]/g;
+            const tokenRegex = /\[빈칸([:_])(.*?)\]|\[이미지\s*:\s*(.*?)\]/g;
             const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null, false);
             const textNodes = [];
             while (walker.nextNode()) textNodes.push(walker.currentNode);
@@ -103,10 +103,11 @@ export const ManualRenderer = {
                         const span = document.createElement('span');
                         span.className = 'blank-box';
                         span.setAttribute('contenteditable', 'false');
-                        span.textContent = m[1];
+                        span.dataset.delim = m[1] || ':';
+                        span.textContent = m[2];
                         frag.appendChild(span);
-                    } else if (m[2] !== undefined) {
-                        frag.appendChild(createImageFragment(m[2]));
+                    } else if (m[3] !== undefined) {
+                        frag.appendChild(createImageFragment(m[3]));
                     }
                     lastIndex = tokenRegex.lastIndex;
                 }
@@ -328,7 +329,7 @@ export const ImportParser = {
 
             content = convertLegacyBlockBoxes(convertBlockBoxes(content));
             content = content.replace(/\[이미지\s*:\s*(.*?)\]/g, (m, label) => Utils.getImagePlaceholderHTML(label));
-            content = content.replace(/\[빈칸:(.*?)\]/g, '<span class="blank-box" contenteditable="false">$1</span>');
+            content = content.replace(/\[빈칸([:_])(.*?)\]/g, (m, delim, label) => `<span class="blank-box" data-delim="${delim || ':'}" contenteditable="false">${label}</span>`);
             content = content.replace(/\n/g, '<br>');
             const [stylePart, labelPart] = meta.includes('_') ? meta.split('_') : ['기본', meta];
             const styles = stylePart.split(',');

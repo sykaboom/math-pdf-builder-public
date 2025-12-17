@@ -19,7 +19,8 @@ export const Utils = {
             if (tex) mjx.replaceWith(document.createTextNode(isDisplay ? `$$${tex}$$` : `$${tex}$`));
         });
         div.querySelectorAll('.blank-box').forEach(blank => {
-            blank.replaceWith(document.createTextNode(`[빈칸:${blank.innerText}]`));
+            const delim = blank.dataset ? (blank.dataset.delim || ':') : ':';
+            blank.replaceWith(document.createTextNode(`[빈칸${delim}${blank.innerText}]`));
         });
         div.querySelectorAll('.image-placeholder').forEach(ph => {
             const label = ph.getAttribute('data-label') || '';
