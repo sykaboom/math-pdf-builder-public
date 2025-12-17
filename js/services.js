@@ -61,8 +61,79 @@ export const ManualRenderer = {
                 boxEl.after(document.createElement('br'));
             }
         });
-        element.innerHTML = element.innerHTML.replace(/\[빈칸:(.*?)\]/g, '<span class="blank-box" contenteditable="false">$1</span>');
-        element.innerHTML = element.innerHTML.replace(/\[이미지\s*:\s*(.*?)\]/g, (m, label) => Utils.getImagePlaceholderHTML(label));
+
+        const escapeForMathTex = (value = '') => {
+            return value
+                .replace(/\\/g, '\\textbackslash ')
+                .replace(/([{}#%&_\$])/g, '\\$1')
+                .replace(/\^/g, '\\^{}')
+                .replace(/~/g, '\\~{}');
+        };
+
+        const sanitizeMathTokens = (tex) => {
+            if (!tex) return tex;
+            const toBoxedText = (label = '') => `\\boxed{\\text{${escapeForMathTex(label)}}}`;
+            tex = tex.replace(/\[빈칸:(.*?)\]/g, (m, label) => toBoxedText(label));
+            tex = tex.replace(/\[이미지\s*:\s*(.*?)\]/g, (m, label) => toBoxedText(label));
+            return tex;
+        };
+
+        const applyTokenReplacementsOutsideMath = (root) => {
+            const mathRegex = /(\$\$[\s\S]+?\$\$|\$[\s\S]+?\$)/g;
+            const tokenRegex = /\[빈칸:(.*?)\]|\[이미지\s*:\s*(.*?)\]/g;
+            const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null, false);
+            const textNodes = [];
+            while (walker.nextNode()) textNodes.push(walker.currentNode);
+
+            const createImageFragment = (label) => {
+                const container = document.createElement('div');
+                container.innerHTML = Utils.getImagePlaceholderHTML(label);
+                const frag = document.createDocumentFragment();
+                Array.from(container.childNodes).forEach(child => frag.appendChild(child));
+                return frag;
+            };
+
+            const buildFragmentFromPlain = (text) => {
+                const frag = document.createDocumentFragment();
+                if (!text) return frag;
+                let lastIndex = 0; tokenRegex.lastIndex = 0; let m;
+                while ((m = tokenRegex.exec(text)) !== null) {
+                    if (m.index > lastIndex) frag.appendChild(document.createTextNode(text.slice(lastIndex, m.index)));
+                    if (m[1] !== undefined) {
+                        const span = document.createElement('span');
+                        span.className = 'blank-box';
+                        span.setAttribute('contenteditable', 'false');
+                        span.textContent = m[1];
+                        frag.appendChild(span);
+                    } else if (m[2] !== undefined) {
+                        frag.appendChild(createImageFragment(m[2]));
+                    }
+                    lastIndex = tokenRegex.lastIndex;
+                }
+                if (lastIndex < text.length) frag.appendChild(document.createTextNode(text.slice(lastIndex)));
+                return frag;
+            };
+
+            for (let node of textNodes) {
+                const text = node.nodeValue;
+                if (!text) continue;
+                tokenRegex.lastIndex = 0; mathRegex.lastIndex = 0;
+                const hasToken = tokenRegex.test(text); tokenRegex.lastIndex = 0;
+                const hasMath = mathRegex.test(text); mathRegex.lastIndex = 0;
+                if (!hasToken && !hasMath) continue;
+                const frag = document.createDocumentFragment();
+                let lastIndex = 0; mathRegex.lastIndex = 0; let match;
+                while ((match = mathRegex.exec(text)) !== null) {
+                    if (match.index > lastIndex) frag.appendChild(buildFragmentFromPlain(text.slice(lastIndex, match.index)));
+                    frag.appendChild(document.createTextNode(match[0]));
+                    lastIndex = mathRegex.lastIndex;
+                }
+                if (lastIndex < text.length) frag.appendChild(buildFragmentFromPlain(text.slice(lastIndex)));
+                node.parentNode.replaceChild(frag, node);
+            }
+        };
+
+        applyTokenReplacementsOutsideMath(element);
 
         const regex = /(\$\$[\s\S]+?\$\$|\$[\s\S]+?\$)/g;
         const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT, null, false);
@@ -79,14 +150,15 @@ export const ManualRenderer = {
                 const fullTex = match[0]; 
                 const isDisplay = fullTex.startsWith('$$'); 
                 const cleanTex = isDisplay ? fullTex.slice(2, -2) : fullTex.slice(1, -1);
-                const cacheKey = cleanTex + (isDisplay ? '_D' : '_I');
+                const preparedTex = sanitizeMathTokens(cleanTex);
+                const cacheKey = preparedTex + (isDisplay ? '_D' : '_I');
                 let mjxNode = null;
 
                 if (this.mathCache.has(cacheKey)) {
                     mjxNode = this.mathCache.get(cacheKey).cloneNode(true);
                 } else {
                     try {
-                        mjxNode = await MathJax.tex2svgPromise(cleanTex, { display: isDisplay });
+                        mjxNode = await MathJax.tex2svgPromise(preparedTex, { display: isDisplay });
                         if (mjxNode) {
                             mjxNode.setAttribute('data-tex', cleanTex); 
                             mjxNode.setAttribute('display', isDisplay);
