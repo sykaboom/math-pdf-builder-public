@@ -265,7 +265,8 @@ export const Events = {
             if (blank) {
                 e.preventDefault(); e.stopPropagation();
                 const text = blank.innerText;
-                blank.replaceWith(document.createTextNode(`[빈칸:${text}]`));
+                const delim = blank.dataset ? (blank.dataset.delim || ':') : ':';
+                blank.replaceWith(document.createTextNode(`[빈칸${delim}${text}]`));
                 Renderer.syncBlock(blank.closest('.block-wrapper').dataset.id);
                 return;
             }
