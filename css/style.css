@@ -12,12 +12,12 @@ mjx-assistive-mml { display: none !important; }
 mjx-container svg path,
 mjx-container svg polygon { fill: currentColor !important; stroke: none !important; stroke-width: 0 !important; }
 mjx-container svg rect { fill: none !important; stroke: currentColor !important; stroke-width: 1.5px !important; }
-mjx-container .mjx-boxed rect { stroke-width: 2px !important; }
+mjx-container .mjx-boxed rect { stroke-width: 2.5px !important; stroke: #000 !important; vector-effect: non-scaling-stroke; }
 mjx-container:hover { background-color: rgba(0, 0, 0, 0.05); border-radius: 4px; }
 mjx-container:focus { outline: 2px solid #007bff; border-radius: 4px; }
 
 /* [빈칸 박스 스타일] */
-.blank-box { display: inline-block; border: 2px solid #000; padding: 2px 18px; margin: 0 2px; min-width: 42px; text-align: center; font-weight: bold; background: transparent; font-family: 'Noto Sans KR', sans-serif; font-size: 0.95em; vertical-align: middle; cursor: pointer; border-radius: 2px; user-select: none; }
+.blank-box { display: inline-block; border: 1.5px solid #111; padding: 2px 18px; margin: 0 2px; min-width: 42px; text-align: center; font-weight: bold; background: transparent; font-family: 'Noto Sans KR', sans-serif; font-size: 0.95em; vertical-align: middle; cursor: pointer; border-radius: 2px; user-select: none; }
 .blank-box:hover { background-color: transparent; border-color: #007bff; color: #007bff; }
 
 /* [UI 요소] */
@@ -183,5 +183,5 @@ body.drag-over #drop-overlay { display: flex; }
     .block-wrapper { padding-right: 0 !important; }
     #paper-container { transform: none !important; }
     mjx-container { color: #222 !important; }
-    .blank-box { background: transparent !important; border: 2px solid #000 !important; padding: 2px 18px !important; min-width: 42px; color: #000 !important; text-align: center; }
+    .blank-box { background: transparent !important; border: 1.5px solid #111 !important; padding: 2px 18px !important; min-width: 42px; color: #000 !important; text-align: center; }
 }
