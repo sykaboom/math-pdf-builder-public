@@ -72,8 +72,11 @@ export const ManualRenderer = {
 
         const sanitizeMathTokens = (tex) => {
             if (!tex) return tex;
-            const toBoxedText = (label = '') => `\\boxed{\\text{${escapeForMathTex(label)}}}`;
-            tex = tex.replace(/\[빈칸[:_](.*?)\]/g, (m, label) => toBoxedText(label));
+            const toBoxedText = (label = '', className = '') => {
+                const boxed = `\\boxed{\\text{${escapeForMathTex(label)}}}`;
+                return className ? `\\class{${className}}{${boxed}}` : boxed;
+            };
+            tex = tex.replace(/\[빈칸[:_](.*?)\]/g, (m, label) => toBoxedText(label, 'blank-box'));
             tex = tex.replace(/\[이미지\s*:\s*(.*?)\]/g, (m, label) => toBoxedText(label));
             return tex;
         };

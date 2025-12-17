@@ -4,7 +4,7 @@ window.MathJax = {
         inlineMath: [['$', '$']],
         displayMath: [['$$', '$$']],
         processEscapes: true,
-        packages: ['base', 'ams', 'noerrors', 'noundefined']
+        packages: ['base', 'ams', 'noerrors', 'noundefined', 'html']
     },
     svg: { 
         fontCache: 'none', 
