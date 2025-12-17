@@ -11,13 +11,17 @@ mjx-container { display: inline-block !important; vertical-align: middle !import
 mjx-assistive-mml { display: none !important; }
 mjx-container svg path,
 mjx-container svg polygon { fill: currentColor !important; stroke: none !important; stroke-width: 0 !important; }
-mjx-container svg rect { fill: none !important; stroke: currentColor !important; stroke-width: 1.5px !important; }
-mjx-container svg line,
-mjx-container svg path.mjx-line,
-mjx-container svg rect.mjx-line { stroke: #000 !important; stroke-width: 1.5px !important; }
-mjx-container .mjx-boxed rect { stroke-width: 2.5px !important; stroke: #000 !important; vector-effect: non-scaling-stroke; }
-mjx-container .mjx-boxed rect {
+/* MathJax는 분수선/근호선 등을 얇은 rect로 그리므로 fill을 유지해야 합니다. */
+mjx-container svg rect { fill: currentColor !important; stroke: none !important; }
+/* \\boxed{} 등은 rect stroke로 테두리를 그리므로 예외 처리 */
+mjx-container svg .mjx-boxed rect { fill: none !important; stroke: currentColor !important; vector-effect: non-scaling-stroke; }
+mjx-container svg line { stroke: currentColor !important; }
+/* [빈칸 토큰]으로 생성된 boxed만 스타일링 (일반 \\boxed{}는 기본 렌더 유지) */
+mjx-container svg .blank-box rect {
+    fill: none !important;
+    stroke: #000 !important;
     stroke-width: 2px !important;
+    vector-effect: non-scaling-stroke;
     transform: translate(-6px, -2px) scale(1.15, 1.05);
     transform-origin: center;
 }
@@ -25,8 +29,8 @@ mjx-container:hover { background-color: rgba(0, 0, 0, 0.05); border-radius: 4px;
 mjx-container:focus { outline: 2px solid #007bff; border-radius: 4px; }
 
 /* [빈칸 박스 스타일] */
-.blank-box { display: inline-block; border: 1.5px solid #111; padding: 2px 18px; margin: 0 2px; min-width: 42px; text-align: center; font-weight: bold; background: transparent; font-family: 'Noto Sans KR', sans-serif; font-size: 0.95em; vertical-align: middle; cursor: pointer; border-radius: 2px; user-select: none; }
-.blank-box:hover { background-color: transparent; border-color: #007bff; color: #007bff; }
+span.blank-box { display: inline-block; border: 1.5px solid #111; padding: 2px 18px; margin: 0 2px; min-width: 42px; text-align: center; font-weight: bold; background: transparent; font-family: 'Noto Sans KR', sans-serif; font-size: 0.95em; vertical-align: middle; cursor: pointer; border-radius: 2px; user-select: none; }
+span.blank-box:hover { background-color: transparent; border-color: #007bff; color: #007bff; }
 
 /* [UI 요소] */
 #drop-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 123, 255, 0.85); z-index: 9999; display: none; align-items: center; justify-content: center; color: white; font-size: 24px; font-weight: bold; pointer-events: none; flex-direction: column; gap: 10px; }
@@ -191,5 +195,5 @@ body.drag-over #drop-overlay { display: flex; }
     .block-wrapper { padding-right: 0 !important; }
     #paper-container { transform: none !important; }
     mjx-container { color: #222 !important; }
-    .blank-box { background: transparent !important; border: 1.5px solid #111 !important; padding: 2px 18px !important; min-width: 42px; color: #000 !important; text-align: center; }
+    span.blank-box { background: transparent !important; border: 1.5px solid #111 !important; padding: 2px 18px !important; min-width: 42px; color: #000 !important; text-align: center; }
 }
