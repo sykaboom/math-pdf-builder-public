@@ -12,6 +12,9 @@ mjx-assistive-mml { display: none !important; }
 mjx-container svg path,
 mjx-container svg polygon { fill: currentColor !important; stroke: none !important; stroke-width: 0 !important; }
 mjx-container svg rect { fill: none !important; stroke: currentColor !important; stroke-width: 1.5px !important; }
+mjx-container svg line,
+mjx-container svg path.mjx-line,
+mjx-container svg rect.mjx-line { stroke: #000 !important; stroke-width: 1.5px !important; }
 mjx-container .mjx-boxed rect { stroke-width: 2.5px !important; stroke: #000 !important; vector-effect: non-scaling-stroke; }
 mjx-container .mjx-boxed rect {
     stroke-width: 2px !important;
