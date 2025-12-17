@@ -1,5 +1,8 @@
 // Filename: js/config.js
 window.MathJax = {
+    loader: {
+        load: ['[tex]/html']
+    },
     tex: { 
         inlineMath: [['$', '$']],
         displayMath: [['$$', '$$']],

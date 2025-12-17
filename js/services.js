@@ -270,22 +270,33 @@ export const FileSystem = {
 export const ImportParser = {
     parse(text) {
         const blocks = []; const rawItems = text.split('[[').filter(s => s.trim().length > 0);
+        const escapeHtml = (value = '') => {
+            return String(value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        };
         rawItems.forEach(chunk => {
             const closeIdx = chunk.indexOf(']]'); if (closeIdx === -1) return;
             const meta = chunk.substring(0, closeIdx); let content = chunk.substring(closeIdx + 2).trim();
             if (content.startsWith(':')) content = content.substring(1).trim();
+            content = escapeHtml(content);
 
             const renderBox = (label, body) => {
                 const bodyText = (body || '').trim().replace(/\n/g, '<br>');
-                if (label) {
-                    const safeLabel = label
-                        .replace(/&/g, '&amp;')
-                        .replace(/</g, '&lt;')
-                        .replace(/>/g, '&gt;')
-                        .replace(/"/g, '&quot;');
+                const safeLabel = (label || '').trim();
+                if (safeLabel) {
                     return `<div class="custom-box labeled-box" contenteditable="false"><div class="box-label">&lt; ${safeLabel} &gt;</div><div class="box-content">${bodyText}</div></div>`;
                 }
                 return `<div class="custom-box simple-box" contenteditable="false"><div class="box-content">${bodyText}</div></div>`;
+            };
+
+            const getEscapedImagePlaceholderHTML = (escapedLabelText = '') => {
+                const label = (escapedLabelText || '').trim();
+                const display = label ? `[이미지: ${label}]` : '이미지 박스';
+                return `<span class="image-placeholder" contenteditable="false" data-label="${label}">${display}<button class="image-load-btn" contenteditable="false" tabindex="-1">불러오기</button></span>`;
             };
 
             const convertBlockBoxes = (input) => {
@@ -331,13 +342,14 @@ export const ImportParser = {
             };
 
             content = convertLegacyBlockBoxes(convertBlockBoxes(content));
-            content = content.replace(/\[이미지\s*:\s*(.*?)\]/g, (m, label) => Utils.getImagePlaceholderHTML(label));
+            content = content.replace(/\[이미지\s*:\s*(.*?)\]/g, (m, label) => getEscapedImagePlaceholderHTML(label));
             content = content.replace(/\[빈칸([:_])(.*?)\]/g, (m, delim, label) => `<span class="blank-box" data-delim="${delim || ':'}" contenteditable="false">${label}</span>`);
             content = content.replace(/\n/g, '<br>');
             const [stylePart, labelPart] = meta.includes('_') ? meta.split('_') : ['기본', meta];
             const styles = stylePart.split(',');
             let type = 'example'; let bordered = styles.includes('박스'); let bgGray = styles.includes('음영');
-            let label = labelPart ? `<span class="q-label">${labelPart}</span>` : '';
+            const safeQLabel = labelPart ? escapeHtml(labelPart) : '';
+            let label = safeQLabel ? `<span class="q-label">${safeQLabel}</span>` : '';
             if (styles.includes('개념')) type = 'concept';
             blocks.push({ id: 'imp_' + Date.now() + Math.random(), type: type, content: label + ' ' + content, bordered: bordered, bgGray: bgGray });
         });
