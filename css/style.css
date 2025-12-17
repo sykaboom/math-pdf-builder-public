@@ -9,7 +9,10 @@ body { margin: 0; padding: 0; height: 100vh; overflow: hidden; display: flex; fo
 /* [수식 Atom 스타일] */
 mjx-container { display: inline-block !important; vertical-align: middle !important; margin: 0 2px; cursor: pointer; user-select: none; color: inherit !important; }
 mjx-assistive-mml { display: none !important; }
-mjx-container svg path, mjx-container svg rect, mjx-container svg polygon { fill: currentColor !important; stroke: none !important; stroke-width: 0 !important; }
+mjx-container svg path,
+mjx-container svg polygon { fill: currentColor !important; stroke: none !important; stroke-width: 0 !important; }
+mjx-container svg rect { fill: none !important; stroke: currentColor !important; stroke-width: 1.5px !important; }
+mjx-container .mjx-boxed rect { stroke-width: 2px !important; }
 mjx-container:hover { background-color: rgba(0, 0, 0, 0.05); border-radius: 4px; }
 mjx-container:focus { outline: 2px solid #007bff; border-radius: 4px; }
 
