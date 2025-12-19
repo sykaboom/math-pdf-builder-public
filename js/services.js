@@ -7,18 +7,47 @@ const toPositiveInt = (value) => {
     return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
 };
 
-const buildEditorTableElement = (rows, cols) => {
+const parseTableCellData = (data = '') => {
+    const cellMap = new Map();
+    if (!data) return cellMap;
+    const cellRegex = /\((\d+)x(\d+)_("(?:(?:\\")|(?:\\\\)|[^"])*"|[^)]*)\)/g;
+    let match;
+    while ((match = cellRegex.exec(data)) !== null) {
+        const key = `${match[1]}x${match[2]}`;
+        let rawValue = (match[3] || '').trim();
+        if (rawValue.startsWith('"') && rawValue.endsWith('"')) {
+            rawValue = rawValue.slice(1, -1).replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+        }
+        cellMap.set(key, rawValue);
+    }
+    return cellMap;
+};
+
+const buildEditorTableElement = (rows, cols, cellData = null, options = {}) => {
     const rowCount = toPositiveInt(rows);
     const colCount = toPositiveInt(cols);
     if (!rowCount || !colCount) return null;
     const table = document.createElement('table');
     table.className = 'editor-table';
+    table.dataset.rows = rowCount;
+    table.dataset.cols = colCount;
+    const colgroup = document.createElement('colgroup');
+    for (let c = 0; c < colCount; c++) colgroup.appendChild(document.createElement('col'));
+    table.appendChild(colgroup);
     const tbody = document.createElement('tbody');
     for (let r = 0; r < rowCount; r++) {
         const tr = document.createElement('tr');
         for (let c = 0; c < colCount; c++) {
             const td = document.createElement('td');
             td.setAttribute('contenteditable', 'true');
+            if (cellData) {
+                const key = `${r + 1}x${c + 1}`;
+                if (cellData.has(key)) {
+                    const value = cellData.get(key);
+                    if (options.allowHtml) td.innerHTML = value;
+                    else td.textContent = value;
+                }
+            }
             tr.appendChild(td);
         }
         tbody.appendChild(tr);
@@ -110,7 +139,7 @@ export const ManualRenderer = {
 
         const applyTokenReplacementsOutsideMath = (root) => {
             const mathRegex = /(\$\$[\s\S]+?\$\$|\$[\s\S]+?\$)/g;
-            const tokenRegex = /\[빈칸([:_])(.*?)\]|\[이미지\s*:\s*(.*?)\]|\[표_(\d+)x(\d+)\]/g;
+            const tokenRegex = /\[빈칸([:_])(.*?)\]|\[이미지\s*:\s*(.*?)\]|\[표_(\d+)x(\d+)\](?:\s*:\s*((?:\(\d+x\d+_(?:"(?:\\.|[^"])*"|[^)]*)\)\s*,?\s*)+))?/g;
             const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null, false);
             const textNodes = [];
             while (walker.nextNode()) textNodes.push(walker.currentNode);
@@ -139,7 +168,8 @@ export const ManualRenderer = {
                     } else if (m[3] !== undefined) {
                         frag.appendChild(createImageFragment(m[3]));
                     } else if (m[4] !== undefined) {
-                        const tableEl = buildEditorTableElement(m[4], m[5]);
+                        const cellData = m[6] ? parseTableCellData(m[6]) : null;
+                        const tableEl = buildEditorTableElement(m[4], m[5], cellData, { allowHtml: false });
                         if (tableEl) frag.appendChild(tableEl);
                         else frag.appendChild(document.createTextNode(m[0]));
                     }
@@ -373,8 +403,9 @@ export const ImportParser = {
             };
 
             content = convertLegacyBlockBoxes(convertBlockBoxes(content));
-            content = content.replace(/\[표_(\d+)x(\d+)\]/g, (m, rows, cols) => {
-                const tableEl = buildEditorTableElement(rows, cols);
+            content = content.replace(/\[표_(\d+)x(\d+)\](?:\s*:\s*((?:\(\d+x\d+_(?:"(?:\\.|[^"])*"|[^)]*)\)\s*,?\s*)+))?/g, (m, rows, cols, data) => {
+                const cellData = data ? parseTableCellData(data) : null;
+                const tableEl = buildEditorTableElement(rows, cols, cellData, { allowHtml: true });
                 return tableEl ? tableEl.outerHTML : m;
             });
             content = content.replace(/\[이미지\s*:\s*(.*?)\]/g, (m, label) => getEscapedImagePlaceholderHTML(label));

@@ -187,6 +187,232 @@ export const Events = {
         }
         document.addEventListener('preflight:update', () => Renderer.updatePreflightPanel());
 
+        const TABLE_RESIZE_MARGIN = 4;
+        const TABLE_HANDLE_SIZE = 12;
+        const TABLE_MIN_WIDTH = 40;
+        const TABLE_MIN_HEIGHT = 24;
+        let tableResizeState = null;
+        const guideV = document.getElementById('table-resize-guide-v') || (() => {
+            const el = document.createElement('div');
+            el.id = 'table-resize-guide-v';
+            el.className = 'table-resize-guide';
+            document.body.appendChild(el);
+            return el;
+        })();
+        const guideH = document.getElementById('table-resize-guide-h') || (() => {
+            const el = document.createElement('div');
+            el.id = 'table-resize-guide-h';
+            el.className = 'table-resize-guide';
+            document.body.appendChild(el);
+            return el;
+        })();
+        const tableHandle = document.getElementById('table-resize-handle') || (() => {
+            const el = document.createElement('div');
+            el.id = 'table-resize-handle';
+            el.className = 'table-resize-handle';
+            document.body.appendChild(el);
+            return el;
+        })();
+
+        const getTableResizeHit = (cell, event) => {
+            const rect = cell.getBoundingClientRect();
+            const offsetX = event.clientX - rect.left;
+            const offsetY = event.clientY - rect.top;
+            const distRight = rect.width - offsetX;
+            const distBottom = rect.height - offsetY;
+            const nearRight = distRight >= 0 && distRight <= TABLE_RESIZE_MARGIN;
+            const nearBottom = distBottom >= 0 && distBottom <= TABLE_RESIZE_MARGIN;
+            if (nearRight && nearBottom) {
+                return distRight <= distBottom ? { type: 'col', index: cell.cellIndex } : { type: 'row', index: cell.parentElement.rowIndex };
+            }
+            if (nearRight) return { type: 'col', index: cell.cellIndex };
+            if (nearBottom) return { type: 'row', index: cell.parentElement.rowIndex };
+            return null;
+        };
+
+        const getTableHandleHit = (table, event) => {
+            const rect = table.getBoundingClientRect();
+            const distRight = rect.right - event.clientX;
+            const distBottom = rect.bottom - event.clientY;
+            const nearRight = distRight >= 0 && distRight <= TABLE_HANDLE_SIZE;
+            const nearBottom = distBottom >= 0 && distBottom <= TABLE_HANDLE_SIZE;
+            return nearRight && nearBottom;
+        };
+
+        const ensureColgroup = (table) => {
+            const firstRow = table.querySelector('tr');
+            const colCount = firstRow ? firstRow.children.length : 0;
+            if (!colCount) return null;
+            let colgroup = table.querySelector('colgroup');
+            if (!colgroup) {
+                colgroup = document.createElement('colgroup');
+                table.insertBefore(colgroup, table.firstChild);
+            }
+            while (colgroup.children.length < colCount) colgroup.appendChild(document.createElement('col'));
+            return colgroup;
+        };
+
+        const applyColumnWidth = (table, index, width) => {
+            const colgroup = ensureColgroup(table);
+            if (!colgroup || !colgroup.children[index]) return;
+            colgroup.children[index].style.width = Math.max(TABLE_MIN_WIDTH, width) + 'px';
+            table.style.tableLayout = 'fixed';
+        };
+
+        const applyRowHeight = (row, height) => {
+            const newHeight = Math.max(TABLE_MIN_HEIGHT, height);
+            row.style.height = newHeight + 'px';
+            row.querySelectorAll('td').forEach(td => {
+                td.style.height = newHeight + 'px';
+            });
+        };
+
+        const showGuideV = (x, top, height) => {
+            guideV.style.display = 'block';
+            guideV.style.left = x + 'px';
+            guideV.style.top = top + 'px';
+            guideV.style.height = height + 'px';
+        };
+
+        const showGuideH = (y, left, width) => {
+            guideH.style.display = 'block';
+            guideH.style.left = left + 'px';
+            guideH.style.top = y + 'px';
+            guideH.style.width = width + 'px';
+        };
+
+        const hideGuides = () => {
+            guideV.style.display = 'none';
+            guideH.style.display = 'none';
+        };
+
+        const showHandle = (rect) => {
+            tableHandle.style.display = 'block';
+            tableHandle.style.left = rect.right - TABLE_HANDLE_SIZE + window.scrollX + 'px';
+            tableHandle.style.top = rect.bottom - TABLE_HANDLE_SIZE + window.scrollY + 'px';
+        };
+
+        const hideHandle = () => {
+            tableHandle.style.display = 'none';
+        };
+
+        document.addEventListener('mousemove', (e) => {
+            if (!tableResizeState) {
+                const cell = e.target.closest('table.editor-table td');
+                const table = e.target.closest('table.editor-table');
+                let cursor = '';
+                let hit = null;
+                hideGuides();
+                if (table) showHandle(table.getBoundingClientRect());
+                else hideHandle();
+                if (table && getTableHandleHit(table, e)) {
+                    cursor = 'nwse-resize';
+                } else if (cell) {
+                    hit = getTableResizeHit(cell, e);
+                    if (hit) {
+                        const tableRect = table.getBoundingClientRect();
+                        if (hit.type === 'col') {
+                            const rect = cell.getBoundingClientRect();
+                            showGuideV(rect.right + window.scrollX, tableRect.top + window.scrollY, tableRect.height);
+                            cursor = 'col-resize';
+                        } else {
+                            const rowRect = cell.parentElement.getBoundingClientRect();
+                            showGuideH(rowRect.bottom + window.scrollY, tableRect.left + window.scrollX, tableRect.width);
+                            cursor = 'row-resize';
+                        }
+                    }
+                }
+                document.body.style.cursor = cursor;
+                return;
+            }
+            const zoom = State.docData.meta.zoom || 1;
+            if (tableResizeState.type === 'col') {
+                const delta = (e.clientX - tableResizeState.startX) / zoom;
+                applyColumnWidth(tableResizeState.table, tableResizeState.index, tableResizeState.startWidth + delta);
+            } else if (tableResizeState.type === 'row') {
+                const delta = (e.clientY - tableResizeState.startY) / zoom;
+                applyRowHeight(tableResizeState.row, tableResizeState.startHeight + delta);
+            } else if (tableResizeState.type === 'table') {
+                const deltaX = (e.clientX - tableResizeState.startX) / zoom;
+                const deltaY = (e.clientY - tableResizeState.startY) / zoom;
+                const width = Math.max(tableResizeState.minWidth, tableResizeState.startWidth + deltaX);
+                const height = Math.max(tableResizeState.minHeight, tableResizeState.startHeight + deltaY);
+                tableResizeState.table.style.width = width + 'px';
+                tableResizeState.table.style.height = height + 'px';
+                tableResizeState.table.style.tableLayout = 'fixed';
+            }
+            e.preventDefault();
+        });
+
+        document.addEventListener('mousedown', (e) => {
+            const table = e.target.closest('table.editor-table');
+            if (table && getTableHandleHit(table, e)) {
+                const rect = table.getBoundingClientRect();
+                const colCount = table.querySelectorAll('tr:first-child td').length || 1;
+                const rowCount = table.querySelectorAll('tr').length || 1;
+                tableResizeState = {
+                    type: 'table',
+                    table,
+                    startX: e.clientX,
+                    startY: e.clientY,
+                    startWidth: rect.width,
+                    startHeight: rect.height,
+                    minWidth: colCount * TABLE_MIN_WIDTH,
+                    minHeight: rowCount * TABLE_MIN_HEIGHT
+                };
+                e.preventDefault();
+                e.stopPropagation();
+                document.body.style.userSelect = 'none';
+                hideGuides();
+                return;
+            }
+            const cell = e.target.closest('table.editor-table td');
+            if (!cell) return;
+            const hit = getTableResizeHit(cell, e);
+            if (!hit) return;
+            const tableForCell = cell.closest('table.editor-table');
+            if (!tableForCell) return;
+            e.preventDefault();
+            e.stopPropagation();
+            document.body.style.userSelect = 'none';
+            if (hit.type === 'col') {
+                const rect = cell.getBoundingClientRect();
+                tableResizeState = {
+                    type: 'col',
+                    table: tableForCell,
+                    index: hit.index,
+                    startX: e.clientX,
+                    startWidth: rect.width
+                };
+            } else {
+                const row = cell.parentElement;
+                const rect = row.getBoundingClientRect();
+                tableResizeState = {
+                    type: 'row',
+                    table: tableForCell,
+                    row,
+                    index: hit.index,
+                    startY: e.clientY,
+                    startHeight: rect.height
+                };
+            }
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (!tableResizeState) return;
+            const table = tableResizeState.table;
+            tableResizeState = null;
+            document.body.style.userSelect = '';
+            document.body.style.cursor = '';
+            hideGuides();
+            const wrap = table.closest('.block-wrapper');
+            if (wrap) {
+                const box = wrap.querySelector('.editable-box');
+                if (box) Actions.updateBlockContent(wrap.dataset.id, Utils.cleanRichContentToTex(box.innerHTML), true);
+                Renderer.debouncedRebalance();
+            }
+        });
+
         // [Fix] 스크롤 시 팝업 닫기 추가
         window.addEventListener('scroll', () => {
             document.getElementById('context-menu').style.display = 'none';
