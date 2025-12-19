@@ -1,13 +1,13 @@
 // Filename: js/config.js
 window.MathJax = {
     loader: {
-        load: ['[tex]/html']
+        load: ['[tex]/html', '[tex]/bbox']
     },
     tex: { 
         inlineMath: [['$', '$']],
         displayMath: [['$$', '$$']],
         processEscapes: true,
-        packages: ['base', 'ams', 'noerrors', 'noundefined', 'html']
+        packages: ['base', 'ams', 'noerrors', 'noundefined', 'html', 'bbox']
     },
     svg: { 
         fontCache: 'none', 
