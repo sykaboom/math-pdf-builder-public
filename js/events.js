@@ -124,6 +124,20 @@ export const Events = {
         const span = document.createElement('span');
         styleEntries.forEach(([key, value]) => { span.style[key] = value; });
         const contents = baseRange.extractContents();
+
+        const stripInlineStyles = (node, keys) => {
+            if (!node) return;
+            if (node.nodeType === Node.ELEMENT_NODE) {
+                keys.forEach((key) => {
+                    if (node.style && node.style[key]) node.style[key] = '';
+                });
+                if (node.getAttribute && node.getAttribute('style') === '') node.removeAttribute('style');
+            }
+            node.childNodes && node.childNodes.forEach(child => stripInlineStyles(child, keys));
+        };
+        const styleKeys = styleEntries.map(([key]) => key);
+        stripInlineStyles(contents, styleKeys);
+
         span.appendChild(contents);
         baseRange.insertNode(span);
 
