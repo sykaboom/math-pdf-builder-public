@@ -148,6 +148,11 @@ export const ManualRenderer = {
             return tex;
         };
 
+        const appendInlineMathTailSpacing = (tex, isDisplay) => {
+            if (isDisplay) return tex;
+            return `${tex}\\mkern1mu`;
+        };
+
         const applyTokenReplacementsOutsideMath = (root) => {
             const mathRegex = /(\$\$[\s\S]+?\$\$|\$[\s\S]+?\$)/g;
             const tokenRegex = /\[빈칸([:_])(.*?)\]|\[이미지\s*:\s*(.*?)\]|\[표_(\d+)x(\d+)\](?:\s*:\s*((?:\(\d+x\d+_(?:"(?:\\.|[^"])*"|&quot;[\s\S]*?&quot;|[^)]*)\)\s*,?\s*)+))?/g;
@@ -226,7 +231,7 @@ export const ManualRenderer = {
                 const fullTex = match[0]; 
                 const isDisplay = fullTex.startsWith('$$'); 
                 const cleanTex = isDisplay ? fullTex.slice(2, -2) : fullTex.slice(1, -1);
-                const preparedTex = sanitizeMathTokens(cleanTex);
+                const preparedTex = appendInlineMathTailSpacing(sanitizeMathTokens(cleanTex), isDisplay);
                 const cacheKey = preparedTex + (isDisplay ? '_D' : '_I');
                 let mjxNode = null;
 

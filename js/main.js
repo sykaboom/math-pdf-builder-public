@@ -84,6 +84,15 @@ window.applyBlockFont = () => Events.applyBlockFontFromMenu();
 window.openModal = Utils.openModal;
 window.closeModal = Utils.closeModal;
 window.execStyle = (cmd, val) => document.execCommand(cmd, false, val);
+window.downloadPromptFile = (path) => {
+    if (!path) return;
+    const link = document.createElement('a');
+    link.href = encodeURI(path);
+    link.download = path.split('/').pop() || 'prompt.txt';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+};
 
 // [Fix] Actions 호출 후 렌더링 파이프라인 연결
 window.toggleGrayBg = () => { if(Actions.toggleStyle('bgGray')) { Renderer.renderPages(); ManualRenderer.renderAll(); } };
