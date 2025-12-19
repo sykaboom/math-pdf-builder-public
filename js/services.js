@@ -98,7 +98,7 @@ export const ManualRenderer = {
         const sanitizeMathTokens = (tex) => {
             if (!tex) return tex;
             const toMathBlankText = (label = '') => {
-                return `\\class{math-blank-box}{\\text{${escapeForMathTex(label)}}}`;
+                return `\\bbox[3px, border:1.5px solid #000]{\\text{${escapeForMathTex(label)}}}`;
             };
             const toBoxedText = (label = '') => {
                 return `\\boxed{\\text{${escapeForMathTex(label)}}}`;
