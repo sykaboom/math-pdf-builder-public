@@ -74,6 +74,15 @@
     <button class="ft-btn" onmousedown="execStyle('foreColor', '#dc3545')" style="color:#dc3545">●</button>
     <button class="ft-btn" onmousedown="execStyle('foreColor', '#007bff')" style="color:#007bff">●</button>
     <button class="ft-btn" onmousedown="execStyle('foreColor', '#000000')">●</button>
+    <div class="ft-sep"></div>
+    <select id="ft-font-family" class="ft-select" onchange="applyInlineFontFamily(this.value)">
+        <option value="">폰트</option>
+        <option value="serif">명조</option>
+        <option value="gothic">나눔고딕</option>
+        <option value="gulim">굴림</option>
+        <option value="default">기본</option>
+    </select>
+    <input id="ft-font-size" class="ft-input" type="number" min="8" max="20" step="0.5" placeholder="pt" onchange="applyInlineFontSize(this.value)">
 </div>
 
 <div id="image-resizer"><div class="resizer-handle rh-se"></div></div>

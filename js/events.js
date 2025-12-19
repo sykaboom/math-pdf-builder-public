@@ -107,6 +107,55 @@ export const Events = {
         Utils.closeModal('context-menu');
     },
 
+    applyInlineStyleToSelection(styles = {}) {
+        const styleEntries = Object.entries(styles).filter(([, value]) => value !== undefined && value !== null && value !== '');
+        if (!styleEntries.length) return;
+        const sel = window.getSelection();
+        const baseRange = State.selectionRange ? State.selectionRange.cloneRange() : (sel.rangeCount ? sel.getRangeAt(0).cloneRange() : null);
+        if (!baseRange || baseRange.collapsed) return;
+        const container = baseRange.commonAncestorContainer.nodeType === Node.ELEMENT_NODE
+            ? baseRange.commonAncestorContainer
+            : baseRange.commonAncestorContainer.parentNode;
+        const box = container ? container.closest('.editable-box') : null;
+        if (!box) return;
+        const wrap = box.closest('.block-wrapper');
+        if (!wrap) return;
+
+        const span = document.createElement('span');
+        styleEntries.forEach(([key, value]) => { span.style[key] = value; });
+        const contents = baseRange.extractContents();
+        span.appendChild(contents);
+        baseRange.insertNode(span);
+
+        const newRange = document.createRange();
+        newRange.selectNodeContents(span);
+        sel.removeAllRanges();
+        sel.addRange(newRange);
+        State.selectionRange = newRange.cloneRange();
+        State.selectionBlockId = wrap.dataset.id || null;
+
+        Actions.updateBlockContent(wrap.dataset.id, Utils.cleanRichContentToTex(box.innerHTML), true);
+        Renderer.debouncedRebalance();
+    },
+
+    applyInlineFontFamily(familyKey) {
+        if (!familyKey) return;
+        const familyMap = {
+            serif: "'Noto Serif KR', serif",
+            gothic: "'Nanum Gothic', 'Noto Sans KR', sans-serif",
+            gulim: "Gulim, 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif"
+        };
+        const fontFamily = familyKey === 'default' ? 'inherit' : (familyMap[familyKey] || familyKey);
+        this.applyInlineStyleToSelection({ fontFamily });
+    },
+
+    applyInlineFontSize(sizePt) {
+        if (sizePt === undefined || sizePt === null || sizePt === '') return;
+        const sizeValue = parseFloat(sizePt);
+        const fontSize = sizeValue > 0 ? `${sizeValue}pt` : 'inherit';
+        this.applyInlineStyleToSelection({ fontSize });
+    },
+
     handleBlockMousedown(e, id) {
         State.lastEditableId = id;
         if(e.target.tagName==='IMG') { this.showResizer(e.target); e.stopPropagation(); State.selectedImage=e.target; }
@@ -206,6 +255,7 @@ export const Events = {
         const TABLE_MIN_WIDTH = 40;
         const TABLE_MIN_HEIGHT = 24;
         let tableResizeState = null;
+        let lastCursorTable = null;
         const guideV = document.getElementById('table-resize-guide-v') || (() => {
             const el = document.createElement('div');
             el.id = 'table-resize-guide-v';
@@ -336,6 +386,9 @@ export const Events = {
                         }
                     }
                 }
+                if (lastCursorTable && lastCursorTable !== table) lastCursorTable.style.cursor = '';
+                if (table) table.style.cursor = cursor || '';
+                lastCursorTable = table || null;
                 document.body.style.cursor = cursor;
                 return;
             }
@@ -343,9 +396,11 @@ export const Events = {
             if (tableResizeState.type === 'col') {
                 const delta = (e.clientX - tableResizeState.startX) / zoom;
                 applyColumnWidth(tableResizeState.table, tableResizeState.index, tableResizeState.startWidth + delta);
+                document.body.style.cursor = 'col-resize';
             } else if (tableResizeState.type === 'row') {
                 const delta = (e.clientY - tableResizeState.startY) / zoom;
                 applyRowHeight(tableResizeState.row, tableResizeState.startHeight + delta);
+                document.body.style.cursor = 'row-resize';
             } else if (tableResizeState.type === 'table') {
                 const deltaX = (e.clientX - tableResizeState.startX) / zoom;
                 const deltaY = (e.clientY - tableResizeState.startY) / zoom;
@@ -354,6 +409,7 @@ export const Events = {
                 tableResizeState.table.style.width = width + 'px';
                 tableResizeState.table.style.height = height + 'px';
                 tableResizeState.table.style.tableLayout = 'fixed';
+                document.body.style.cursor = 'nwse-resize';
             }
             e.preventDefault();
         });
@@ -418,6 +474,7 @@ export const Events = {
             tableResizeState = null;
             document.body.style.userSelect = '';
             document.body.style.cursor = '';
+            if (table) table.style.cursor = '';
             hideGuides();
             const wrap = table.closest('.block-wrapper');
             if (wrap) {
@@ -448,11 +505,15 @@ export const Events = {
         document.addEventListener('mousedown', (e) => {
             if (!e.target.closest('#floating-toolbar') && !e.target.closest('.ft-btn')) document.getElementById('floating-toolbar').style.display='none'; 
             if (!e.target.closest('img') && !e.target.closest('#image-resizer')) this.hideResizer(); 
+            if (!e.target.closest('#floating-toolbar') && !e.target.closest('.editable-box')) {
+                State.selectionRange = null;
+                State.selectionBlockId = null;
+            }
             const menu = document.getElementById('context-menu');
             if (menu && menu.style.display === 'block') { if (!e.target.closest('#context-menu') && !e.target.closest('.block-handle')) menu.style.display = 'none'; }
             if (!e.target.closest('.image-placeholder') && !e.target.closest('#imgUpload')) { if(State.selectedPlaceholder) { State.selectedPlaceholder.classList.remove('selected'); State.selectedPlaceholder.setAttribute('contenteditable', 'false'); } State.selectedPlaceholder = null; } 
         });
-        document.addEventListener('mouseup', (e) => { setTimeout(() => {
+        document.addEventListener('mouseup', (e) => { const target = e.target; setTimeout(() => {
             const sel = window.getSelection();
             if (sel.rangeCount && !sel.isCollapsed) {
                 const range = sel.getRangeAt(0);
@@ -475,7 +536,14 @@ export const Events = {
                     if (tbRect.bottom > window.innerHeight - pad) top -= tbRect.bottom - (window.innerHeight - pad);
                     tb.style.top = top + 'px';
                     tb.style.left = left + 'px';
+
+                    State.selectionRange = range.cloneRange();
+                    const wrap = container.closest('.block-wrapper');
+                    State.selectionBlockId = wrap ? wrap.dataset.id : null;
                 }
+            } else if (!target.closest('#floating-toolbar')) {
+                State.selectionRange = null;
+                State.selectionBlockId = null;
             }
         }, 10); });
 

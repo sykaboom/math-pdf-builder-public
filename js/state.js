@@ -19,6 +19,8 @@ export const State = {
     lastFocusId: null,
     lastEditableId: null,
     renderingEnabled: true,
+    selectionRange: null,
+    selectionBlockId: null,
     keysPressed: {},
 
     saveHistory(debounceTime = 0) {

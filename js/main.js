@@ -81,6 +81,8 @@ window.insertImageBoxSafe = () => Events.insertImageBoxSafe();
 window.addImageBlockBelow = (id) => Events.addImageBlockBelow(id);
 window.insertImagePlaceholderAtEnd = (id) => Events.insertImagePlaceholderAtEnd(id);
 window.applyBlockFont = () => Events.applyBlockFontFromMenu();
+window.applyInlineFontFamily = (value) => Events.applyInlineFontFamily(value);
+window.applyInlineFontSize = (value) => Events.applyInlineFontSize(value);
 window.openModal = Utils.openModal;
 window.closeModal = Utils.closeModal;
 window.execStyle = (cmd, val) => document.execCommand(cmd, false, val);
