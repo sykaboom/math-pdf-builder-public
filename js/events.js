@@ -159,19 +159,33 @@ export const Events = {
 
     initGlobalListeners() {
         const body = document.body;
-        body.addEventListener('dragover', (e) => { if(!State.dragSrcId) { e.preventDefault(); body.classList.add('drag-over'); } });
+
+        const isFileDrag = (e) => {
+            const dt = e.dataTransfer;
+            if (!dt) return false;
+            if (dt.types && Array.from(dt.types).includes('Files')) return true;
+            if (dt.items && Array.from(dt.items).some(item => item.kind === 'file')) return true;
+            if (dt.files && dt.files.length > 0) return true;
+            return false;
+        };
+
+        body.addEventListener('dragover', (e) => {
+            if (State.dragSrcId) return;
+            if (!isFileDrag(e)) return;
+            e.preventDefault();
+            body.classList.add('drag-over');
+        });
         body.addEventListener('dragleave', (e) => { if(!e.relatedTarget) body.classList.remove('drag-over'); });
         
         body.addEventListener('drop', (e) => {
             if(State.dragSrcId) return; 
-            const types = e.dataTransfer.types;
-            if (types && !Array.from(types).includes('Files')) return; // 파일 드롭 아니면 무시
+            if (!isFileDrag(e)) { body.classList.remove('drag-over'); return; }
             e.preventDefault(); body.classList.remove('drag-over');
-            const file = e.dataTransfer.files[0];
+            const file = e.dataTransfer.files && e.dataTransfer.files[0];
             if(file) {
                 if(file.name.endsWith('.json')) {
                     const r = new FileReader(); r.onload = async (ev) => { try { State.docData = JSON.parse(ev.target.result); await FileSystem.loadImagesForDisplay(State.docData.blocks); Renderer.renderPages(); ManualRenderer.renderAll(); State.saveHistory(); } catch(err){ alert("로드 실패"); } }; r.readAsText(file);
-                } else {
+                } else if (file.type === 'text/plain' || /\.txt$/i.test(file.name)) {
                     const r = new FileReader(); r.onload = (ev) => { document.getElementById('import-textarea').value = ev.target.result; Utils.openModal('import-modal'); }; r.readAsText(file);
                 }
             }
