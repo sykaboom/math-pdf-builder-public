@@ -84,12 +84,17 @@ export const ManualRenderer = {
             body = body.replace(/^(<br\s*\/?>)+/gi, '').replace(/(<br\s*\/?>)+$/gi, '');
             body = body.replace(/\n/g, '<br>');
             if (label) {
-                const safeLabel = label
+                const rawLabel = (label || '').trim();
+                const safeLabel = rawLabel
                     .replace(/&/g, '&amp;')
                     .replace(/</g, '&lt;')
                     .replace(/>/g, '&gt;')
                     .replace(/"/g, '&quot;');
-                return `<div class="custom-box labeled-box" contenteditable="false"><div class="box-label">&lt; ${safeLabel} &gt;</div><div class="box-content">${body}</div></div>`;
+                const isViewLabel = rawLabel === '보기';
+                const labelHtml = isViewLabel
+                    ? `<div class="box-label view-label">${safeLabel}</div>`
+                    : `<div class="box-label">&lt; ${safeLabel} &gt;</div>`;
+                return `<div class="custom-box labeled-box" contenteditable="false">${labelHtml}<div class="box-content">${body}</div></div>`;
             }
             return `<div class="custom-box simple-box" contenteditable="false"><div class="box-content">${body}</div></div>`;
         };
@@ -349,7 +354,11 @@ export const ImportParser = {
                 const bodyText = (body || '').trim().replace(/\n/g, '<br>');
                 const safeLabel = (label || '').trim();
                 if (safeLabel) {
-                    return `<div class="custom-box labeled-box" contenteditable="false"><div class="box-label">&lt; ${safeLabel} &gt;</div><div class="box-content">${bodyText}</div></div>`;
+                    const isViewLabel = safeLabel === '보기';
+                    const labelHtml = isViewLabel
+                        ? `<div class="box-label view-label">${safeLabel}</div>`
+                        : `<div class="box-label">&lt; ${safeLabel} &gt;</div>`;
+                    return `<div class="custom-box labeled-box" contenteditable="false">${labelHtml}<div class="box-content">${bodyText}</div></div>`;
                 }
                 return `<div class="custom-box simple-box" contenteditable="false"><div class="box-content">${bodyText}</div></div>`;
             };
