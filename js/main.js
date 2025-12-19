@@ -6,6 +6,24 @@ import { Renderer } from './renderer.js';
 import { Actions } from './actions.js';
 import { Events } from './events.js';
 
+const formatDateYMD = (value) => {
+    const date = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
+const getFileHandleByPath = async (root, relPath) => {
+    const parts = relPath.split('/').filter(Boolean);
+    let dir = root;
+    for (let i = 0; i < parts.length - 1; i++) {
+        dir = await dir.getDirectoryHandle(parts[i]);
+    }
+    return dir.getFileHandle(parts[parts.length - 1]);
+};
+
 window.FileSystem = FileSystem;
 window.ManualRenderer = ManualRenderer;
 window.saveProjectJSON = () => FileSystem.saveProjectJSON(() => Renderer.syncAllBlocks());
@@ -98,14 +116,6 @@ window.downloadPromptFile = async (path) => {
         link.click();
         link.remove();
     };
-    const getFileHandleByPath = async (root, relPath) => {
-        const parts = relPath.split('/').filter(Boolean);
-        let dir = root;
-        for (let i = 0; i < parts.length - 1; i++) {
-            dir = await dir.getDirectoryHandle(parts[i]);
-        }
-        return dir.getFileHandle(parts[parts.length - 1]);
-    };
 
     try {
         let blob = null;
@@ -128,6 +138,43 @@ window.downloadPromptFile = async (path) => {
         triggerDownload(encodeURI(path), true);
     }
 };
+window.updatePromptDates = async () => {
+    const buttons = Array.from(document.querySelectorAll('.prompt-download[data-prompt-path]'));
+    if (!buttons.length) return;
+
+    const setDateText = (btn, text) => {
+        const span = btn.querySelector('.prompt-date');
+        if (!span) return;
+        span.textContent = text ? `(${text})` : '';
+    };
+
+    const readDateFromHandle = async (path) => {
+        if (!FileSystem.dirHandle) return '';
+        try {
+            const fileHandle = await getFileHandleByPath(FileSystem.dirHandle, path);
+            const file = await fileHandle.getFile();
+            return formatDateYMD(file.lastModified);
+        } catch (e) { return ''; }
+    };
+
+    const readDateFromFetch = async (path) => {
+        if (window.location.protocol === 'file:') return '';
+        try {
+            const response = await fetch(encodeURI(path), { method: 'HEAD', cache: 'no-store' });
+            if (!response.ok) return '';
+            const lastModified = response.headers.get('Last-Modified');
+            return lastModified ? formatDateYMD(lastModified) : '';
+        } catch (e) { return ''; }
+    };
+
+    for (const btn of buttons) {
+        const path = btn.dataset.promptPath;
+        if (!path) continue;
+        let dateText = await readDateFromHandle(path);
+        if (!dateText) dateText = await readDateFromFetch(path);
+        setDateText(btn, dateText || 'n/a');
+    }
+};
 
 // [Fix] Actions 호출 후 렌더링 파이프라인 연결
 window.toggleGrayBg = () => { if(Actions.toggleStyle('bgGray')) { Renderer.renderPages(); ManualRenderer.renderAll(); } };
@@ -146,6 +193,7 @@ window.addEventListener('DOMContentLoaded', () => {
     State.saveHistory(); 
     Events.initGlobalListeners();
     updateRenderingToggleUI();
+    window.updatePromptDates();
 
     // [Fix] 줌 최적화 로직 복구 (입력시 CSS Transform, 놓으면 렌더링)
     const zoomRange = document.getElementById('zoomRange');

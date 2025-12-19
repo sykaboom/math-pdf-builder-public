@@ -181,6 +181,7 @@ table.editor-table td { border: 1px solid #333; padding: 4px; min-width: 40px; h
 .btn-danger { background: #dc3545; color: white; border: none; font-weight: bold; }
 .btn-purple { background: #6f42c1; color: white; border: none; font-weight: bold; }
 .btn-sm { padding: 4px 8px; width: auto; font-size: 12px; }
+.prompt-date { font-size: 10px; opacity: 0.8; margin-left: 6px; }
 
 .settings-panel { background:#f8f9fa; border:1px solid #dee2e6; border-radius:6px; padding:10px; margin-bottom:15px; }
 .preflight-panel { font-size: 12px; }

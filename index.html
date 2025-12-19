@@ -162,8 +162,12 @@
 
     <div class="sidebar-section">
         <div class="sidebar-section-title">프롬프트</div>
-        <button class="btn" onclick="downloadPromptFile('LLMprompt/4.0 프롬프트.txt')">⬇️ 4.0 프롬프트 다운로드</button>
-        <button class="btn" onclick="downloadPromptFile('LLMprompt/4.0 수악중독 프롬프트.txt')">⬇️ 4.0 수악중독 프롬프트 다운로드</button>
+        <button class="btn prompt-download" data-prompt-path="LLMprompt/4.0 프롬프트.txt" onclick="downloadPromptFile(this.dataset.promptPath)">
+            ⬇️ 4.0 프롬프트 다운로드 <span class="prompt-date" data-prompt-date></span>
+        </button>
+        <button class="btn prompt-download" data-prompt-path="LLMprompt/4.0 수악중독 프롬프트.txt" onclick="downloadPromptFile(this.dataset.promptPath)">
+            ⬇️ 4.0 수악중독 프롬프트 다운로드 <span class="prompt-date" data-prompt-date></span>
+        </button>
     </div>
 
     <div class="sidebar-section">
