@@ -13,6 +13,13 @@ export const Utils = {
     cleanRichContentToTex(htmlContent) {
         const div = document.createElement('div');
         div.innerHTML = htmlContent;
+        const tablePlaceholders = [];
+        div.querySelectorAll('table.editor-table').forEach((table, idx) => {
+            const placeholder = document.createElement('span');
+            placeholder.setAttribute('data-table-placeholder', String(idx));
+            tablePlaceholders.push({ placeholder, table });
+            table.replaceWith(placeholder);
+        });
         div.querySelectorAll('mjx-container').forEach(mjx => {
             const tex = mjx.getAttribute('data-tex');
             const isDisplay = mjx.getAttribute('display') === 'true'; 
@@ -25,6 +32,10 @@ export const Utils = {
         div.querySelectorAll('.image-placeholder').forEach(ph => {
             const label = ph.getAttribute('data-label') || '';
             ph.replaceWith(document.createTextNode(`[이미지:${label}]`));
+        });
+        tablePlaceholders.forEach(({ placeholder, table }, idx) => {
+            const current = div.querySelector(`span[data-table-placeholder="${idx}"]`);
+            if (current) current.replaceWith(table);
         });
         return div.innerHTML;
     },

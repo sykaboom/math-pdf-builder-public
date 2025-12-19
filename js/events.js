@@ -254,6 +254,7 @@ export const Events = {
         
         document.addEventListener('dblclick', (e) => {
             if (!State.renderingEnabled) return;
+            if (e.target.closest('table.editor-table')) { e.stopPropagation(); return; }
             const mjx = e.target.closest('mjx-container');
             if (mjx) {
                 e.preventDefault(); e.stopPropagation();
@@ -298,7 +299,7 @@ export const Events = {
                     tmp.innerHTML = cleaned;
                     bodyText = (tmp.innerText || '').replace(/\u00A0/g, ' ').trim();
                 }
-                const startToken = labelText ? `[블록박스_${labelText}]` : `[블록박스]`;
+                const startToken = labelText ? `[블록박스_${labelText}]` : `[블록박스_]`;
                 const endToken = `[/블록박스]`;
                 const frag = document.createDocumentFragment();
                 frag.appendChild(document.createTextNode(startToken));
