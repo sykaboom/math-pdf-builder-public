@@ -20,8 +20,7 @@ mjx-container:hover { background-color: rgba(0, 0, 0, 0.05); border-radius: 4px;
 mjx-container:focus { outline: 2px solid #007bff; border-radius: 4px; }
 
 /* [빈칸 박스 스타일] */
-span.blank-box,
-mjx-container .math-blank-box {
+span.blank-box {
     display: inline-block;
     vertical-align: middle;
     border: 1.5px solid #000;
@@ -206,6 +205,5 @@ table.editor-table td { border: 1px solid #333; padding: 4px; min-width: 40px; h
     .block-wrapper { padding-right: 0 !important; }
     #paper-container { transform: none !important; }
     mjx-container { color: #222 !important; }
-    span.blank-box,
-    mjx-container .math-blank-box { background: transparent !important; border: 1.5px solid #000 !important; padding: 2px 5px !important; min-width: 40px; color: #000 !important; text-align: center; }
+    span.blank-box { background: transparent !important; border: 1.5px solid #000 !important; padding: 2px 5px !important; min-width: 40px; color: #000 !important; text-align: center; }
 }
