@@ -86,14 +86,43 @@ window.applyInlineFontSize = (value) => Events.applyInlineFontSize(value);
 window.openModal = Utils.openModal;
 window.closeModal = Utils.closeModal;
 window.execStyle = (cmd, val) => document.execCommand(cmd, false, val);
-window.downloadPromptFile = (path) => {
+window.downloadPromptFile = async (path) => {
     if (!path) return;
-    const link = document.createElement('a');
-    link.href = encodeURI(path);
-    link.download = path.split('/').pop() || 'prompt.txt';
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
+    const filename = path.split('/').pop() || 'prompt.txt';
+    const triggerDownload = (url) => {
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+    };
+    const getFileHandleByPath = async (root, relPath) => {
+        const parts = relPath.split('/').filter(Boolean);
+        let dir = root;
+        for (let i = 0; i < parts.length - 1; i++) {
+            dir = await dir.getDirectoryHandle(parts[i]);
+        }
+        return dir.getFileHandle(parts[parts.length - 1]);
+    };
+
+    try {
+        let blob = null;
+        if (FileSystem.dirHandle) {
+            const fileHandle = await getFileHandleByPath(FileSystem.dirHandle, path);
+            const file = await fileHandle.getFile();
+            blob = file;
+        } else {
+            const response = await fetch(encodeURI(path), { cache: 'no-store' });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            blob = await response.blob();
+        }
+        const url = URL.createObjectURL(blob);
+        triggerDownload(url);
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (err) {
+        Utils.showToast("프롬프트 다운로드 실패: 폴더 연결 또는 로컬 서버에서 실행해주세요.", "error");
+    }
 };
 
 // [Fix] Actions 호출 후 렌더링 파이프라인 연결
