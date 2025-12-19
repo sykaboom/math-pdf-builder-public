@@ -16,20 +16,28 @@ mjx-container svg rect { fill: currentColor !important; stroke: none !important;
 /* \\boxed{} 등은 rect stroke로 테두리를 그리므로 예외 처리 */
 mjx-container svg .mjx-boxed rect { fill: none !important; stroke: currentColor !important; vector-effect: non-scaling-stroke; }
 mjx-container svg line { stroke: currentColor !important; }
-/* [빈칸 토큰]으로 생성된 boxed만 스타일링 (일반 \\boxed{}는 기본 렌더 유지) */
-mjx-container svg .blank-box rect {
-    fill: none !important;
-    stroke: #000 !important;
-    stroke-width: 2px !important;
-    vector-effect: non-scaling-stroke;
-    transform: translate(-6px, -2px) scale(1.15, 1.05);
-    transform-origin: center;
-}
 mjx-container:hover { background-color: rgba(0, 0, 0, 0.05); border-radius: 4px; }
 mjx-container:focus { outline: 2px solid #007bff; border-radius: 4px; }
 
 /* [빈칸 박스 스타일] */
-span.blank-box { display: inline-block; border: 1.5px solid #111; padding: 2px 18px; margin: 0 2px; min-width: 42px; text-align: center; font-weight: bold; background: transparent; font-family: 'Noto Sans KR', sans-serif; font-size: 0.95em; vertical-align: middle; cursor: pointer; border-radius: 2px; user-select: none; }
+span.blank-box,
+mjx-container .math-blank-box {
+    display: inline-block;
+    vertical-align: middle;
+    border: 1.5px solid #000;
+    min-width: 40px;
+    padding: 2px 5px;
+    text-align: center;
+    line-height: 1.2;
+    margin: 0 2px;
+    font-weight: bold;
+    background: transparent;
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 0.95em;
+    cursor: pointer;
+    border-radius: 2px;
+    user-select: none;
+}
 span.blank-box:hover { background-color: transparent; border-color: #007bff; color: #007bff; }
 
 /* [UI 요소] */
@@ -116,10 +124,10 @@ body.drag-over #drop-overlay { display: flex; }
 .concept-box { border: 1px solid #333; border-radius: 6px; background: #fff; padding: 8px 10px; margin-bottom: 5px; width: 100%; }
 .q-label { color: #1a6fc0; font-weight: 800; font-family: 'Noto Sans KR', sans-serif; margin-right: 5px; }
 
-.custom-box { width: 100%; margin: 5px 0; background: #fff; }
-.custom-box.labeled-box { border: 1px solid #000; border-radius: 4px; padding: 5px 15px 15px 15px; }
-.custom-box.simple-box { border: 1px solid #333; border-radius: 2px; padding: 10px; }
-.box-label { font-weight: 800; text-align: center; margin-bottom: 8px; color: #000; font-family: 'Noto Sans KR', sans-serif; }
+.custom-box { width: 100%; margin: 15px 0; background: #fff; border: 2px solid #28a745; padding: 15px; position: relative; border-radius: 4px; }
+.custom-box.labeled-box { }
+.custom-box.simple-box { }
+.box-label { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background-color: #fff; padding: 0 10px; color: #28a745; font-weight: 800; text-align: center; font-family: 'Noto Sans KR', sans-serif; }
 .box-content { line-height: 1.6; text-align: left; }
 
 .spacer-block { width: 100%; background: repeating-linear-gradient(45deg, #f9f9f9, #f9f9f9 10px, #fff 10px, #fff 20px); border: 1px dashed #ddd; cursor: ns-resize; display: flex; align-items: center; justify-content: center; margin: 5px 0; }
@@ -130,6 +138,9 @@ body.drag-over #drop-overlay { display: flex; }
 .image-placeholder.selected { border: 2px solid #0056b3; background-color: #dbeafe; box-shadow: 0 0 0 3px rgba(0,123,255,0.25); outline: none; }
 .image-load-btn { margin-left: 8px; padding: 2px 8px; font-size: 11px; border: 1px solid #007bff; background: #fff; color: #0056b3; border-radius: 4px; cursor: pointer; }
 .image-load-btn:hover { background: #007bff; color: #fff; }
+
+table.editor-table { display: inline-table; border-collapse: collapse; resize: both; overflow: auto; vertical-align: top; margin: 4px; }
+table.editor-table td { border: 1px solid #333; padding: 4px; min-width: 40px; height: 24px; text-align: center; }
 
 /* [도구] */
 #floating-toolbar { position: absolute; background: #333; border-radius: 6px; padding: 5px; display: none; gap: 5px; z-index: 10000; box-shadow: 0 4px 12px rgba(0,0,0,0.3); transform: translate(-50%, -120%); }
@@ -195,5 +206,6 @@ body.drag-over #drop-overlay { display: flex; }
     .block-wrapper { padding-right: 0 !important; }
     #paper-container { transform: none !important; }
     mjx-container { color: #222 !important; }
-    span.blank-box { background: transparent !important; border: 1.5px solid #111 !important; padding: 2px 18px !important; min-width: 42px; color: #000 !important; text-align: center; }
+    span.blank-box,
+    mjx-container .math-blank-box { background: transparent !important; border: 1.5px solid #000 !important; padding: 2px 5px !important; min-width: 40px; color: #000 !important; text-align: center; }
 }

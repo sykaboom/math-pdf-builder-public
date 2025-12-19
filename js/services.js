@@ -2,6 +2,31 @@
 import { State } from './state.js';
 import { Utils } from './utils.js';
 
+const toPositiveInt = (value) => {
+    const parsed = parseInt(value, 10);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+};
+
+const buildEditorTableElement = (rows, cols) => {
+    const rowCount = toPositiveInt(rows);
+    const colCount = toPositiveInt(cols);
+    if (!rowCount || !colCount) return null;
+    const table = document.createElement('table');
+    table.className = 'editor-table';
+    const tbody = document.createElement('tbody');
+    for (let r = 0; r < rowCount; r++) {
+        const tr = document.createElement('tr');
+        for (let c = 0; c < colCount; c++) {
+            const td = document.createElement('td');
+            td.setAttribute('contenteditable', 'true');
+            tr.appendChild(td);
+        }
+        tbody.appendChild(tr);
+    }
+    table.appendChild(tbody);
+    return table;
+};
+
 export const ManualRenderer = {
     mathCache: new Map(),
     isRendering: false,
@@ -40,12 +65,12 @@ export const ManualRenderer = {
             return `<div class="custom-box simple-box" contenteditable="false"><div class="box-content">${body}</div></div>`;
         };
 
-        const multilineBoxRegex = /\[블록박스(?:_([^\]]+))?\]\s*(?::)?\s*([\s\S]*?)\[\/블록박스\]/g;
+        const multilineBoxRegex = /\[블록박스_([^\]]*)\]\s*(?::)?\s*([\s\S]*?)\[\/블록박스\]/g;
         element.innerHTML = element.innerHTML.replace(multilineBoxRegex, (m, label, body) => {
             return renderBox((label || '').trim(), body);
         });
 
-        const inlineBoxRegex = /\[블록박스(?:_([^\]]+))?\]\s*(?::)?\s*([\s\S]*?)(?=(<br\s*\/?>|<\/div>|<\/p>|$))/gi;
+        const inlineBoxRegex = /\[블록박스_([^\]]*)\]\s*(?::)?\s*([\s\S]*?)(?=(<br\s*\/?>|<\/div>|<\/p>|$))/gi;
         element.innerHTML = element.innerHTML.replace(inlineBoxRegex, (m, label, body) => {
             const trimmedBody = (body || '').replace(/^\s+/, '');
             if (!trimmedBody.trim()) return m; // 종료 토큰 누락 등은 원문 유지
@@ -72,18 +97,20 @@ export const ManualRenderer = {
 
         const sanitizeMathTokens = (tex) => {
             if (!tex) return tex;
-            const toBoxedText = (label = '', className = '') => {
-                const boxed = `\\boxed{\\text{${escapeForMathTex(label)}}}`;
-                return className ? `\\class{${className}}{${boxed}}` : boxed;
+            const toMathBlankText = (label = '') => {
+                return `\\class{math-blank-box}{\\text{${escapeForMathTex(label)}}}`;
             };
-            tex = tex.replace(/\[빈칸[:_](.*?)\]/g, (m, label) => toBoxedText(label, 'blank-box'));
+            const toBoxedText = (label = '') => {
+                return `\\boxed{\\text{${escapeForMathTex(label)}}}`;
+            };
+            tex = tex.replace(/\[빈칸[:_](.*?)\]/g, (m, label) => toMathBlankText(label));
             tex = tex.replace(/\[이미지\s*:\s*(.*?)\]/g, (m, label) => toBoxedText(label));
             return tex;
         };
 
         const applyTokenReplacementsOutsideMath = (root) => {
             const mathRegex = /(\$\$[\s\S]+?\$\$|\$[\s\S]+?\$)/g;
-            const tokenRegex = /\[빈칸([:_])(.*?)\]|\[이미지\s*:\s*(.*?)\]/g;
+            const tokenRegex = /\[빈칸([:_])(.*?)\]|\[이미지\s*:\s*(.*?)\]|\[표_(\d+)x(\d+)\]/g;
             const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null, false);
             const textNodes = [];
             while (walker.nextNode()) textNodes.push(walker.currentNode);
@@ -111,6 +138,10 @@ export const ManualRenderer = {
                         frag.appendChild(span);
                     } else if (m[3] !== undefined) {
                         frag.appendChild(createImageFragment(m[3]));
+                    } else if (m[4] !== undefined) {
+                        const tableEl = buildEditorTableElement(m[4], m[5]);
+                        if (tableEl) frag.appendChild(tableEl);
+                        else frag.appendChild(document.createTextNode(m[0]));
                     }
                     lastIndex = tokenRegex.lastIndex;
                 }
@@ -304,7 +335,7 @@ export const ImportParser = {
                 const outLines = [];
                 for (let i = 0; i < lines.length; ) {
                     const line = lines[i];
-                    const m = line.match(/^\s*\[블록박스(?:_(.*?))?\]\s*(?::)?\s*(.*)$/);
+                    const m = line.match(/^\s*\[블록박스_(.*?)\]\s*(?::)?\s*(.*)$/);
                     if (!m) { outLines.push(line); i++; continue; }
 
                     const label = (m[1] || '').trim();
@@ -336,12 +367,16 @@ export const ImportParser = {
             };
 
             const convertLegacyBlockBoxes = (input) => {
-                return input.replace(/\[블록박스(?:_(.*?))?\]\s*(?::)?\s*([^\n]*?)\s*\]/g, (m, label, body) => {
+                return input.replace(/\[블록박스_(.*?)\]\s*(?::)?\s*([^\n]*?)\s*\]/g, (m, label, body) => {
                     return renderBox((label || '').trim(), body);
                 });
             };
 
             content = convertLegacyBlockBoxes(convertBlockBoxes(content));
+            content = content.replace(/\[표_(\d+)x(\d+)\]/g, (m, rows, cols) => {
+                const tableEl = buildEditorTableElement(rows, cols);
+                return tableEl ? tableEl.outerHTML : m;
+            });
             content = content.replace(/\[이미지\s*:\s*(.*?)\]/g, (m, label) => getEscapedImagePlaceholderHTML(label));
             content = content.replace(/\[빈칸([:_])(.*?)\]/g, (m, delim, label) => `<span class="blank-box" data-delim="${delim || ':'}" contenteditable="false">${label}</span>`);
             content = content.replace(/\n/g, '<br>');
