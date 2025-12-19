@@ -6,9 +6,18 @@ import { Renderer } from './renderer.js';
 import { Actions } from './actions.js';
 import { Events } from './events.js';
 
-const formatDateYMD = (value) => {
+const formatDateYMD = (value, timeZone) => {
     const date = value instanceof Date ? value : new Date(value);
     if (Number.isNaN(date.getTime())) return '';
+    if (timeZone && typeof Intl !== 'undefined') {
+        const formatter = new Intl.DateTimeFormat('en-CA', {
+            timeZone,
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+        });
+        return formatter.format(date);
+    }
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
@@ -148,30 +157,24 @@ window.updatePromptDates = async () => {
         span.textContent = text ? `(${text})` : '';
     };
 
-    const readDateFromHandle = async (path) => {
-        if (!FileSystem.dirHandle) return '';
+    const readDateFromGitHub = async (path) => {
+        const repo = 'sykaboom/math-pdf-builder-public';
+        const apiUrl = `https://api.github.com/repos/${repo}/commits?path=${encodeURIComponent(path)}&per_page=1`;
         try {
-            const fileHandle = await getFileHandleByPath(FileSystem.dirHandle, path);
-            const file = await fileHandle.getFile();
-            return formatDateYMD(file.lastModified);
-        } catch (e) { return ''; }
-    };
-
-    const readDateFromFetch = async (path) => {
-        if (window.location.protocol === 'file:') return '';
-        try {
-            const response = await fetch(encodeURI(path), { method: 'HEAD', cache: 'no-store' });
+            const response = await fetch(apiUrl, { cache: 'no-store' });
             if (!response.ok) return '';
-            const lastModified = response.headers.get('Last-Modified');
-            return lastModified ? formatDateYMD(lastModified) : '';
-        } catch (e) { return ''; }
+            const data = await response.json();
+            const commitDate = data && data[0] && data[0].commit && data[0].commit.committer && data[0].commit.committer.date;
+            return commitDate ? formatDateYMD(commitDate, 'Asia/Seoul') : '';
+        } catch (e) {
+            return '';
+        }
     };
 
     for (const btn of buttons) {
         const path = btn.dataset.promptPath;
         if (!path) continue;
-        let dateText = await readDateFromHandle(path);
-        if (!dateText) dateText = await readDateFromFetch(path);
+        const dateText = await readDateFromGitHub(path);
         setDateText(btn, dateText || 'n/a');
     }
 };
