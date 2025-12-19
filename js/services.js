@@ -10,13 +10,19 @@ const toPositiveInt = (value) => {
 const parseTableCellData = (data = '') => {
     const cellMap = new Map();
     if (!data) return cellMap;
-    const cellRegex = /\((\d+)x(\d+)_("(?:(?:\\")|(?:\\\\)|[^"])*"|[^)]*)\)/g;
+    const cellRegex = /\((\d+)x(\d+)_("(?:(?:\\")|(?:\\\\)|[^"])*"|&quot;[\s\S]*?&quot;|[^)]*)\)/g;
     let match;
     while ((match = cellRegex.exec(data)) !== null) {
         const key = `${match[1]}x${match[2]}`;
         let rawValue = (match[3] || '').trim();
         if (rawValue.startsWith('"') && rawValue.endsWith('"')) {
             rawValue = rawValue.slice(1, -1).replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+        } else if (rawValue.startsWith('&quot;') && rawValue.endsWith('&quot;')) {
+            rawValue = rawValue
+                .slice(6, -6)
+                .replace(/\\&quot;/g, '"')
+                .replace(/&quot;/g, '"')
+                .replace(/\\\\/g, '\\');
         }
         cellMap.set(key, rawValue);
     }
@@ -144,7 +150,7 @@ export const ManualRenderer = {
 
         const applyTokenReplacementsOutsideMath = (root) => {
             const mathRegex = /(\$\$[\s\S]+?\$\$|\$[\s\S]+?\$)/g;
-            const tokenRegex = /\[빈칸([:_])(.*?)\]|\[이미지\s*:\s*(.*?)\]|\[표_(\d+)x(\d+)\](?:\s*:\s*((?:\(\d+x\d+_(?:"(?:\\.|[^"])*"|[^)]*)\)\s*,?\s*)+))?/g;
+            const tokenRegex = /\[빈칸([:_])(.*?)\]|\[이미지\s*:\s*(.*?)\]|\[표_(\d+)x(\d+)\](?:\s*:\s*((?:\(\d+x\d+_(?:"(?:\\.|[^"])*"|&quot;[\s\S]*?&quot;|[^)]*)\)\s*,?\s*)+))?/g;
             const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null, false);
             const textNodes = [];
             while (walker.nextNode()) textNodes.push(walker.currentNode);
@@ -412,7 +418,7 @@ export const ImportParser = {
             };
 
             content = convertLegacyBlockBoxes(convertBlockBoxes(content));
-            content = content.replace(/\[표_(\d+)x(\d+)\](?:\s*:\s*((?:\(\d+x\d+_(?:"(?:\\.|[^"])*"|[^)]*)\)\s*,?\s*)+))?/g, (m, rows, cols, data) => {
+            content = content.replace(/\[표_(\d+)x(\d+)\](?:\s*:\s*((?:\(\d+x\d+_(?:"(?:\\.|[^"])*"|&quot;[\s\S]*?&quot;|[^)]*)\)\s*,?\s*)+))?/g, (m, rows, cols, data) => {
                 const cellData = data ? parseTableCellData(data) : null;
                 const tableEl = buildEditorTableElement(rows, cols, cellData, { allowHtml: true });
                 return tableEl ? tableEl.outerHTML : m;
