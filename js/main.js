@@ -89,10 +89,11 @@ window.execStyle = (cmd, val) => document.execCommand(cmd, false, val);
 window.downloadPromptFile = async (path) => {
     if (!path) return;
     const filename = path.split('/').pop() || 'prompt.txt';
-    const triggerDownload = (url) => {
+    const triggerDownload = (url, useNewTab = false) => {
         const link = document.createElement('a');
         link.href = url;
         link.download = filename;
+        if (useNewTab) link.target = '_blank';
         document.body.appendChild(link);
         link.click();
         link.remove();
@@ -112,16 +113,19 @@ window.downloadPromptFile = async (path) => {
             const fileHandle = await getFileHandleByPath(FileSystem.dirHandle, path);
             const file = await fileHandle.getFile();
             blob = file;
-        } else {
+        } else if (window.location.protocol !== 'file:') {
             const response = await fetch(encodeURI(path), { cache: 'no-store' });
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             blob = await response.blob();
+        } else {
+            throw new Error('file-protocol');
         }
         const url = URL.createObjectURL(blob);
         triggerDownload(url);
         setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch (err) {
-        Utils.showToast("프롬프트 다운로드 실패: 폴더 연결 또는 로컬 서버에서 실행해주세요.", "error");
+        // 최후 수단: 브라우저 기본 다운로드 동작에 맡김
+        triggerDownload(encodeURI(path), true);
     }
 };
 
