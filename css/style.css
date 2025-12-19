@@ -12,10 +12,11 @@ mjx-assistive-mml { display: none !important; }
 mjx-container svg path,
 mjx-container svg polygon { fill: currentColor !important; stroke: none !important; stroke-width: 0 !important; }
 /* MathJax는 분수선/근호선 등을 얇은 rect로 그리므로 fill을 유지해야 합니다. */
-mjx-container svg rect { fill: currentColor; stroke: none; }
+mjx-container svg rect:not([data-bgcolor]) { fill: currentColor; stroke: none; }
 /* \\boxed{} 등은 rect stroke로 테두리를 그리므로 예외 처리 */
 mjx-container svg .mjx-boxed rect { fill: none !important; stroke: currentColor !important; vector-effect: non-scaling-stroke; }
 mjx-container svg line { stroke: currentColor !important; }
+mjx-container .math-blank-box rect[data-bgcolor] { fill: #fff; stroke: #000; stroke-width: 1.5px; vector-effect: non-scaling-stroke; }
 mjx-container:hover { background-color: rgba(0, 0, 0, 0.05); border-radius: 4px; }
 mjx-container:focus { outline: 2px solid #007bff; border-radius: 4px; }
 
