@@ -2,12 +2,17 @@
 export const Utils = {
     preservedClasses: ['custom-box', 'labeled-box', 'simple-box', 'box-label', 'box-content'],
     choiceLabels: ['①', '②', '③', '④', '⑤'],
+    choiceLayoutRows: { '1': [5], '2': [3, 2], '5': [1, 1, 1, 1, 1] },
     normalizeChoiceLayout(value) {
         const v = String(value || '').trim();
         if (v === '1' || v === '1행') return '1';
         if (v === '2' || v === '2행') return '2';
         if (v === '5' || v === '5행') return '5';
-        return '1';
+        return '2';
+    },
+    getChoiceRowSizes(layout) {
+        const normalized = this.normalizeChoiceLayout(layout);
+        return this.choiceLayoutRows[normalized] || this.choiceLayoutRows['2'];
     },
     debounce(func, wait) {
         let timeout;
@@ -23,6 +28,20 @@ export const Utils = {
         div.innerHTML = htmlContent;
         div.querySelectorAll('table.editor-table td.table-cell-selected').forEach(td => {
             td.classList.remove('table-cell-selected');
+        });
+        div.querySelectorAll('.choice-group').forEach(group => {
+            const items = Array.from(group.querySelectorAll('.choice-item'));
+            items.forEach((item, idx) => {
+                let label = item.querySelector('.choice-label');
+                if (!label) {
+                    label = document.createElement('span');
+                    label.className = 'choice-label';
+                    label.setAttribute('contenteditable', 'false');
+                    item.prepend(label);
+                }
+                label.textContent = Utils.choiceLabels[idx] || `${idx + 1}.`;
+                label.setAttribute('contenteditable', 'false');
+            });
         });
         const tablePlaceholders = [];
         div.querySelectorAll('table.editor-table').forEach((table, idx) => {

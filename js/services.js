@@ -110,14 +110,12 @@ const buildChoiceGroupElement = (layoutToken, choiceData = null, options = {}) =
         rowItems.forEach(item => row.appendChild(item));
         group.appendChild(row);
     };
-    if (layout === '2') {
-        appendRow(items.slice(0, 3));
-        appendRow(items.slice(3));
-    } else if (layout === '5') {
-        items.forEach(item => appendRow([item]));
-    } else {
-        appendRow(items);
-    }
+    const rowSizes = Utils.getChoiceRowSizes(layout);
+    let index = 0;
+    rowSizes.forEach(size => {
+        appendRow(items.slice(index, index + size));
+        index += size;
+    });
     return group;
 };
 

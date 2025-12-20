@@ -122,9 +122,17 @@ window.applyInlineFontSize = (value) => Events.applyInlineFontSize(value);
 window.openModal = Utils.openModal;
 window.closeModal = Utils.closeModal;
 window.execStyle = (cmd, val) => document.execCommand(cmd, false, val);
-window.downloadPromptFile = async (path) => {
+window.downloadPromptFile = async (target) => {
+    const btn = typeof target === 'string'
+        ? document.querySelector(`.prompt-download[data-prompt-path="${target}"]`)
+        : target;
+    const path = typeof target === 'string' ? target : (btn && btn.dataset ? btn.dataset.promptPath : '');
     if (!path) return;
-    const filename = path.split('/').pop() || 'prompt.txt';
+    const promptName = (btn && btn.dataset ? btn.dataset.promptName : '') || '';
+    const promptDate = (btn && btn.dataset ? btn.dataset.promptDate : '') || '';
+    const fallbackName = path.split('/').pop() || 'prompt.txt';
+    const baseName = promptName || fallbackName.replace(/\.txt$/i, '');
+    const filename = promptDate ? `${baseName} (${promptDate}).txt` : `${baseName}.txt`;
     const triggerDownload = (url, useNewTab = false) => {
         const link = document.createElement('a');
         link.href = url;
@@ -164,6 +172,7 @@ window.updatePromptDates = async () => {
         const span = btn.querySelector('.prompt-date');
         if (!span) return;
         span.textContent = text ? `(${text})` : '';
+        if (btn && btn.dataset) btn.dataset.promptDate = text === 'n/a' ? '' : (text || '');
     };
 
     const readDateFromGitHub = async (path) => {
