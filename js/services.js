@@ -137,8 +137,12 @@ export const ManualRenderer = {
 
         const sanitizeMathTokens = (tex) => {
             if (!tex) return tex;
+            const normalizeMathBlankLabel = (value = '') => {
+                return String(value).replace(/\s+/g, ' ').trim();
+            };
             const toMathBlankText = (label = '') => {
-                return `\\class{math-blank-box}{\\bbox[border:1.5px solid #000; padding: 3px 12px; background: #fff]{\\text{${escapeForMathTex(label)}}}}`;
+                const normalized = normalizeMathBlankLabel(label);
+                return `\\class{math-blank-box}{\\bbox[border:1.5px solid #000; padding: 3px 12px; background: #fff]{\\text{${escapeForMathTex(normalized)}}}}`;
             };
             const toBoxedText = (label = '') => {
                 return `\\boxed{\\text{${escapeForMathTex(label)}}}`;
