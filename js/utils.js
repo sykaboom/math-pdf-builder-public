@@ -13,6 +13,9 @@ export const Utils = {
     cleanRichContentToTex(htmlContent) {
         const div = document.createElement('div');
         div.innerHTML = htmlContent;
+        div.querySelectorAll('table.editor-table td.table-cell-selected').forEach(td => {
+            td.classList.remove('table-cell-selected');
+        });
         const tablePlaceholders = [];
         div.querySelectorAll('table.editor-table').forEach((table, idx) => {
             const placeholder = document.createElement('span');

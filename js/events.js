@@ -297,6 +297,95 @@ export const Events = {
             document.body.appendChild(el);
             return el;
         })();
+        const tableMenu = document.getElementById('table-menu');
+        const tableMenuHandle = document.getElementById('table-menu-handle');
+        const tableBorderSelect = document.getElementById('table-border-style');
+        let activeTable = null;
+        let activeCell = null;
+        let tableMenuOpen = false;
+        let tableSelectAnchor = null;
+        let tableSelectFocus = null;
+        let tableSelectCells = [];
+        let isTableSelecting = false;
+
+        const clearTableSelection = () => {
+            if (tableSelectCells.length) {
+                tableSelectCells.forEach(cell => cell.classList.remove('table-cell-selected'));
+            }
+            tableSelectCells = [];
+            tableSelectAnchor = null;
+            tableSelectFocus = null;
+        };
+
+        const setTableSelectionCells = (cells) => {
+            if (tableSelectCells.length) {
+                tableSelectCells.forEach(cell => cell.classList.remove('table-cell-selected'));
+            }
+            tableSelectCells = cells.filter(cell => cell);
+            tableSelectCells.forEach(cell => cell.classList.add('table-cell-selected'));
+        };
+
+        const getCellPosition = (cell) => {
+            if (!cell) return null;
+            const row = cell.parentElement;
+            return {
+                row: row ? row.rowIndex : 0,
+                col: cell.cellIndex
+            };
+        };
+
+        const buildSelectionCells = (anchor, focus) => {
+            const table = anchor.closest('table.editor-table');
+            if (!table || focus.closest('table.editor-table') !== table) return [];
+            const anchorPos = getCellPosition(anchor);
+            const focusPos = getCellPosition(focus);
+            if (!anchorPos || !focusPos) return [];
+            const minRow = Math.min(anchorPos.row, focusPos.row);
+            const maxRow = Math.max(anchorPos.row, focusPos.row);
+            const minCol = Math.min(anchorPos.col, focusPos.col);
+            const maxCol = Math.max(anchorPos.col, focusPos.col);
+            const cells = [];
+            for (let r = minRow; r <= maxRow; r++) {
+                const row = table.rows[r];
+                if (!row) continue;
+                for (let c = minCol; c <= maxCol; c++) {
+                    const cell = row.cells[c];
+                    if (cell) cells.push(cell);
+                }
+            }
+            return cells;
+        };
+
+        const updateTableSelection = (anchor, focus) => {
+            if (!anchor || !focus) return;
+            const table = anchor.closest('table.editor-table');
+            if (!table || focus.closest('table.editor-table') !== table) return;
+            tableSelectAnchor = anchor;
+            tableSelectFocus = focus;
+            activeCell = focus;
+            activeTable = table;
+            setTableSelectionCells(buildSelectionCells(anchor, focus));
+        };
+
+        const getSelectionRect = () => {
+            if (!tableSelectAnchor || !tableSelectFocus) return null;
+            const anchorPos = getCellPosition(tableSelectAnchor);
+            const focusPos = getCellPosition(tableSelectFocus);
+            if (!anchorPos || !focusPos) return null;
+            return {
+                minRow: Math.min(anchorPos.row, focusPos.row),
+                maxRow: Math.max(anchorPos.row, focusPos.row),
+                minCol: Math.min(anchorPos.col, focusPos.col),
+                maxCol: Math.max(anchorPos.col, focusPos.col)
+            };
+        };
+
+        const getSelectionCellsForTable = (table) => {
+            if (!table || tableSelectCells.length === 0) return [];
+            const sameTable = tableSelectAnchor && tableSelectAnchor.closest('table.editor-table') === table;
+            if (!sameTable) return [];
+            return tableSelectCells.filter(cell => cell && cell.isConnected);
+        };
 
         const getTableResizeHit = (cell, event) => {
             const rect = cell.getBoundingClientRect();
@@ -380,15 +469,285 @@ export const Events = {
             tableHandle.style.display = 'none';
         };
 
+        const showMenuHandle = (rect) => {
+            if (!tableMenuHandle) return;
+            const size = 20;
+            const margin = 6;
+            let left = rect.left + window.scrollX - margin;
+            let top = rect.top + window.scrollY - (size + margin);
+            const minLeft = window.scrollX + 4;
+            const minTop = window.scrollY + 4;
+            if (left < minLeft) left = minLeft;
+            if (top < minTop) top = rect.top + window.scrollY + margin;
+            tableMenuHandle.style.display = 'flex';
+            tableMenuHandle.style.left = left + 'px';
+            tableMenuHandle.style.top = top + 'px';
+        };
+
+        const hideMenuHandle = () => {
+            if (!tableMenuHandle || tableMenuOpen) return;
+            tableMenuHandle.style.display = 'none';
+        };
+
+        const positionTableMenu = (table) => {
+            if (!tableMenu || !table) return;
+            tableMenu.style.display = 'block';
+            tableMenu.style.visibility = 'hidden';
+            const menuRect = tableMenu.getBoundingClientRect();
+            const rect = table.getBoundingClientRect();
+            const margin = 6;
+            let left = rect.left + window.scrollX;
+            let top = rect.top + window.scrollY - menuRect.height - margin;
+            const maxLeft = window.scrollX + window.innerWidth - menuRect.width - margin;
+            if (left > maxLeft) left = maxLeft;
+            if (left < window.scrollX + margin) left = window.scrollX + margin;
+            if (top < window.scrollY + margin) top = rect.bottom + window.scrollY + margin;
+            tableMenu.style.left = left + 'px';
+            tableMenu.style.top = top + 'px';
+            tableMenu.style.visibility = 'visible';
+        };
+
+        const openTableMenu = (table) => {
+            if (!tableMenu || !table) return;
+            activeTable = table;
+            tableMenuOpen = true;
+            positionTableMenu(table);
+            showMenuHandle(table.getBoundingClientRect());
+        };
+
+        const closeTableMenu = () => {
+            if (!tableMenu) return;
+            tableMenu.style.display = 'none';
+            tableMenu.style.visibility = 'visible';
+            tableMenuOpen = false;
+            hideMenuHandle();
+        };
+
+        const updateTableDataSize = (table) => {
+            if (!table) return;
+            const rowCount = table.querySelectorAll('tr').length;
+            const colCount = table.querySelectorAll('tr:first-child td').length;
+            table.dataset.rows = rowCount;
+            table.dataset.cols = colCount;
+        };
+
+        const resolveBorderStyle = (value) => {
+            if (value === 'dashed') return { style: 'dashed', color: '#333' };
+            if (value === 'transparent') return { style: 'solid', color: 'transparent' };
+            return { style: 'solid', color: '#333' };
+        };
+
+        const getNeighborCell = (cell, side) => {
+            const table = cell.closest('table.editor-table');
+            if (!table) return null;
+            const rowIndex = cell.parentElement.rowIndex;
+            const colIndex = cell.cellIndex;
+            const rowOffset = side === 'top' ? -1 : side === 'bottom' ? 1 : 0;
+            const colOffset = side === 'left' ? -1 : side === 'right' ? 1 : 0;
+            const row = table.rows[rowIndex + rowOffset];
+            if (!row) return null;
+            return row.cells[colIndex + colOffset] || null;
+        };
+
+        const setBorderSide = (cell, side, mode, syncNeighbor = false) => {
+            if (!cell) return;
+            const { style, color } = resolveBorderStyle(mode);
+            const cap = side.charAt(0).toUpperCase() + side.slice(1);
+            cell.style[`border${cap}Style`] = style;
+            cell.style[`border${cap}Color`] = color;
+            if (syncNeighbor) {
+                const neighbor = getNeighborCell(cell, side);
+                if (neighbor) {
+                    const oppositeMap = { top: 'bottom', bottom: 'top', left: 'right', right: 'left' };
+                    const opp = oppositeMap[side];
+                    const oppCap = opp.charAt(0).toUpperCase() + opp.slice(1);
+                    neighbor.style[`border${oppCap}Style`] = style;
+                    neighbor.style[`border${oppCap}Color`] = color;
+                }
+            }
+        };
+
+        const applyBorderAll = (table, mode) => {
+            const rows = Array.from(table.rows);
+            rows.forEach(row => {
+                Array.from(row.cells).forEach(cell => {
+                    ['top', 'right', 'bottom', 'left'].forEach(side => setBorderSide(cell, side, mode, false));
+                });
+            });
+        };
+
+        const applyBorderOuter = (table, mode) => {
+            const rows = Array.from(table.rows);
+            const lastRow = rows.length - 1;
+            rows.forEach((row, r) => {
+                const cells = Array.from(row.cells);
+                const lastCol = cells.length - 1;
+                cells.forEach((cell, c) => {
+                    if (r === 0) setBorderSide(cell, 'top', mode, true);
+                    if (r === lastRow) setBorderSide(cell, 'bottom', mode, true);
+                    if (c === 0) setBorderSide(cell, 'left', mode, true);
+                    if (c === lastCol) setBorderSide(cell, 'right', mode, true);
+                });
+            });
+        };
+
+        const applyBorderInner = (table, mode) => {
+            const rows = Array.from(table.rows);
+            rows.forEach((row, r) => {
+                const cells = Array.from(row.cells);
+                cells.forEach((cell, c) => {
+                    if (r > 0) setBorderSide(cell, 'top', mode, true);
+                    if (c > 0) setBorderSide(cell, 'left', mode, true);
+                });
+            });
+        };
+
+        const applyBorderOuterRect = (table, rect, mode) => {
+            if (!rect) return;
+            for (let r = rect.minRow; r <= rect.maxRow; r++) {
+                const row = table.rows[r];
+                if (!row) continue;
+                for (let c = rect.minCol; c <= rect.maxCol; c++) {
+                    const cell = row.cells[c];
+                    if (!cell) continue;
+                    if (r === rect.minRow) setBorderSide(cell, 'top', mode, true);
+                    if (r === rect.maxRow) setBorderSide(cell, 'bottom', mode, true);
+                    if (c === rect.minCol) setBorderSide(cell, 'left', mode, true);
+                    if (c === rect.maxCol) setBorderSide(cell, 'right', mode, true);
+                }
+            }
+        };
+
+        const applyBorderInnerRect = (table, rect, mode) => {
+            if (!rect) return;
+            for (let r = rect.minRow; r <= rect.maxRow; r++) {
+                const row = table.rows[r];
+                if (!row) continue;
+                for (let c = rect.minCol; c <= rect.maxCol; c++) {
+                    const cell = row.cells[c];
+                    if (!cell) continue;
+                    if (r > rect.minRow) setBorderSide(cell, 'top', mode, true);
+                    if (c > rect.minCol) setBorderSide(cell, 'left', mode, true);
+                }
+            }
+        };
+
+        const createTableCell = () => {
+            const td = document.createElement('td');
+            td.setAttribute('contenteditable', 'true');
+            return td;
+        };
+
+        const addRowToTable = (table, position) => {
+            const rows = Array.from(table.rows);
+            if (!rows.length) return;
+            const colCount = rows[0].cells.length;
+            if (!colCount) return;
+            const newRow = document.createElement('tr');
+            for (let c = 0; c < colCount; c++) newRow.appendChild(createTableCell());
+            let insertIndex = rows.length;
+            if (activeCell && table.contains(activeCell)) {
+                const baseIndex = activeCell.parentElement.rowIndex;
+                insertIndex = position === 'above' ? baseIndex : baseIndex + 1;
+            } else if (position === 'above') {
+                insertIndex = 0;
+            }
+            const tbody = table.tBodies[0] || table;
+            const refRow = rows[insertIndex];
+            if (refRow && refRow.parentNode === tbody) tbody.insertBefore(newRow, refRow);
+            else tbody.appendChild(newRow);
+            updateTableDataSize(table);
+        };
+
+        const addColumnToTable = (table, position) => {
+            const rows = Array.from(table.rows);
+            if (!rows.length) return;
+            const colCount = rows[0].cells.length;
+            let insertIndex = colCount;
+            if (activeCell && table.contains(activeCell)) {
+                const baseIndex = activeCell.cellIndex;
+                insertIndex = position === 'left' ? baseIndex : baseIndex + 1;
+            } else if (position === 'left') {
+                insertIndex = 0;
+            }
+            rows.forEach(row => {
+                const td = createTableCell();
+                const refCell = row.cells[insertIndex];
+                if (refCell) row.insertBefore(td, refCell);
+                else row.appendChild(td);
+            });
+            const colgroup = ensureColgroup(table);
+            if (colgroup) {
+                const col = document.createElement('col');
+                const refCol = colgroup.children[insertIndex];
+                if (refCol) colgroup.insertBefore(col, refCol);
+                else colgroup.appendChild(col);
+            }
+            updateTableDataSize(table);
+        };
+
+        const syncTableToState = (table) => {
+            if (!table) return;
+            const wrap = table.closest('.block-wrapper');
+            if (!wrap) return;
+            const box = wrap.querySelector('.editable-box');
+            if (!box) return;
+            Actions.updateBlockContent(wrap.dataset.id, Utils.cleanRichContentToTex(box.innerHTML), true);
+            Renderer.debouncedRebalance();
+        };
+
         document.addEventListener('mousemove', (e) => {
-            if (!tableResizeState) {
+            if (tableResizeState) {
+                const zoom = State.docData.meta.zoom || 1;
+                if (tableResizeState.type === 'col') {
+                    const delta = (e.clientX - tableResizeState.startX) / zoom;
+                    applyColumnWidth(tableResizeState.table, tableResizeState.index, tableResizeState.startWidth + delta);
+                    document.body.style.cursor = 'col-resize';
+                } else if (tableResizeState.type === 'row') {
+                    const delta = (e.clientY - tableResizeState.startY) / zoom;
+                    applyRowHeight(tableResizeState.row, tableResizeState.startHeight + delta);
+                    document.body.style.cursor = 'row-resize';
+                } else if (tableResizeState.type === 'table') {
+                    const deltaX = (e.clientX - tableResizeState.startX) / zoom;
+                    const deltaY = (e.clientY - tableResizeState.startY) / zoom;
+                    const width = Math.max(tableResizeState.minWidth, tableResizeState.startWidth + deltaX);
+                    const height = Math.max(tableResizeState.minHeight, tableResizeState.startHeight + deltaY);
+                    tableResizeState.table.style.width = width + 'px';
+                    tableResizeState.table.style.height = height + 'px';
+                    tableResizeState.table.style.tableLayout = 'fixed';
+                    document.body.style.cursor = 'nwse-resize';
+                }
+                e.preventDefault();
+                return;
+            }
+            if (isTableSelecting) {
+                const cell = e.target.closest('table.editor-table td');
+                if (cell && cell.closest('table.editor-table') === activeTable) {
+                    updateTableSelection(tableSelectAnchor, cell);
+                }
+                document.body.style.cursor = 'cell';
+                e.preventDefault();
+                return;
+            }
+            {
                 const cell = e.target.closest('table.editor-table td');
                 const table = e.target.closest('table.editor-table');
                 let cursor = '';
                 let hit = null;
                 hideGuides();
-                if (table) showHandle(table.getBoundingClientRect());
-                else hideHandle();
+                const isTableUiHover = e.target.closest('#table-menu') || e.target.closest('#table-menu-handle');
+                if (table) {
+                    activeTable = table;
+                    showHandle(table.getBoundingClientRect());
+                    showMenuHandle(table.getBoundingClientRect());
+                } else if (isTableUiHover && activeTable) {
+                    showMenuHandle(activeTable.getBoundingClientRect());
+                    hideHandle();
+                } else {
+                    hideHandle();
+                    if (tableMenuOpen && activeTable) showMenuHandle(activeTable.getBoundingClientRect());
+                    else hideMenuHandle();
+                }
                 if (table && getTableHandleHit(table, e)) {
                     cursor = 'nwse-resize';
                 } else if (cell) {
@@ -410,28 +769,7 @@ export const Events = {
                 if (table) table.style.cursor = cursor || '';
                 lastCursorTable = table || null;
                 document.body.style.cursor = cursor;
-                return;
             }
-            const zoom = State.docData.meta.zoom || 1;
-            if (tableResizeState.type === 'col') {
-                const delta = (e.clientX - tableResizeState.startX) / zoom;
-                applyColumnWidth(tableResizeState.table, tableResizeState.index, tableResizeState.startWidth + delta);
-                document.body.style.cursor = 'col-resize';
-            } else if (tableResizeState.type === 'row') {
-                const delta = (e.clientY - tableResizeState.startY) / zoom;
-                applyRowHeight(tableResizeState.row, tableResizeState.startHeight + delta);
-                document.body.style.cursor = 'row-resize';
-            } else if (tableResizeState.type === 'table') {
-                const deltaX = (e.clientX - tableResizeState.startX) / zoom;
-                const deltaY = (e.clientY - tableResizeState.startY) / zoom;
-                const width = Math.max(tableResizeState.minWidth, tableResizeState.startWidth + deltaX);
-                const height = Math.max(tableResizeState.minHeight, tableResizeState.startHeight + deltaY);
-                tableResizeState.table.style.width = width + 'px';
-                tableResizeState.table.style.height = height + 'px';
-                tableResizeState.table.style.tableLayout = 'fixed';
-                document.body.style.cursor = 'nwse-resize';
-            }
-            e.preventDefault();
         });
 
         document.addEventListener('mousedown', (e) => {
@@ -459,6 +797,18 @@ export const Events = {
             const cell = e.target.closest('table.editor-table td');
             if (!cell) return;
             const hit = getTableResizeHit(cell, e);
+            if (!hit && e.shiftKey) {
+                const tableForCell = cell.closest('table.editor-table');
+                if (!tableSelectAnchor || !tableSelectAnchor.isConnected || tableSelectAnchor.closest('table.editor-table') !== tableForCell) {
+                    tableSelectAnchor = cell;
+                }
+                isTableSelecting = true;
+                updateTableSelection(tableSelectAnchor, cell);
+                e.preventDefault();
+                e.stopPropagation();
+                document.body.style.userSelect = 'none';
+                return;
+            }
             if (!hit) return;
             const tableForCell = cell.closest('table.editor-table');
             if (!tableForCell) return;
@@ -489,29 +839,120 @@ export const Events = {
         });
 
         document.addEventListener('mouseup', () => {
-            if (!tableResizeState) return;
-            const table = tableResizeState.table;
-            tableResizeState = null;
-            document.body.style.userSelect = '';
-            document.body.style.cursor = '';
-            if (table) table.style.cursor = '';
-            hideGuides();
-            const wrap = table.closest('.block-wrapper');
-            if (wrap) {
-                const box = wrap.querySelector('.editable-box');
-                if (box) Actions.updateBlockContent(wrap.dataset.id, Utils.cleanRichContentToTex(box.innerHTML), true);
-                Renderer.debouncedRebalance();
+            if (tableResizeState) {
+                const table = tableResizeState.table;
+                tableResizeState = null;
+                document.body.style.userSelect = '';
+                document.body.style.cursor = '';
+                if (table) table.style.cursor = '';
+                hideGuides();
+                const wrap = table.closest('.block-wrapper');
+                if (wrap) {
+                    const box = wrap.querySelector('.editable-box');
+                    if (box) Actions.updateBlockContent(wrap.dataset.id, Utils.cleanRichContentToTex(box.innerHTML), true);
+                    Renderer.debouncedRebalance();
+                }
+                return;
+            }
+            if (isTableSelecting) {
+                isTableSelecting = false;
+                document.body.style.userSelect = '';
+                document.body.style.cursor = '';
             }
         });
+
+        if (tableMenuHandle) {
+            tableMenuHandle.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (!activeTable) return;
+                if (tableMenuOpen) closeTableMenu();
+                else openTableMenu(activeTable);
+            });
+        }
+        if (tableMenu) {
+            tableMenu.addEventListener('mousedown', (e) => {
+                e.stopPropagation();
+            });
+            tableMenu.addEventListener('click', (e) => {
+                const btn = e.target.closest('[data-action]');
+                if (!btn) return;
+                if (!activeTable) { Utils.showToast("표를 먼저 선택하세요.", "error"); return; }
+                const mode = tableBorderSelect ? tableBorderSelect.value : 'solid';
+                const selectionCells = getSelectionCellsForTable(activeTable);
+                const selectionRect = selectionCells.length ? getSelectionRect() : null;
+                const action = btn.dataset.action;
+                if (action === 'add-row-above') { addRowToTable(activeTable, 'above'); syncTableToState(activeTable); }
+                else if (action === 'add-row-below') { addRowToTable(activeTable, 'below'); syncTableToState(activeTable); }
+                else if (action === 'add-col-left') { addColumnToTable(activeTable, 'left'); syncTableToState(activeTable); }
+                else if (action === 'add-col-right') { addColumnToTable(activeTable, 'right'); syncTableToState(activeTable); }
+                else if (action === 'border-all') {
+                    if (selectionRect) {
+                        applyBorderOuterRect(activeTable, selectionRect, mode);
+                        applyBorderInnerRect(activeTable, selectionRect, mode);
+                    } else if (selectionCells.length) {
+                        selectionCells.forEach(cell => ['top', 'right', 'bottom', 'left'].forEach(side => setBorderSide(cell, side, mode, true)));
+                    } else {
+                        applyBorderAll(activeTable, mode);
+                    }
+                    syncTableToState(activeTable);
+                } else if (action === 'border-outer') {
+                    if (selectionRect) applyBorderOuterRect(activeTable, selectionRect, mode);
+                    else applyBorderOuter(activeTable, mode);
+                    syncTableToState(activeTable);
+                } else if (action === 'border-inner') {
+                    if (selectionRect) applyBorderInnerRect(activeTable, selectionRect, mode);
+                    else applyBorderInner(activeTable, mode);
+                    syncTableToState(activeTable);
+                }
+                else if (action === 'border-top') {
+                    if (selectionCells.length) {
+                        selectionCells.forEach(cell => setBorderSide(cell, 'top', mode, true));
+                    } else {
+                        if (!activeCell) { Utils.showToast("셀을 먼저 클릭하세요.", "info"); return; }
+                        setBorderSide(activeCell, 'top', mode, true);
+                    }
+                    syncTableToState(activeTable);
+                } else if (action === 'border-right') {
+                    if (selectionCells.length) {
+                        selectionCells.forEach(cell => setBorderSide(cell, 'right', mode, true));
+                    } else {
+                        if (!activeCell) { Utils.showToast("셀을 먼저 클릭하세요.", "info"); return; }
+                        setBorderSide(activeCell, 'right', mode, true);
+                    }
+                    syncTableToState(activeTable);
+                } else if (action === 'border-bottom') {
+                    if (selectionCells.length) {
+                        selectionCells.forEach(cell => setBorderSide(cell, 'bottom', mode, true));
+                    } else {
+                        if (!activeCell) { Utils.showToast("셀을 먼저 클릭하세요.", "info"); return; }
+                        setBorderSide(activeCell, 'bottom', mode, true);
+                    }
+                    syncTableToState(activeTable);
+                } else if (action === 'border-left') {
+                    if (selectionCells.length) {
+                        selectionCells.forEach(cell => setBorderSide(cell, 'left', mode, true));
+                    } else {
+                        if (!activeCell) { Utils.showToast("셀을 먼저 클릭하세요.", "info"); return; }
+                        setBorderSide(activeCell, 'left', mode, true);
+                    }
+                    syncTableToState(activeTable);
+                }
+                if (tableMenuOpen) positionTableMenu(activeTable);
+            });
+        }
 
         // [Fix] 스크롤 시 팝업 닫기 추가
         window.addEventListener('scroll', () => {
             document.getElementById('context-menu').style.display = 'none';
             document.getElementById('floating-toolbar').style.display = 'none';
+            closeTableMenu();
         }, true);
 
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
+                clearTableSelection();
+                closeTableMenu();
                 Utils.closeModal('context-menu'); document.getElementById('floating-toolbar').style.display='none'; this.hideResizer(); Utils.closeModal('import-modal'); Utils.closeModal('find-replace-modal'); return;
             }
             const key = e.key.toLowerCase();
@@ -532,7 +973,22 @@ export const Events = {
             }
             const menu = document.getElementById('context-menu');
             if (menu && menu.style.display === 'block') { if (!e.target.closest('#context-menu') && !e.target.closest('.block-handle')) menu.style.display = 'none'; }
+            if (tableMenuOpen) {
+                if (!e.target.closest('#table-menu') && !e.target.closest('#table-menu-handle')) closeTableMenu();
+            }
             if (!e.target.closest('.image-placeholder') && !e.target.closest('#imgUpload')) { if(State.selectedPlaceholder) { State.selectedPlaceholder.classList.remove('selected'); State.selectedPlaceholder.setAttribute('contenteditable', 'false'); } State.selectedPlaceholder = null; } 
+            const cell = e.target.closest('table.editor-table td');
+            if (cell) {
+                activeCell = cell;
+                activeTable = cell.closest('table.editor-table');
+                if (!e.shiftKey) {
+                    clearTableSelection();
+                    tableSelectAnchor = cell;
+                }
+            } else if (!e.target.closest('#table-menu') && !e.target.closest('#table-menu-handle')) {
+                clearTableSelection();
+                activeCell = null;
+            }
         });
         document.addEventListener('mouseup', (e) => { const target = e.target; setTimeout(() => {
             const sel = window.getSelection();
