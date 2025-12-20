@@ -99,7 +99,7 @@ export const ManualRenderer = {
                 const isViewLabel = rawLabel === '보기';
                 const labelHtml = isViewLabel
                     ? `<div class="box-label view-label">${safeLabel}</div>`
-                    : `<div class="box-label">&lt; ${safeLabel} &gt;</div>`;
+                    : `<div class="box-label">${safeLabel}</div>`;
                 return `<div class="custom-box labeled-box" contenteditable="false">${labelHtml}<div class="box-content">${body}</div></div>`;
             }
             return `<div class="custom-box simple-box" contenteditable="false"><div class="box-content">${body}</div></div>`;
@@ -369,7 +369,7 @@ export const ImportParser = {
                     const isViewLabel = safeLabel === '보기';
                     const labelHtml = isViewLabel
                         ? `<div class="box-label view-label">${safeLabel}</div>`
-                        : `<div class="box-label">&lt; ${safeLabel} &gt;</div>`;
+                        : `<div class="box-label">${safeLabel}</div>`;
                     return `<div class="custom-box labeled-box" contenteditable="false">${labelHtml}<div class="box-content">${bodyText}</div></div>`;
                 }
                 return `<div class="custom-box simple-box" contenteditable="false"><div class="box-content">${bodyText}</div></div>`;
