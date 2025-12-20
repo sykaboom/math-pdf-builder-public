@@ -79,44 +79,47 @@ const buildEditorTableElement = (rows, cols, cellData = null, options = {}) => {
     return table;
 };
 
-const buildChoiceGroupElement = (layoutToken, choiceData = null, options = {}) => {
+const buildChoiceTableElement = (layoutToken, choiceData = null, options = {}) => {
     const layout = Utils.normalizeChoiceLayout(layoutToken);
-    const group = document.createElement('div');
-    group.className = 'choice-group';
-    group.dataset.layout = layout;
+    const grid = Utils.getChoiceLayoutGrid(layout);
+    const colCount = Utils.getChoiceColumnCount(layout);
+    const table = document.createElement('table');
+    table.className = 'choice-table';
+    table.dataset.layout = layout;
+    const colgroup = document.createElement('colgroup');
+    for (let c = 0; c < colCount; c++) colgroup.appendChild(document.createElement('col'));
+    table.appendChild(colgroup);
+    const tbody = document.createElement('tbody');
     const allowHtml = !!options.allowHtml;
-    const items = [];
-    for (let i = 1; i <= 5; i++) {
-        const item = document.createElement('span');
-        item.className = 'choice-item';
-        const label = document.createElement('span');
-        label.className = 'choice-label';
-        label.textContent = Utils.choiceLabels[i - 1] || `${i}.`;
-        label.setAttribute('contenteditable', 'false');
-        const text = document.createElement('span');
-        text.className = 'choice-text';
-        text.setAttribute('contenteditable', 'true');
-        const value = choiceData ? (choiceData.get(String(i)) || '') : '';
-        if (allowHtml) text.innerHTML = value;
-        else text.textContent = value;
-        item.appendChild(label);
-        item.appendChild(text);
-        items.push(item);
-    }
-    const appendRow = (rowItems) => {
-        const row = document.createElement('div');
-        row.className = 'choice-row';
-        row.dataset.count = String(rowItems.length);
-        rowItems.forEach(item => row.appendChild(item));
-        group.appendChild(row);
-    };
-    const rowSizes = Utils.getChoiceRowSizes(layout);
-    let index = 0;
-    rowSizes.forEach(size => {
-        appendRow(items.slice(index, index + size));
-        index += size;
+    grid.forEach(rowDef => {
+        const tr = document.createElement('tr');
+        rowDef.forEach(cellIndex => {
+            const td = document.createElement('td');
+            td.setAttribute('contenteditable', 'false');
+            if (cellIndex > 0) {
+                td.className = 'choice-cell';
+                td.dataset.choiceIndex = String(cellIndex);
+                const label = document.createElement('span');
+                label.className = 'choice-label';
+                label.textContent = Utils.choiceLabels[cellIndex - 1] || `${cellIndex}.`;
+                label.setAttribute('contenteditable', 'false');
+                const text = document.createElement('span');
+                text.className = 'choice-text';
+                text.setAttribute('contenteditable', 'true');
+                const value = choiceData ? (choiceData.get(String(cellIndex)) || '') : '';
+                if (allowHtml) text.innerHTML = value;
+                else text.textContent = value;
+                td.appendChild(label);
+                td.appendChild(text);
+            } else {
+                td.className = 'choice-empty';
+            }
+            tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
     });
-    return group;
+    table.appendChild(tbody);
+    return table;
 };
 
 export const ManualRenderer = {
@@ -215,6 +218,7 @@ export const ManualRenderer = {
         };
 
         const applyTokenReplacementsOutsideMath = (root) => {
+            let didReplace = false;
             const mathRegex = /(\$\$[\s\S]+?\$\$|\$[\s\S]+?\$)/g;
             const tokenRegex = /\[빈칸([:_])(.*?)\]|\[이미지\s*:\s*(.*?)\]|\[표_(\d+)x(\d+)\](?:\s*:\s*((?:\(\d+x\d+_(?:"(?:\\.|[^"])*"|&quot;[\s\S]*?&quot;|[^)]*)\)\s*,?\s*)+))?|\[선지_(1행|2행|5행)\](?:\s*:\s*((?:\(\d+_(?:"(?:\\.|[^"])*"|&quot;[\s\S]*?&quot;|[^)]*)\)\s*,?\s*)+))?/g;
             const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null, false);
@@ -234,6 +238,7 @@ export const ManualRenderer = {
                 if (!text) return frag;
                 let lastIndex = 0; tokenRegex.lastIndex = 0; let m;
                 while ((m = tokenRegex.exec(text)) !== null) {
+                    didReplace = true;
                     if (m.index > lastIndex) frag.appendChild(document.createTextNode(text.slice(lastIndex, m.index)));
                     if (m[1] !== undefined) {
                         const span = document.createElement('span');
@@ -251,7 +256,7 @@ export const ManualRenderer = {
                         else frag.appendChild(document.createTextNode(m[0]));
                     } else if (m[7] !== undefined) {
                         const choiceData = m[8] ? parseChoiceData(m[8]) : null;
-                        const choiceEl = buildChoiceGroupElement(m[7], choiceData, { allowHtml: false });
+                        const choiceEl = buildChoiceTableElement(m[7], choiceData, { allowHtml: false });
                         if (choiceEl) frag.appendChild(choiceEl);
                         else frag.appendChild(document.createTextNode(m[0]));
                     }
@@ -278,9 +283,13 @@ export const ManualRenderer = {
                 if (lastIndex < text.length) frag.appendChild(buildFragmentFromPlain(text.slice(lastIndex)));
                 node.parentNode.replaceChild(frag, node);
             }
+            return didReplace;
         };
 
-        applyTokenReplacementsOutsideMath(element);
+        let tokensReplaced = true;
+        for (let pass = 0; pass < 2 && tokensReplaced; pass++) {
+            tokensReplaced = applyTokenReplacementsOutsideMath(element);
+        }
 
         const regex = /(\$\$[\s\S]+?\$\$|\$[\s\S]+?\$)/g;
         const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT, null, false);
@@ -497,7 +506,7 @@ export const ImportParser = {
             });
             content = content.replace(/\[선지_(1행|2행|5행)\](?:\s*:\s*((?:\(\d+_(?:"(?:\\.|[^"])*"|&quot;[\s\S]*?&quot;|[^)]*)\)\s*,?\s*)+))?/g, (m, layout, data) => {
                 const choiceData = data ? parseChoiceData(data) : null;
-                const choiceEl = buildChoiceGroupElement(layout, choiceData, { allowHtml: true });
+                const choiceEl = buildChoiceTableElement(layout, choiceData, { allowHtml: true });
                 return choiceEl ? choiceEl.outerHTML : m;
             });
             content = content.replace(/\[이미지\s*:\s*(.*?)\]/g, (m, label) => getEscapedImagePlaceholderHTML(label));

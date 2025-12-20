@@ -305,8 +305,10 @@ export const Events = {
         let tableMenuOpen = false;
         const choiceMenu = document.getElementById('choice-menu');
         const choiceMenuHandle = document.getElementById('choice-menu-handle');
-        let activeChoiceGroup = null;
+        let activeChoiceTable = null;
         let choiceMenuOpen = false;
+        let tableHandleHideTimer = null;
+        let choiceHandleHideTimer = null;
         let tableSelectAnchor = null;
         let tableSelectFocus = null;
         let tableSelectCells = [];
@@ -416,6 +418,18 @@ export const Events = {
             return nearRight && nearBottom;
         };
 
+        const isPointerNearRect = (rect, event, padding = 32) => {
+            if (!rect) return false;
+            const x = event.clientX;
+            const y = event.clientY;
+            return (
+                x >= rect.left - padding &&
+                x <= rect.right + padding &&
+                y >= rect.top - padding &&
+                y <= rect.bottom + padding
+            );
+        };
+
         const ensureColgroup = (table) => {
             const firstRow = table.querySelector('tr');
             const colCount = firstRow ? firstRow.children.length : 0;
@@ -473,6 +487,37 @@ export const Events = {
             tableHandle.style.display = 'none';
         };
 
+        const cancelHideTableHandles = () => {
+            if (tableHandleHideTimer) {
+                clearTimeout(tableHandleHideTimer);
+                tableHandleHideTimer = null;
+            }
+        };
+
+        const scheduleHideTableHandles = () => {
+            if (tableMenuOpen) return;
+            cancelHideTableHandles();
+            tableHandleHideTimer = setTimeout(() => {
+                hideHandle();
+                hideMenuHandle();
+            }, 200);
+        };
+
+        const cancelHideChoiceHandle = () => {
+            if (choiceHandleHideTimer) {
+                clearTimeout(choiceHandleHideTimer);
+                choiceHandleHideTimer = null;
+            }
+        };
+
+        const scheduleHideChoiceHandle = () => {
+            if (choiceMenuOpen) return;
+            cancelHideChoiceHandle();
+            choiceHandleHideTimer = setTimeout(() => {
+                hideChoiceHandle();
+            }, 200);
+        };
+
         const showMenuHandle = (rect) => {
             if (!tableMenuHandle) return;
             const size = 20;
@@ -515,6 +560,7 @@ export const Events = {
             if (!tableMenu || !table) return;
             activeTable = table;
             tableMenuOpen = true;
+            cancelHideTableHandles();
             positionTableMenu(table);
             showMenuHandle(table.getBoundingClientRect());
         };
@@ -721,12 +767,12 @@ export const Events = {
             choiceMenuHandle.style.display = 'none';
         };
 
-        const positionChoiceMenu = (group) => {
-            if (!choiceMenu || !group) return;
+        const positionChoiceMenu = (table) => {
+            if (!choiceMenu || !table) return;
             choiceMenu.style.display = 'block';
             choiceMenu.style.visibility = 'hidden';
             const menuRect = choiceMenu.getBoundingClientRect();
-            const rect = group.getBoundingClientRect();
+            const rect = table.getBoundingClientRect();
             const margin = 6;
             let left = rect.left + window.scrollX;
             let top = rect.top + window.scrollY - menuRect.height - margin;
@@ -739,12 +785,13 @@ export const Events = {
             choiceMenu.style.visibility = 'visible';
         };
 
-        const openChoiceMenu = (group) => {
-            if (!choiceMenu || !group) return;
-            activeChoiceGroup = group;
+        const openChoiceMenu = (table) => {
+            if (!choiceMenu || !table) return;
+            activeChoiceTable = table;
             choiceMenuOpen = true;
-            positionChoiceMenu(group);
-            showChoiceHandle(group.getBoundingClientRect());
+            cancelHideChoiceHandle();
+            positionChoiceMenu(table);
+            showChoiceHandle(table.getBoundingClientRect());
         };
 
         const closeChoiceMenu = () => {
@@ -755,73 +802,70 @@ export const Events = {
             hideChoiceHandle();
         };
 
-        const createChoiceItem = (index) => {
-            const item = document.createElement('span');
-            item.className = 'choice-item';
-            const label = document.createElement('span');
-            label.className = 'choice-label';
-            label.textContent = Utils.choiceLabels[index] || `${index + 1}.`;
-            label.setAttribute('contenteditable', 'false');
-            const text = document.createElement('span');
-            text.className = 'choice-text';
-            text.setAttribute('contenteditable', 'true');
-            item.appendChild(label);
-            item.appendChild(text);
-            return item;
-        };
-
-        const normalizeChoiceItems = (group) => {
-            let items = Array.from(group.querySelectorAll('.choice-item'));
-            if (items.length < 5) {
-                for (let i = items.length; i < 5; i++) items.push(createChoiceItem(i));
-            }
-            items = items.slice(0, 5);
-            items.forEach((item, idx) => {
-                let label = item.querySelector('.choice-label');
-                if (!label) {
-                    label = document.createElement('span');
-                    label.className = 'choice-label';
-                    label.setAttribute('contenteditable', 'false');
-                    item.prepend(label);
-                }
-                label.textContent = Utils.choiceLabels[idx] || `${idx + 1}.`;
-                let text = item.querySelector('.choice-text');
-                if (!text) {
-                    text = document.createElement('span');
-                    text.className = 'choice-text';
-                    text.setAttribute('contenteditable', 'true');
-                    const nodes = Array.from(item.childNodes).filter(node => node !== label);
-                    nodes.forEach(node => text.appendChild(node));
-                    item.appendChild(text);
-                }
-            });
-            return items;
-        };
-
-        const applyChoiceLayout = (group, layoutToken) => {
-            if (!group) return;
+        const buildChoiceTable = (layoutToken, choiceData) => {
             const layout = Utils.normalizeChoiceLayout(layoutToken);
-            const items = normalizeChoiceItems(group);
-            group.dataset.layout = layout;
-            group.replaceChildren();
-            const appendRow = (rowItems) => {
-                const row = document.createElement('div');
-                row.className = 'choice-row';
-                row.dataset.count = String(rowItems.length);
-                rowItems.forEach(item => row.appendChild(item));
-                group.appendChild(row);
-            };
-            const rowSizes = Utils.getChoiceRowSizes(layout);
-            let index = 0;
-            rowSizes.forEach(size => {
-                appendRow(items.slice(index, index + size));
-                index += size;
+            const grid = Utils.getChoiceLayoutGrid(layout);
+            const colCount = Utils.getChoiceColumnCount(layout);
+            const table = document.createElement('table');
+            table.className = 'choice-table';
+            table.dataset.layout = layout;
+            const colgroup = document.createElement('colgroup');
+            for (let c = 0; c < colCount; c++) colgroup.appendChild(document.createElement('col'));
+            table.appendChild(colgroup);
+            const tbody = document.createElement('tbody');
+            grid.forEach(rowDef => {
+                const tr = document.createElement('tr');
+                rowDef.forEach(cellIndex => {
+                    const td = document.createElement('td');
+                    td.setAttribute('contenteditable', 'false');
+                    if (cellIndex > 0) {
+                        td.className = 'choice-cell';
+                        td.dataset.choiceIndex = String(cellIndex);
+                        const label = document.createElement('span');
+                        label.className = 'choice-label';
+                        label.textContent = Utils.choiceLabels[cellIndex - 1] || `${cellIndex}.`;
+                        label.setAttribute('contenteditable', 'false');
+                        const text = document.createElement('span');
+                        text.className = 'choice-text';
+                        text.setAttribute('contenteditable', 'true');
+                        const value = choiceData ? (choiceData.get(String(cellIndex)) || '') : '';
+                        text.innerHTML = value;
+                        td.appendChild(label);
+                        td.appendChild(text);
+                    } else {
+                        td.className = 'choice-empty';
+                    }
+                    tr.appendChild(td);
+                });
+                tbody.appendChild(tr);
             });
+            table.appendChild(tbody);
+            return table;
         };
 
-        const syncChoiceToState = (group) => {
-            if (!group) return;
-            const wrap = group.closest('.block-wrapper');
+        const extractChoiceData = (table) => {
+            const data = new Map();
+            if (!table) return data;
+            table.querySelectorAll('td[data-choice-index]').forEach(cell => {
+                const idx = cell.dataset.choiceIndex;
+                const text = cell.querySelector('.choice-text');
+                data.set(idx, text ? text.innerHTML : '');
+            });
+            return data;
+        };
+
+        const applyChoiceLayout = (table, layoutToken) => {
+            if (!table) return null;
+            const data = extractChoiceData(table);
+            const nextTable = buildChoiceTable(layoutToken, data);
+            table.replaceWith(nextTable);
+            activeChoiceTable = nextTable;
+            return nextTable;
+        };
+
+        const syncChoiceToState = (table) => {
+            if (!table) return;
+            const wrap = table.closest('.block-wrapper');
             if (!wrap) return;
             const box = wrap.querySelector('.editable-box');
             if (!box) return;
@@ -870,18 +914,26 @@ export const Events = {
                 let cursor = '';
                 let hit = null;
                 hideGuides();
-                const isTableUiHover = e.target.closest('#table-menu') || e.target.closest('#table-menu-handle');
+                const isResizeHandleHover = e.target.closest('#table-resize-handle');
+                const isTableUiHover = isResizeHandleHover || e.target.closest('#table-menu') || e.target.closest('#table-menu-handle');
+                const isNearActiveTable = activeTable ? isPointerNearRect(activeTable.getBoundingClientRect(), e, 32) : false;
                 if (table) {
+                    cancelHideTableHandles();
                     activeTable = table;
                     showHandle(table.getBoundingClientRect());
                     showMenuHandle(table.getBoundingClientRect());
-                } else if (isTableUiHover && activeTable) {
-                    showMenuHandle(activeTable.getBoundingClientRect());
-                    hideHandle();
+                } else if ((isTableUiHover || isNearActiveTable) && activeTable) {
+                    cancelHideTableHandles();
+                    const rect = activeTable.getBoundingClientRect();
+                    showMenuHandle(rect);
+                    if (isResizeHandleHover || isNearActiveTable) showHandle(rect);
+                    else hideHandle();
                 } else {
-                    hideHandle();
-                    if (tableMenuOpen && activeTable) showMenuHandle(activeTable.getBoundingClientRect());
-                    else hideMenuHandle();
+                    if (tableMenuOpen && activeTable) {
+                        showMenuHandle(activeTable.getBoundingClientRect());
+                    } else {
+                        scheduleHideTableHandles();
+                    }
                 }
                 if (table && getTableHandleHit(table, e)) {
                     cursor = 'nwse-resize';
@@ -904,16 +956,19 @@ export const Events = {
                 if (table) table.style.cursor = cursor || '';
                 lastCursorTable = table || null;
                 document.body.style.cursor = cursor;
-                const choiceGroup = e.target.closest('.choice-group');
+                const choiceTable = e.target.closest('table.choice-table');
                 const isChoiceUiHover = e.target.closest('#choice-menu') || e.target.closest('#choice-menu-handle');
-                if (choiceGroup) {
-                    activeChoiceGroup = choiceGroup;
-                    showChoiceHandle(choiceGroup.getBoundingClientRect());
-                } else if (isChoiceUiHover && activeChoiceGroup) {
-                    showChoiceHandle(activeChoiceGroup.getBoundingClientRect());
+                const isNearActiveChoice = activeChoiceTable ? isPointerNearRect(activeChoiceTable.getBoundingClientRect(), e, 32) : false;
+                if (choiceTable) {
+                    cancelHideChoiceHandle();
+                    activeChoiceTable = choiceTable;
+                    showChoiceHandle(choiceTable.getBoundingClientRect());
+                } else if ((isChoiceUiHover || isNearActiveChoice) && activeChoiceTable) {
+                    cancelHideChoiceHandle();
+                    showChoiceHandle(activeChoiceTable.getBoundingClientRect());
                 } else {
-                    if (choiceMenuOpen && activeChoiceGroup) showChoiceHandle(activeChoiceGroup.getBoundingClientRect());
-                    else hideChoiceHandle();
+                    if (choiceMenuOpen && activeChoiceTable) showChoiceHandle(activeChoiceTable.getBoundingClientRect());
+                    else scheduleHideChoiceHandle();
                 }
             }
         });
@@ -1091,9 +1146,9 @@ export const Events = {
             choiceMenuHandle.addEventListener('mousedown', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                if (!activeChoiceGroup) return;
+                if (!activeChoiceTable) return;
                 if (choiceMenuOpen) closeChoiceMenu();
-                else openChoiceMenu(activeChoiceGroup);
+                else openChoiceMenu(activeChoiceTable);
             });
         }
         if (choiceMenu) {
@@ -1103,10 +1158,10 @@ export const Events = {
             choiceMenu.addEventListener('click', (e) => {
                 const btn = e.target.closest('[data-layout]');
                 if (!btn) return;
-                if (!activeChoiceGroup) { Utils.showToast("선지를 먼저 선택하세요.", "error"); return; }
-                applyChoiceLayout(activeChoiceGroup, btn.dataset.layout);
-                syncChoiceToState(activeChoiceGroup);
-                if (choiceMenuOpen) positionChoiceMenu(activeChoiceGroup);
+                if (!activeChoiceTable) { Utils.showToast("선지를 먼저 선택하세요.", "error"); return; }
+                const nextTable = applyChoiceLayout(activeChoiceTable, btn.dataset.layout);
+                if (nextTable) syncChoiceToState(nextTable);
+                if (choiceMenuOpen && nextTable) positionChoiceMenu(nextTable);
             });
         }
 
@@ -1162,11 +1217,11 @@ export const Events = {
                 clearTableSelection();
                 activeCell = null;
             }
-            const choiceGroup = e.target.closest('.choice-group');
-            if (choiceGroup) {
-                activeChoiceGroup = choiceGroup;
+            const choiceTable = e.target.closest('table.choice-table');
+            if (choiceTable) {
+                activeChoiceTable = choiceTable;
             } else if (!e.target.closest('#choice-menu') && !e.target.closest('#choice-menu-handle')) {
-                activeChoiceGroup = null;
+                activeChoiceTable = null;
             }
         });
         document.addEventListener('mouseup', (e) => { const target = e.target; setTimeout(() => {

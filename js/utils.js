@@ -2,7 +2,11 @@
 export const Utils = {
     preservedClasses: ['custom-box', 'labeled-box', 'simple-box', 'box-label', 'box-content'],
     choiceLabels: ['①', '②', '③', '④', '⑤'],
-    choiceLayoutRows: { '1': [5], '2': [3, 2], '5': [1, 1, 1, 1, 1] },
+    choiceLayoutGrid: {
+        '1': [[1, 2, 3, 4, 5]],
+        '2': [[1, 2, 3], [4, 0, 5]],
+        '5': [[1], [2], [3], [4], [5]]
+    },
     normalizeChoiceLayout(value) {
         const v = String(value || '').trim();
         if (v === '1' || v === '1행') return '1';
@@ -10,9 +14,13 @@ export const Utils = {
         if (v === '5' || v === '5행') return '5';
         return '2';
     },
-    getChoiceRowSizes(layout) {
+    getChoiceLayoutGrid(layout) {
         const normalized = this.normalizeChoiceLayout(layout);
-        return this.choiceLayoutRows[normalized] || this.choiceLayoutRows['2'];
+        return this.choiceLayoutGrid[normalized] || this.choiceLayoutGrid['2'];
+    },
+    getChoiceColumnCount(layout) {
+        const grid = this.getChoiceLayoutGrid(layout);
+        return grid[0] ? grid[0].length : 1;
     },
     debounce(func, wait) {
         let timeout;
@@ -29,19 +37,18 @@ export const Utils = {
         div.querySelectorAll('table.editor-table td.table-cell-selected').forEach(td => {
             td.classList.remove('table-cell-selected');
         });
-        div.querySelectorAll('.choice-group').forEach(group => {
-            const items = Array.from(group.querySelectorAll('.choice-item'));
-            items.forEach((item, idx) => {
-                let label = item.querySelector('.choice-label');
-                if (!label) {
-                    label = document.createElement('span');
-                    label.className = 'choice-label';
-                    label.setAttribute('contenteditable', 'false');
-                    item.prepend(label);
-                }
-                label.textContent = Utils.choiceLabels[idx] || `${idx + 1}.`;
+        div.querySelectorAll('table.choice-table td[data-choice-index]').forEach(cell => {
+            const index = parseInt(cell.dataset.choiceIndex, 10);
+            if (!Number.isFinite(index) || index <= 0) return;
+            let label = cell.querySelector('.choice-label');
+            if (!label) {
+                label = document.createElement('span');
+                label.className = 'choice-label';
                 label.setAttribute('contenteditable', 'false');
-            });
+                cell.prepend(label);
+            }
+            label.textContent = Utils.choiceLabels[index - 1] || `${index}.`;
+            label.setAttribute('contenteditable', 'false');
         });
         const tablePlaceholders = [];
         div.querySelectorAll('table.editor-table').forEach((table, idx) => {

@@ -166,12 +166,11 @@ table.editor-table td.table-cell-selected { background: rgba(0, 123, 255, 0.12);
 .table-menu-btn:hover { background: #e7f5ff; border-color: #007bff; color: #007bff; }
 .table-menu-hint { font-size: 10px; color: #777; }
 
-.choice-group { display: block; margin: 6px 0; }
-.choice-row { display: flex; gap: 12px; justify-content: space-between; align-items: flex-start; flex-wrap: nowrap; }
-.choice-row + .choice-row { margin-top: 4px; }
-.choice-item { display: flex; align-items: flex-start; gap: 4px; min-width: 0; flex: 1 1 0; }
-.choice-label { font-weight: 700; flex: 0 0 auto; }
-.choice-text { flex: 1 1 auto; min-width: 0; }
+table.choice-table { width: 100%; border-collapse: collapse; table-layout: fixed; margin: 6px 0; }
+table.choice-table td { border: 1px dashed rgba(220, 53, 69, 0.55); padding: 4px 6px; vertical-align: top; background: transparent; }
+table.choice-table td.choice-empty { border-color: rgba(220, 53, 69, 0.25); }
+table.choice-table .choice-label { font-weight: 700; margin-right: 4px; white-space: nowrap; }
+table.choice-table .choice-text { display: inline-block; min-width: 0; }
 
 #choice-menu-handle { position: absolute; width: 24px; height: 20px; border: 1px solid #555; background: #fff; border-radius: 4px; display: none; align-items: center; justify-content: center; font-size: 10px; cursor: pointer; z-index: 9910; box-shadow: 0 2px 6px rgba(0,0,0,0.2); user-select: none; }
 #choice-menu { position: absolute; display: none; background: #fff; border: 1px solid #ccc; border-radius: 6px; padding: 8px; z-index: 9910; min-width: 160px; box-shadow: 0 6px 16px rgba(0,0,0,0.18); font-size: 12px; }
@@ -245,6 +244,7 @@ table.editor-table td.table-cell-selected { background: rgba(0, 123, 255, 0.12);
     .image-placeholder, .break-line { display: none; }
     .bg-gray-block { background-color: #f1f3f5 !important; -webkit-print-color-adjust: exact; }
     .spacer-block { border: none !important; background: none !important; }
+    table.choice-table td { border: none !important; }
     .block-wrapper { padding-right: 0 !important; }
     #paper-container { transform: none !important; }
     mjx-container { color: #222 !important; }
