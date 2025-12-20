@@ -132,10 +132,9 @@ body.drag-over #drop-overlay { display: flex; }
 .custom-box { width: 100%; margin: 15px 0; background: #fff; border: 2px solid #28a745; padding: 15px; position: relative; border-radius: 4px; }
 .custom-box.labeled-box { }
 .custom-box.simple-box { }
-.box-label { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background-color: #fff; padding: 0 10px; color: #28a745; font-weight: 800; text-align: center; font-family: 'Noto Sans KR', sans-serif; }
+.box-label { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background-color: #fff; padding: 0 10px; color: #000; font-weight: 800; text-align: center; font-family: 'Noto Sans KR', sans-serif; }
 .box-label::before,
 .box-label::after { content: "\275A"; display: inline-block; margin: 0 6px; }
-.box-label.view-label { color: #000; }
 .box-content { line-height: 1.6; text-align: left; }
 
 .spacer-block { width: 100%; background: repeating-linear-gradient(45deg, #f9f9f9, #f9f9f9 10px, #fff 10px, #fff 20px); border: 1px dashed #ddd; cursor: ns-resize; display: flex; align-items: center; justify-content: center; margin: 5px 0; }
