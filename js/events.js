@@ -4,6 +4,25 @@ import { Actions } from './actions.js';
 import { Renderer } from './renderer.js'; // 순환 참조 아님 (내부 호출용)
 import { ManualRenderer, FileSystem } from './services.js';
 import { Utils } from './utils.js';
+import {
+    TABLE_MIN_WIDTH,
+    TABLE_MIN_HEIGHT,
+    ensureColgroup,
+    syncTableWidthFromCols,
+    syncTableHeightFromRows,
+    setColumnWidthRaw,
+    freezeTableColWidths,
+    freezeTableRowHeights,
+    applyColumnWidth,
+    applyRowHeight,
+    getColWidth,
+    getRowHeight,
+    applyUniformColumnWidths,
+    applyUniformRowHeights,
+    getRowIndicesForRect,
+    getColIndicesForRect,
+    getTableResizeHit
+} from './table-utils.js';
 
 export const Events = {
     showResizer(img) {
@@ -272,8 +291,6 @@ export const Events = {
 
         const TABLE_RESIZE_MARGIN = 4;
         const TABLE_HANDLE_SIZE = 12;
-        const TABLE_MIN_WIDTH = 40;
-        const TABLE_MIN_HEIGHT = 24;
         let tableResizeState = null;
         let lastCursorTable = null;
         const guideV = document.getElementById('table-resize-guide-v') || (() => {
@@ -386,48 +403,11 @@ export const Events = {
             };
         };
 
-        const getRowIndicesForRect = (table, rect) => {
-            const rows = Array.from(table.rows);
-            if (!rows.length) return [];
-            if (!rect) return rows.map((_, idx) => idx);
-            const maxRow = Math.min(rect.maxRow, rows.length - 1);
-            const indices = [];
-            for (let r = Math.max(0, rect.minRow); r <= maxRow; r++) indices.push(r);
-            return indices;
-        };
-
-        const getColIndicesForRect = (table, rect) => {
-            const firstRow = table.rows[0];
-            const colCount = firstRow ? firstRow.cells.length : 0;
-            if (!colCount) return [];
-            if (!rect) return Array.from({ length: colCount }, (_, idx) => idx);
-            const maxCol = Math.min(rect.maxCol, colCount - 1);
-            const indices = [];
-            for (let c = Math.max(0, rect.minCol); c <= maxCol; c++) indices.push(c);
-            return indices;
-        };
-
         const getSelectionCellsForTable = (table) => {
             if (!table || tableSelectCells.length === 0) return [];
             const sameTable = tableSelectAnchor && tableSelectAnchor.closest('table.editor-table') === table;
             if (!sameTable) return [];
             return tableSelectCells.filter(cell => cell && cell.isConnected);
-        };
-
-        const getTableResizeHit = (cell, event) => {
-            const rect = cell.getBoundingClientRect();
-            const offsetX = event.clientX - rect.left;
-            const offsetY = event.clientY - rect.top;
-            const distRight = rect.width - offsetX;
-            const distBottom = rect.height - offsetY;
-            const nearRight = distRight >= 0 && distRight <= TABLE_RESIZE_MARGIN;
-            const nearBottom = distBottom >= 0 && distBottom <= TABLE_RESIZE_MARGIN;
-            if (nearRight && nearBottom) {
-                return distRight <= distBottom ? { type: 'col', index: cell.cellIndex } : { type: 'row', index: cell.parentElement.rowIndex };
-            }
-            if (nearRight) return { type: 'col', index: cell.cellIndex };
-            if (nearBottom) return { type: 'row', index: cell.parentElement.rowIndex };
-            return null;
         };
 
         const getTableHandleHit = (table, event) => {
@@ -449,138 +429,6 @@ export const Events = {
                 y >= rect.top - padding &&
                 y <= rect.bottom + padding
             );
-        };
-
-        const ensureColgroup = (table) => {
-            const firstRow = table.querySelector('tr');
-            const colCount = firstRow ? firstRow.children.length : 0;
-            if (!colCount) return null;
-            let colgroup = table.querySelector('colgroup');
-            if (!colgroup) {
-                colgroup = document.createElement('colgroup');
-                table.insertBefore(colgroup, table.firstChild);
-            }
-            while (colgroup.children.length < colCount) colgroup.appendChild(document.createElement('col'));
-            return colgroup;
-        };
-
-        const syncTableWidthFromCols = (table) => {
-            const colgroup = ensureColgroup(table);
-            if (!colgroup) return;
-            let total = 0;
-            Array.from(colgroup.children).forEach(col => {
-                const width = parseFloat(col.style.width);
-                if (Number.isFinite(width) && width > 0) total += width;
-            });
-            if (total > 0) {
-                table.style.width = total + 'px';
-                table.style.tableLayout = 'fixed';
-            }
-        };
-
-        const syncTableHeightFromRows = (table) => {
-            const rows = Array.from(table.rows);
-            let total = 0;
-            rows.forEach(row => {
-                const height = parseFloat(row.style.height);
-                if (Number.isFinite(height) && height > 0) total += height;
-            });
-            if (total > 0) {
-                table.style.height = total + 'px';
-            }
-        };
-
-        const setColumnWidthRaw = (table, index, width) => {
-            const colgroup = ensureColgroup(table);
-            if (!colgroup || !colgroup.children[index]) return;
-            colgroup.children[index].style.width = Math.max(TABLE_MIN_WIDTH, width) + 'px';
-        };
-
-        const freezeTableColWidths = (table) => {
-            const colgroup = ensureColgroup(table);
-            if (!colgroup) return;
-            const firstRow = table.rows[0];
-            const cells = firstRow ? Array.from(firstRow.cells) : [];
-            Array.from(colgroup.children).forEach((col, idx) => {
-                const cell = cells[idx];
-                if (!cell) return;
-                const width = Math.max(TABLE_MIN_WIDTH, cell.getBoundingClientRect().width);
-                col.style.width = width + 'px';
-            });
-            syncTableWidthFromCols(table);
-        };
-
-        const freezeTableRowHeights = (table) => {
-            Array.from(table.rows).forEach(row => {
-                const height = Math.max(TABLE_MIN_HEIGHT, row.getBoundingClientRect().height);
-                row.style.height = height + 'px';
-                row.querySelectorAll('td').forEach(td => {
-                    td.style.height = height + 'px';
-                });
-            });
-            syncTableHeightFromRows(table);
-        };
-
-        const applyColumnWidth = (table, index, width) => {
-            setColumnWidthRaw(table, index, width);
-            syncTableWidthFromCols(table);
-        };
-
-        const applyRowHeight = (row, height) => {
-            const newHeight = Math.max(TABLE_MIN_HEIGHT, height);
-            row.style.height = newHeight + 'px';
-            row.querySelectorAll('td').forEach(td => {
-                td.style.height = newHeight + 'px';
-            });
-        };
-
-        const getColWidth = (table, index) => {
-            const colgroup = ensureColgroup(table);
-            if (colgroup && colgroup.children[index]) {
-                const width = parseFloat(colgroup.children[index].style.width);
-                if (Number.isFinite(width) && width > 0) return width;
-            }
-            const row = table.rows[0];
-            const cell = row ? row.cells[index] : null;
-            return cell ? cell.getBoundingClientRect().width : TABLE_MIN_WIDTH;
-        };
-
-        const getRowHeight = (table, index) => {
-            const row = table.rows[index];
-            if (!row) return TABLE_MIN_HEIGHT;
-            const height = parseFloat(row.style.height);
-            if (Number.isFinite(height) && height > 0) return height;
-            return row.getBoundingClientRect().height || TABLE_MIN_HEIGHT;
-        };
-
-        const applyUniformColumnWidths = (table, colIndices) => {
-            if (!colIndices.length) return;
-            freezeTableColWidths(table);
-            const colgroup = ensureColgroup(table);
-            if (!colgroup) return;
-            const widths = colIndices.map(index => parseFloat(colgroup.children[index]?.style.width) || TABLE_MIN_WIDTH);
-            const average = widths.reduce((sum, value) => sum + value, 0) / widths.length;
-            colIndices.forEach(index => {
-                if (colgroup.children[index]) {
-                    colgroup.children[index].style.width = Math.max(TABLE_MIN_WIDTH, average) + 'px';
-                }
-            });
-            syncTableWidthFromCols(table);
-        };
-
-        const applyUniformRowHeights = (table, rowIndices) => {
-            if (!rowIndices.length) return;
-            freezeTableRowHeights(table);
-            const heights = rowIndices.map(index => {
-                const row = table.rows[index];
-                return row ? (parseFloat(row.style.height) || TABLE_MIN_HEIGHT) : TABLE_MIN_HEIGHT;
-            });
-            const average = heights.reduce((sum, value) => sum + value, 0) / heights.length;
-            rowIndices.forEach(index => {
-                const row = table.rows[index];
-                if (row) applyRowHeight(row, average);
-            });
-            syncTableHeightFromRows(table);
         };
 
         const showGuideV = (x, top, height) => {
@@ -1085,7 +933,7 @@ export const Events = {
                 if (table && getTableHandleHit(table, e)) {
                     cursor = 'nwse-resize';
                 } else if (cell) {
-                    hit = getTableResizeHit(cell, e);
+                    hit = getTableResizeHit(cell, e, TABLE_RESIZE_MARGIN);
                     if (hit) {
                         const tableRect = table.getBoundingClientRect();
                         if (hit.type === 'col') {
@@ -1144,7 +992,7 @@ export const Events = {
             }
             const cell = e.target.closest('table.editor-table td');
             if (!cell) return;
-            const hit = getTableResizeHit(cell, e);
+            const hit = getTableResizeHit(cell, e, TABLE_RESIZE_MARGIN);
             if (!hit && e.shiftKey) {
                 const tableForCell = cell.closest('table.editor-table');
                 if (!tableSelectAnchor || !tableSelectAnchor.isConnected || tableSelectAnchor.closest('table.editor-table') !== tableForCell) {
