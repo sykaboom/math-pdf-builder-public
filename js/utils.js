@@ -4,7 +4,7 @@ export const Utils = {
     choiceLabels: ['①', '②', '③', '④', '⑤'],
     choiceLayoutGrid: {
         '1': [[1, 2, 3, 4, 5]],
-        '2': [[1, 2, 3], [4, 0, 5]],
+        '2': [[1, 2, 3], [4, 5, 0]],
         '5': [[1], [2], [3], [4], [5]]
     },
     normalizeChoiceLayout(value) {

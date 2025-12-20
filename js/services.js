@@ -233,11 +233,28 @@ export const ManualRenderer = {
                 return frag;
             };
 
-            const buildFragmentFromPlain = (text) => {
+            const getMathRanges = (text) => {
+                const ranges = [];
+                if (!text) return ranges;
+                mathRegex.lastIndex = 0;
+                let m;
+                while ((m = mathRegex.exec(text)) !== null) {
+                    ranges.push([m.index, mathRegex.lastIndex]);
+                }
+                return ranges;
+            };
+
+            const isIndexInRanges = (index, ranges) => {
+                return ranges.some(([start, end]) => index >= start && index < end);
+            };
+
+            const buildFragmentFromText = (text) => {
                 const frag = document.createDocumentFragment();
                 if (!text) return frag;
+                const mathRanges = getMathRanges(text);
                 let lastIndex = 0; tokenRegex.lastIndex = 0; let m;
                 while ((m = tokenRegex.exec(text)) !== null) {
+                    if (isIndexInRanges(m.index, mathRanges)) continue;
                     didReplace = true;
                     if (m.index > lastIndex) frag.appendChild(document.createTextNode(text.slice(lastIndex, m.index)));
                     if (m[1] !== undefined) {
@@ -269,18 +286,11 @@ export const ManualRenderer = {
             for (let node of textNodes) {
                 const text = node.nodeValue;
                 if (!text) continue;
-                tokenRegex.lastIndex = 0; mathRegex.lastIndex = 0;
-                const hasToken = tokenRegex.test(text); tokenRegex.lastIndex = 0;
-                const hasMath = mathRegex.test(text); mathRegex.lastIndex = 0;
-                if (!hasToken && !hasMath) continue;
-                const frag = document.createDocumentFragment();
-                let lastIndex = 0; mathRegex.lastIndex = 0; let match;
-                while ((match = mathRegex.exec(text)) !== null) {
-                    if (match.index > lastIndex) frag.appendChild(buildFragmentFromPlain(text.slice(lastIndex, match.index)));
-                    frag.appendChild(document.createTextNode(match[0]));
-                    lastIndex = mathRegex.lastIndex;
-                }
-                if (lastIndex < text.length) frag.appendChild(buildFragmentFromPlain(text.slice(lastIndex)));
+                tokenRegex.lastIndex = 0;
+                const hasToken = tokenRegex.test(text);
+                tokenRegex.lastIndex = 0;
+                if (!hasToken) continue;
+                const frag = buildFragmentFromText(text);
                 node.parentNode.replaceChild(frag, node);
             }
             return didReplace;
