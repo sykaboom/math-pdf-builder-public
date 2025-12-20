@@ -105,7 +105,12 @@ window.toggleRenderingMode = async (forceState) => {
     const next = (typeof forceState === 'boolean') ? forceState : !State.renderingEnabled;
     State.renderingEnabled = next;
     Renderer.renderPages();
-    if (next) await ManualRenderer.renderAll();
+    if (next) {
+        await ManualRenderer.renderAll();
+    } else {
+        const container = document.getElementById('paper-container');
+        if (container) Utils.replaceTablesWithTokensInDom(container);
+    }
     updateRenderingToggleUI();
 };
 

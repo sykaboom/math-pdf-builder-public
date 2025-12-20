@@ -179,7 +179,7 @@
     </div>
 
     <div class="sidebar-tree">
-        <details class="sidebar-folder" open>
+        <details class="sidebar-folder">
             <summary>파일</summary>
             <div class="sidebar-folder-body">
                 <button class="btn" onclick="openModal('import-modal')" style="border-left: 3px solid #6f42c1; color: #6f42c1; font-weight:bold;">📥 AI 데이터 입력 (Alt+I)</button>
@@ -198,7 +198,7 @@
                 <div class="settings-panel">
                     <div style="font-size:11px; font-weight:bold; margin-bottom:5px; border-bottom:1px solid #ddd; padding-bottom:3px;">⚙️ AI 입력 설정</div>
                     <div class="settings-row"><label>단별 문제 수</label><input type="number" id="setting-limit" value="0"></div>
-                    <div class="settings-row"><label>자동 여백</label><input type="checkbox" id="setting-spacer" checked></div>
+                    <div class="settings-row"><label>자동 여백</label><input type="checkbox" id="setting-spacer"></div>
                 </div>
 
                 <div class="settings-panel" style="margin-bottom:0;">
@@ -215,7 +215,7 @@
             </div>
         </details>
 
-        <details class="sidebar-folder" open>
+        <details class="sidebar-folder">
             <summary>편집</summary>
             <div class="sidebar-folder-body">
                 <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
@@ -227,7 +227,7 @@
             </div>
         </details>
 
-        <details class="sidebar-folder" open>
+        <details class="sidebar-folder">
             <summary>삽입</summary>
             <div class="sidebar-folder-body">
                 <button class="btn btn-success" onclick="insertImageBoxSafe()">🖼️ 이미지 삽입 (Ctrl+Alt+I)</button>
@@ -267,7 +267,7 @@
             </div>
         </details>
 
-        <details class="sidebar-folder" open>
+        <details class="sidebar-folder">
             <summary>출력</summary>
             <div class="sidebar-folder-body">
                 <button id="toggle-rendering-btn" class="btn" onclick="toggleRenderingMode()" style="margin-bottom:6px;">🔓 렌더링 해제 (편집 모드)</button>

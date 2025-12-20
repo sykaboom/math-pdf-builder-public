@@ -216,9 +216,20 @@ export const ManualRenderer = {
             let didReplace = false;
             const mathRegex = /(\$\$[\s\S]+?\$\$|\$[\s\S]+?\$)/g;
             const tokenPattern = /\[빈칸([:_])(.*?)\]|\[이미지\s*:\s*(.*?)\]|\[표_(\d+)x(\d+)\](?:\s*:\s*((?:\(\d+x\d+_(?:"(?:\\.|[^"])*"|&quot;[\s\S]*?&quot;|[^)]*)\)\s*,?\s*)+))?|\[선지_(1행|2행|5행)\](?:\s*:\s*((?:\(\d+_(?:"(?:\\.|[^"])*"|&quot;[\s\S]*?&quot;|[^)]*)\)\s*,?\s*)+))?|\[(굵게|볼드|BOLD|밑줄)([:_])([\s\S]*?)\]|\[블록사각형_([^\]]*?)\]/g;
+            const tableDataRegex = /^\s*:\s*((?:\(\d+x\d+_(?:"(?:\\.|[^"])*"|&quot;[\s\S]*?&quot;|[^)]*)\)\s*,?\s*)+)/;
+            const choiceDataRegex = /^\s*:\s*((?:\(\d+_(?:"(?:\\.|[^"])*"|&quot;[\s\S]*?&quot;|[^)]*)\)\s*,?\s*)+)/;
             const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null, false);
             const textNodes = [];
-            while (walker.nextNode()) textNodes.push(walker.currentNode);
+            const shouldSkipTokenization = (node) => {
+                const parent = node.parentElement;
+                if (!parent) return false;
+                return !!parent.closest('.image-placeholder');
+            };
+            while (walker.nextNode()) {
+                const node = walker.currentNode;
+                if (shouldSkipTokenization(node)) continue;
+                textNodes.push(node);
+            }
 
             const createImageFragment = (label) => {
                 const container = document.createElement('div');
@@ -263,12 +274,30 @@ export const ManualRenderer = {
                     } else if (m[3] !== undefined) {
                         frag.appendChild(createImageFragment(m[3]));
                     } else if (m[4] !== undefined) {
-                        const cellData = m[6] ? parseTableCellData(m[6]) : null;
+                        let tableData = m[6];
+                        if (!tableData) {
+                            const after = text.slice(tokenRegex.lastIndex);
+                            const dataMatch = after.match(tableDataRegex);
+                            if (dataMatch) {
+                                tableData = dataMatch[1];
+                                tokenRegex.lastIndex += dataMatch[0].length;
+                            }
+                        }
+                        const cellData = tableData ? parseTableCellData(tableData) : null;
                         const tableEl = buildEditorTableElement(m[4], m[5], cellData, { allowHtml: false });
                         if (tableEl) frag.appendChild(tableEl);
                         else frag.appendChild(document.createTextNode(m[0]));
                     } else if (m[7] !== undefined) {
-                        const choiceData = m[8] ? parseChoiceData(m[8]) : null;
+                        let choiceDataText = m[8];
+                        if (!choiceDataText) {
+                            const after = text.slice(tokenRegex.lastIndex);
+                            const dataMatch = after.match(choiceDataRegex);
+                            if (dataMatch) {
+                                choiceDataText = dataMatch[1];
+                                tokenRegex.lastIndex += dataMatch[0].length;
+                            }
+                        }
+                        const choiceData = choiceDataText ? parseChoiceData(choiceDataText) : null;
                         const choiceEl = buildChoiceTableElement(m[7], choiceData, { allowHtml: false });
                         if (choiceEl) frag.appendChild(choiceEl);
                         else frag.appendChild(document.createTextNode(m[0]));
@@ -303,6 +332,54 @@ export const ManualRenderer = {
                 const frag = buildFragmentFromText(text);
                 node.parentNode.replaceChild(frag, node);
             }
+            const absorbTrailingTableData = () => {
+                const parseTrailingData = (text, regex) => {
+                    const match = text.match(regex);
+                    if (!match) return null;
+                    return { data: match[1], length: match[0].length };
+                };
+                root.querySelectorAll('table.editor-table').forEach(table => {
+                    let next = table.nextSibling;
+                    while (next && next.nodeType === Node.TEXT_NODE && next.nodeValue.trim() === '') next = next.nextSibling;
+                    if (!next || next.nodeType !== Node.TEXT_NODE) return;
+                    const result = parseTrailingData(next.nodeValue, tableDataRegex);
+                    if (!result) return;
+                    const cellData = parseTableCellData(result.data);
+                    if (cellData.size > 0) {
+                        cellData.forEach((value, key) => {
+                            const [r, c] = key.split('x').map(v => parseInt(v, 10) - 1);
+                            const row = table.rows[r];
+                            if (!row) return;
+                            const cell = row.cells[c];
+                            if (!cell) return;
+                            cell.textContent = value;
+                        });
+                    }
+                    next.nodeValue = next.nodeValue.slice(result.length);
+                    if (next.nodeValue.trim() === '') next.remove();
+                    didReplace = true;
+                });
+                root.querySelectorAll('table.choice-table').forEach(table => {
+                    let next = table.nextSibling;
+                    while (next && next.nodeType === Node.TEXT_NODE && next.nodeValue.trim() === '') next = next.nextSibling;
+                    if (!next || next.nodeType !== Node.TEXT_NODE) return;
+                    const result = parseTrailingData(next.nodeValue, choiceDataRegex);
+                    if (!result) return;
+                    const choiceData = parseChoiceData(result.data);
+                    if (choiceData.size > 0) {
+                        table.querySelectorAll('td[data-choice-index]').forEach(cell => {
+                            const idx = cell.dataset.choiceIndex;
+                            const textEl = cell.querySelector('.choice-text');
+                            if (!textEl) return;
+                            textEl.textContent = choiceData.get(String(idx)) || '';
+                        });
+                    }
+                    next.nodeValue = next.nodeValue.slice(result.length);
+                    if (next.nodeValue.trim() === '') next.remove();
+                    didReplace = true;
+                });
+            };
+            absorbTrailingTableData();
             return didReplace;
         };
 
