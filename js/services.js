@@ -212,11 +212,6 @@ export const ManualRenderer = {
             return tex;
         };
 
-        const appendInlineMathTailSpacing = (tex, isDisplay) => {
-            if (isDisplay) return tex;
-            return `${tex}\\mkern1mu`;
-        };
-
         const applyTokenReplacementsOutsideMath = (root) => {
             let didReplace = false;
             const mathRegex = /(\$\$[\s\S]+?\$\$|\$[\s\S]+?\$)/g;
@@ -331,7 +326,7 @@ export const ManualRenderer = {
                 const fullTex = match[0]; 
                 const isDisplay = fullTex.startsWith('$$'); 
                 const cleanTex = isDisplay ? fullTex.slice(2, -2) : fullTex.slice(1, -1);
-                const preparedTex = appendInlineMathTailSpacing(sanitizeMathTokens(cleanTex), isDisplay);
+                const preparedTex = sanitizeMathTokens(cleanTex);
                 const cacheKey = preparedTex + (isDisplay ? '_D' : '_I');
                 let mjxNode = null;
 

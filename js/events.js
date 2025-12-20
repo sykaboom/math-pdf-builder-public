@@ -386,6 +386,27 @@ export const Events = {
             };
         };
 
+        const getRowIndicesForRect = (table, rect) => {
+            const rows = Array.from(table.rows);
+            if (!rows.length) return [];
+            if (!rect) return rows.map((_, idx) => idx);
+            const maxRow = Math.min(rect.maxRow, rows.length - 1);
+            const indices = [];
+            for (let r = Math.max(0, rect.minRow); r <= maxRow; r++) indices.push(r);
+            return indices;
+        };
+
+        const getColIndicesForRect = (table, rect) => {
+            const firstRow = table.rows[0];
+            const colCount = firstRow ? firstRow.cells.length : 0;
+            if (!colCount) return [];
+            if (!rect) return Array.from({ length: colCount }, (_, idx) => idx);
+            const maxCol = Math.min(rect.maxCol, colCount - 1);
+            const indices = [];
+            for (let c = Math.max(0, rect.minCol); c <= maxCol; c++) indices.push(c);
+            return indices;
+        };
+
         const getSelectionCellsForTable = (table) => {
             if (!table || tableSelectCells.length === 0) return [];
             const sameTable = tableSelectAnchor && tableSelectAnchor.closest('table.editor-table') === table;
@@ -443,11 +464,66 @@ export const Events = {
             return colgroup;
         };
 
-        const applyColumnWidth = (table, index, width) => {
+        const syncTableWidthFromCols = (table) => {
+            const colgroup = ensureColgroup(table);
+            if (!colgroup) return;
+            let total = 0;
+            Array.from(colgroup.children).forEach(col => {
+                const width = parseFloat(col.style.width);
+                if (Number.isFinite(width) && width > 0) total += width;
+            });
+            if (total > 0) {
+                table.style.width = total + 'px';
+                table.style.tableLayout = 'fixed';
+            }
+        };
+
+        const syncTableHeightFromRows = (table) => {
+            const rows = Array.from(table.rows);
+            let total = 0;
+            rows.forEach(row => {
+                const height = parseFloat(row.style.height);
+                if (Number.isFinite(height) && height > 0) total += height;
+            });
+            if (total > 0) {
+                table.style.height = total + 'px';
+            }
+        };
+
+        const setColumnWidthRaw = (table, index, width) => {
             const colgroup = ensureColgroup(table);
             if (!colgroup || !colgroup.children[index]) return;
             colgroup.children[index].style.width = Math.max(TABLE_MIN_WIDTH, width) + 'px';
-            table.style.tableLayout = 'fixed';
+        };
+
+        const freezeTableColWidths = (table) => {
+            const colgroup = ensureColgroup(table);
+            if (!colgroup) return;
+            const firstRow = table.rows[0];
+            const cells = firstRow ? Array.from(firstRow.cells) : [];
+            Array.from(colgroup.children).forEach((col, idx) => {
+                const cell = cells[idx];
+                if (!cell) return;
+                const width = Math.max(TABLE_MIN_WIDTH, cell.getBoundingClientRect().width);
+                col.style.width = width + 'px';
+            });
+            syncTableWidthFromCols(table);
+        };
+
+        const freezeTableRowHeights = (table) => {
+            Array.from(table.rows).forEach(row => {
+                const height = Math.max(TABLE_MIN_HEIGHT, row.getBoundingClientRect().height);
+                row.style.height = height + 'px';
+                row.querySelectorAll('td').forEach(td => {
+                    td.style.height = height + 'px';
+                });
+            });
+            syncTableHeightFromRows(table);
+        };
+
+        const applyColumnWidth = (table, index, width) => {
+            setColumnWidthRaw(table, index, width);
+            syncTableWidthFromCols(table);
         };
 
         const applyRowHeight = (row, height) => {
@@ -456,6 +532,55 @@ export const Events = {
             row.querySelectorAll('td').forEach(td => {
                 td.style.height = newHeight + 'px';
             });
+        };
+
+        const getColWidth = (table, index) => {
+            const colgroup = ensureColgroup(table);
+            if (colgroup && colgroup.children[index]) {
+                const width = parseFloat(colgroup.children[index].style.width);
+                if (Number.isFinite(width) && width > 0) return width;
+            }
+            const row = table.rows[0];
+            const cell = row ? row.cells[index] : null;
+            return cell ? cell.getBoundingClientRect().width : TABLE_MIN_WIDTH;
+        };
+
+        const getRowHeight = (table, index) => {
+            const row = table.rows[index];
+            if (!row) return TABLE_MIN_HEIGHT;
+            const height = parseFloat(row.style.height);
+            if (Number.isFinite(height) && height > 0) return height;
+            return row.getBoundingClientRect().height || TABLE_MIN_HEIGHT;
+        };
+
+        const applyUniformColumnWidths = (table, colIndices) => {
+            if (!colIndices.length) return;
+            freezeTableColWidths(table);
+            const colgroup = ensureColgroup(table);
+            if (!colgroup) return;
+            const widths = colIndices.map(index => parseFloat(colgroup.children[index]?.style.width) || TABLE_MIN_WIDTH);
+            const average = widths.reduce((sum, value) => sum + value, 0) / widths.length;
+            colIndices.forEach(index => {
+                if (colgroup.children[index]) {
+                    colgroup.children[index].style.width = Math.max(TABLE_MIN_WIDTH, average) + 'px';
+                }
+            });
+            syncTableWidthFromCols(table);
+        };
+
+        const applyUniformRowHeights = (table, rowIndices) => {
+            if (!rowIndices.length) return;
+            freezeTableRowHeights(table);
+            const heights = rowIndices.map(index => {
+                const row = table.rows[index];
+                return row ? (parseFloat(row.style.height) || TABLE_MIN_HEIGHT) : TABLE_MIN_HEIGHT;
+            });
+            const average = heights.reduce((sum, value) => sum + value, 0) / heights.length;
+            rowIndices.forEach(index => {
+                const row = table.rows[index];
+                if (row) applyRowHeight(row, average);
+            });
+            syncTableHeightFromRows(table);
         };
 
         const showGuideV = (x, top, height) => {
@@ -879,11 +1004,33 @@ export const Events = {
                 const zoom = State.docData.meta.zoom || 1;
                 if (tableResizeState.type === 'col') {
                     const delta = (e.clientX - tableResizeState.startX) / zoom;
-                    applyColumnWidth(tableResizeState.table, tableResizeState.index, tableResizeState.startWidth + delta);
+                    if (Number.isFinite(tableResizeState.startNeighborWidth) && tableResizeState.neighborIndex !== null) {
+                        const total = tableResizeState.totalWidth;
+                        const minWidth = TABLE_MIN_WIDTH;
+                        const maxWidth = total - minWidth;
+                        const nextWidth = Math.min(Math.max(tableResizeState.startWidth + delta, minWidth), maxWidth);
+                        const neighborWidth = total - nextWidth;
+                        setColumnWidthRaw(tableResizeState.table, tableResizeState.index, nextWidth);
+                        setColumnWidthRaw(tableResizeState.table, tableResizeState.neighborIndex, neighborWidth);
+                        syncTableWidthFromCols(tableResizeState.table);
+                    } else {
+                        applyColumnWidth(tableResizeState.table, tableResizeState.index, tableResizeState.startWidth + delta);
+                    }
                     document.body.style.cursor = 'col-resize';
                 } else if (tableResizeState.type === 'row') {
                     const delta = (e.clientY - tableResizeState.startY) / zoom;
-                    applyRowHeight(tableResizeState.row, tableResizeState.startHeight + delta);
+                    if (tableResizeState.neighborRow && Number.isFinite(tableResizeState.startNeighborHeight)) {
+                        const total = tableResizeState.totalHeight;
+                        const minHeight = TABLE_MIN_HEIGHT;
+                        const maxHeight = total - minHeight;
+                        const nextHeight = Math.min(Math.max(tableResizeState.startHeight + delta, minHeight), maxHeight);
+                        const neighborHeight = total - nextHeight;
+                        applyRowHeight(tableResizeState.row, nextHeight);
+                        applyRowHeight(tableResizeState.neighborRow, neighborHeight);
+                    } else {
+                        applyRowHeight(tableResizeState.row, tableResizeState.startHeight + delta);
+                    }
+                    syncTableHeightFromRows(tableResizeState.table);
                     document.body.style.cursor = 'row-resize';
                 } else if (tableResizeState.type === 'table') {
                     const deltaX = (e.clientX - tableResizeState.startX) / zoom;
@@ -1017,24 +1164,37 @@ export const Events = {
             e.stopPropagation();
             document.body.style.userSelect = 'none';
             if (hit.type === 'col') {
-                const rect = cell.getBoundingClientRect();
+                freezeTableColWidths(tableForCell);
+                const startWidth = getColWidth(tableForCell, hit.index);
+                const neighborIndex = hit.index + 1;
+                const hasNeighbor = !!(ensureColgroup(tableForCell)?.children[neighborIndex]);
+                const startNeighborWidth = hasNeighbor ? getColWidth(tableForCell, neighborIndex) : null;
                 tableResizeState = {
                     type: 'col',
                     table: tableForCell,
                     index: hit.index,
                     startX: e.clientX,
-                    startWidth: rect.width
+                    startWidth,
+                    neighborIndex: hasNeighbor ? neighborIndex : null,
+                    startNeighborWidth,
+                    totalWidth: hasNeighbor ? (startWidth + startNeighborWidth) : null
                 };
             } else {
+                freezeTableRowHeights(tableForCell);
                 const row = cell.parentElement;
-                const rect = row.getBoundingClientRect();
+                const startHeight = getRowHeight(tableForCell, hit.index);
+                const neighborRow = tableForCell.rows[hit.index + 1] || null;
+                const startNeighborHeight = neighborRow ? getRowHeight(tableForCell, hit.index + 1) : null;
                 tableResizeState = {
                     type: 'row',
                     table: tableForCell,
                     row,
                     index: hit.index,
                     startY: e.clientY,
-                    startHeight: rect.height
+                    startHeight,
+                    neighborRow,
+                    startNeighborHeight,
+                    totalHeight: neighborRow ? (startHeight + startNeighborHeight) : null
                 };
             }
         });
@@ -1137,6 +1297,16 @@ export const Events = {
                         if (!activeCell) { Utils.showToast("셀을 먼저 클릭하세요.", "info"); return; }
                         setBorderSide(activeCell, 'left', mode, true);
                     }
+                    syncTableToState(activeTable);
+                } else if (action === 'uniform-rows') {
+                    const rect = selectionRect || null;
+                    const rowIndices = getRowIndicesForRect(activeTable, rect);
+                    applyUniformRowHeights(activeTable, rowIndices);
+                    syncTableToState(activeTable);
+                } else if (action === 'uniform-cols') {
+                    const rect = selectionRect || null;
+                    const colIndices = getColIndicesForRect(activeTable, rect);
+                    applyUniformColumnWidths(activeTable, colIndices);
                     syncTableToState(activeTable);
                 }
                 if (tableMenuOpen) positionTableMenu(activeTable);
