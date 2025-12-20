@@ -240,10 +240,14 @@ export const Renderer = {
                 this.debouncedRebalance(); 
                 this.updatePreflightPanel();
             });
-            box.oninput=()=>{ 
+            box.oninput=(e)=>{ 
                 const cleanHTML = Utils.cleanRichContentToTex(box.innerHTML); 
-                Actions.updateBlockContent(block.id, cleanHTML, false); 
-                State.saveHistory(1000, { reason: 'typing', blockId: block.id, coalesceMs: 2000 });
+                Actions.updateBlockContent(block.id, cleanHTML, false);
+                const inputType = e && e.inputType ? e.inputType : '';
+                const isDelete = typeof inputType === 'string' && inputType.startsWith('delete');
+                const delay = isDelete ? 0 : 1000;
+                const reason = isDelete ? 'edit' : 'typing';
+                State.saveHistory(delay, { reason, blockId: block.id, coalesceMs: 2000 });
                 this.debouncedRebalance(); // 입력 시 자동 레이아웃 조정
                 this.updatePreflightPanel();
             };

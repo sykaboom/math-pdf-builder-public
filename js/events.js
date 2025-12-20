@@ -180,7 +180,13 @@ export const Events = {
     handleBlockKeydown(e, id, box, renderCallback) {
         if (e.key === 'Backspace') {
             const atomBefore = Utils.getAtomBeforeCaret(box); 
-            if (atomBefore) { e.preventDefault(); atomBefore.remove(); Actions.updateBlockContent(id, Utils.cleanRichContentToTex(box.innerHTML), true); return; }
+            if (atomBefore) {
+                e.preventDefault();
+                atomBefore.remove();
+                Actions.updateBlockContent(id, Utils.cleanRichContentToTex(box.innerHTML), false);
+                State.saveHistory(0, { reason: 'edit', blockId: id });
+                return;
+            }
             if(box.innerText.trim() === '' && box.innerHTML.replace(/<br>/g,'').trim() === '') { 
                 const prevIdx = State.docData.blocks.findIndex(b=>b.id===id) - 1; 
                 if (prevIdx >= 0) { 
