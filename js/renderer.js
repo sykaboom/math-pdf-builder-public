@@ -215,7 +215,7 @@ export const Renderer = {
             box.oninput=()=>{ 
                 const cleanHTML = Utils.cleanRichContentToTex(box.innerHTML); 
                 Actions.updateBlockContent(block.id, cleanHTML, false); 
-                State.autosaveDraft(1000);
+                State.saveHistory(1000);
                 this.debouncedRebalance(); // 입력 시 자동 레이아웃 조정
                 this.updatePreflightPanel();
             };
