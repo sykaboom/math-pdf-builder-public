@@ -178,7 +178,7 @@ export const ManualRenderer = {
         });
 
         // [Fix] 블록박스를 원자적 개체로 유지하고, 뒤로 커서가 이동할 수 있도록 줄바꿈 보장
-        element.querySelectorAll('.custom-box').forEach(boxEl => {
+        element.querySelectorAll('.custom-box, .rect-box').forEach(boxEl => {
             boxEl.setAttribute('contenteditable', 'false');
             let next = boxEl.nextSibling;
             if (next && next.nodeType === Node.TEXT_NODE && next.textContent.trim() === '') next = next.nextSibling;
@@ -220,7 +220,7 @@ export const ManualRenderer = {
         const applyTokenReplacementsOutsideMath = (root) => {
             let didReplace = false;
             const mathRegex = /(\$\$[\s\S]+?\$\$|\$[\s\S]+?\$)/g;
-            const tokenPattern = /\[빈칸([:_])(.*?)\]|\[이미지\s*:\s*(.*?)\]|\[표_(\d+)x(\d+)\](?:\s*:\s*((?:\(\d+x\d+_(?:"(?:\\.|[^"])*"|&quot;[\s\S]*?&quot;|[^)]*)\)\s*,?\s*)+))?|\[선지_(1행|2행|5행)\](?:\s*:\s*((?:\(\d+_(?:"(?:\\.|[^"])*"|&quot;[\s\S]*?&quot;|[^)]*)\)\s*,?\s*)+))?|\[(굵게|볼드|BOLD|밑줄)([:_])([\s\S]*?)\]/g;
+            const tokenPattern = /\[빈칸([:_])(.*?)\]|\[이미지\s*:\s*(.*?)\]|\[표_(\d+)x(\d+)\](?:\s*:\s*((?:\(\d+x\d+_(?:"(?:\\.|[^"])*"|&quot;[\s\S]*?&quot;|[^)]*)\)\s*,?\s*)+))?|\[선지_(1행|2행|5행)\](?:\s*:\s*((?:\(\d+_(?:"(?:\\.|[^"])*"|&quot;[\s\S]*?&quot;|[^)]*)\)\s*,?\s*)+))?|\[(굵게|볼드|BOLD|밑줄)([:_])([\s\S]*?)\]|\[블록사각형_([^\]]*?)\]/g;
             const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null, false);
             const textNodes = [];
             while (walker.nextNode()) textNodes.push(walker.currentNode);
@@ -283,6 +283,16 @@ export const ManualRenderer = {
                         const wrapper = styleType === '밑줄' ? document.createElement('u') : document.createElement('strong');
                         wrapper.appendChild(buildFragmentFromText(styleText));
                         frag.appendChild(wrapper);
+                    } else if (m[12] !== undefined) {
+                        const rectBox = document.createElement('div');
+                        rectBox.className = 'rect-box';
+                        rectBox.setAttribute('contenteditable', 'false');
+                        const rectContent = document.createElement('div');
+                        rectContent.className = 'rect-box-content';
+                        rectContent.setAttribute('contenteditable', 'false');
+                        rectContent.appendChild(buildFragmentFromText(m[12] || ''));
+                        rectBox.appendChild(rectContent);
+                        frag.appendChild(rectBox);
                     }
                     lastIndex = tokenRegex.lastIndex;
                 }
@@ -465,6 +475,11 @@ export const ImportParser = {
                 return `<div class="custom-box simple-box" contenteditable="false"><div class="box-content">${bodyText}</div></div>`;
             };
 
+            const renderRectBox = (body) => {
+                const bodyText = (body || '').trim().replace(/\n/g, '<br>');
+                return `<div class="rect-box" contenteditable="false"><div class="rect-box-content">${bodyText}</div></div>`;
+            };
+
             const getEscapedImagePlaceholderHTML = (escapedLabelText = '') => {
                 const label = (escapedLabelText || '').trim();
                 const display = label ? `[이미지: ${label}]` : '이미지 박스';
@@ -514,6 +529,7 @@ export const ImportParser = {
             };
 
             content = convertLegacyBlockBoxes(convertBlockBoxes(content));
+            content = content.replace(/\[블록사각형_([^\]]*?)\]/g, (m, body) => renderRectBox(body));
             content = content.replace(/\[표_(\d+)x(\d+)\](?:\s*:\s*((?:\(\d+x\d+_(?:"(?:\\.|[^"])*"|&quot;[\s\S]*?&quot;|[^)]*)\)\s*,?\s*)+))?/g, (m, rows, cols, data) => {
                 const cellData = data ? parseTableCellData(data) : null;
                 const tableEl = buildEditorTableElement(rows, cols, cellData, { allowHtml: true });

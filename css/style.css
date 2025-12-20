@@ -149,6 +149,9 @@ body.drag-over #drop-overlay { display: flex; }
 .box-label::after { content: "\275A"; display: inline-block; margin: 0 6px; }
 .box-content { line-height: 1.6; text-align: left; }
 
+.rect-box { display: inline-block; max-width: 100%; border: 1.5px solid #000; padding: 6px 10px; margin: 6px 0; border-radius: 2px; background: #fff; box-sizing: border-box; }
+.rect-box-content { line-height: 1.5; text-align: left; }
+
 .spacer-block { width: 100%; background: repeating-linear-gradient(45deg, #f9f9f9, #f9f9f9 10px, #fff 10px, #fff 20px); border: 1px dashed #ddd; cursor: ns-resize; display: flex; align-items: center; justify-content: center; margin: 5px 0; }
 .break-line { height: 24px; border-bottom: 2px dotted #ff4444; margin: 5px 0 15px 0; text-align: center; color: #ff4444; font-size: 11px; cursor: pointer; background: rgba(255, 200, 200, 0.1); }
 .break-line:hover::after { content: ' (클릭하여 삭제)'; }

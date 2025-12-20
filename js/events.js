@@ -1273,7 +1273,6 @@ export const Events = {
         
         document.addEventListener('dblclick', (e) => {
             if (!State.renderingEnabled) return;
-            if (e.target.closest('table.editor-table')) { e.stopPropagation(); return; }
             const mjx = e.target.closest('mjx-container');
             if (mjx) {
                 e.preventDefault(); e.stopPropagation();
@@ -1297,6 +1296,23 @@ export const Events = {
                 const id = wrap ? wrap.dataset.id : null;
                 const label = placeholder.dataset ? (placeholder.dataset.label || '') : '';
                 placeholder.replaceWith(document.createTextNode(`[이미지:${label}]`));
+                if (id) Renderer.syncBlock(id);
+                return;
+            }
+            const rectBox = e.target.closest('.rect-box');
+            if (rectBox) {
+                e.preventDefault(); e.stopPropagation();
+                const wrap = rectBox.closest('.block-wrapper');
+                const id = wrap ? wrap.dataset.id : null;
+                const contentEl = rectBox.querySelector('.rect-box-content');
+                let bodyText = '';
+                if (contentEl) {
+                    const cleaned = Utils.cleanRichContentToTex(contentEl.innerHTML);
+                    const tmp = document.createElement('div');
+                    tmp.innerHTML = cleaned;
+                    bodyText = (tmp.innerText || '').replace(/\u00A0/g, ' ').replace(/\s*\n\s*/g, ' ').trim();
+                }
+                rectBox.replaceWith(document.createTextNode(`[블록사각형_${bodyText}]`));
                 if (id) Renderer.syncBlock(id);
                 return;
             }
@@ -1336,6 +1352,7 @@ export const Events = {
                 if (id) Renderer.syncBlock(id);
                 return;
             }
+            if (e.target.closest('table.editor-table')) { e.stopPropagation(); return; }
         });
         document.addEventListener('paste', async (e) => {
             let target = null; if (State.selectedPlaceholder && State.selectedPlaceholder.getAttribute('contenteditable') === 'false') target = State.selectedPlaceholder; else { const sel = window.getSelection(); if (sel.rangeCount) { const node = sel.anchorNode; const el = node.nodeType === 1 ? node : node.parentElement; if (el.closest('.editable-box')) target = 'cursor'; } } 

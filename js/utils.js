@@ -1,6 +1,6 @@
 // Filename: js/utils.js
 export const Utils = {
-    preservedClasses: ['custom-box', 'labeled-box', 'simple-box', 'box-label', 'box-content'],
+    preservedClasses: ['custom-box', 'labeled-box', 'simple-box', 'box-label', 'box-content', 'rect-box', 'rect-box-content'],
     choiceLabels: ['①', '②', '③', '④', '⑤'],
     choiceLayoutGrid: {
         '1': [[1, 2, 3, 4, 5]],
