@@ -50,8 +50,16 @@ window.confirmImport = (overwrite) => {
 window.executeFindReplace = () => {
     const f = document.getElementById('fr-find-input').value; const r = document.getElementById('fr-replace-input').value;
     if(!f) return;
-    State.docData.blocks.forEach(b => b.content = b.content.replaceAll(f, r));
+    let replaceCount = 0;
+    State.docData.blocks.forEach(b => {
+        if (!b.content) return;
+        let idx = b.content.indexOf(f);
+        if (idx === -1) return;
+        while (idx !== -1) { replaceCount++; idx = b.content.indexOf(f, idx + f.length); }
+        b.content = b.content.replaceAll(f, r);
+    });
     Renderer.renderPages(); ManualRenderer.renderAll(); State.saveHistory(); Utils.closeModal('find-replace-modal');
+    Utils.showToast(`"${f}" → "${r}" ${replaceCount}건 바꿈`, replaceCount ? "success" : "info");
 };
 window.performUndo = () => { if(State.undo()) { Renderer.renderPages(); ManualRenderer.renderAll(); } };
 window.performRedo = () => { if(State.redo()) { Renderer.renderPages(); ManualRenderer.renderAll(); } };
@@ -61,7 +69,8 @@ const doPrint = () => { Utils.showLoading("🖨️ 인쇄 준비 중..."); windo
 
 window.printWithMath = () => {
     const placeholderCount = document.querySelectorAll('.image-placeholder').length;
-    const unrenderedMathCount = State.docData.blocks.reduce((acc, b) => acc + (b.content && b.content.includes('$') ? 1 : 0), 0);
+    const unrenderedMathCount = Array.from(document.querySelectorAll('.editable-box'))
+        .filter(b => (b.textContent || '').includes('$')).length;
 
     if (placeholderCount > 0 || unrenderedMathCount > 0) {
         printPreflightData = { placeholderCount, unrenderedMathCount };
