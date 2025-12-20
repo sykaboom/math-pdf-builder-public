@@ -233,7 +233,7 @@ export const Renderer = {
                     return;
                 }
                 if(!window.isMathJaxReady) return;
-                if(/\[빈칸[:_]/.test(box.innerText) || box.innerText.includes('$') || box.innerText.includes('[이미지') || box.innerText.includes('[블록박스') || box.innerText.includes('[표_')) {
+                if(/\[빈칸[:_]/.test(box.innerText) || box.innerText.includes('$') || box.innerText.includes('[이미지') || box.innerText.includes('[블록박스') || box.innerText.includes('[표_') || box.innerText.includes('[선지_')) {
                     await ManualRenderer.typesetElement(box);
                 }
                 Actions.updateBlockContent(block.id, Utils.cleanRichContentToTex(box.innerHTML), true);

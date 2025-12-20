@@ -7,6 +7,20 @@ const toPositiveInt = (value) => {
     return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
 };
 
+const decodeQuotedValue = (rawValue = '') => {
+    let value = String(rawValue || '').trim();
+    if (value.startsWith('"') && value.endsWith('"')) {
+        value = value.slice(1, -1).replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+    } else if (value.startsWith('&quot;') && value.endsWith('&quot;')) {
+        value = value
+            .slice(6, -6)
+            .replace(/\\&quot;/g, '"')
+            .replace(/&quot;/g, '"')
+            .replace(/\\\\/g, '\\');
+    }
+    return value;
+};
+
 const parseTableCellData = (data = '') => {
     const cellMap = new Map();
     if (!data) return cellMap;
@@ -14,19 +28,22 @@ const parseTableCellData = (data = '') => {
     let match;
     while ((match = cellRegex.exec(data)) !== null) {
         const key = `${match[1]}x${match[2]}`;
-        let rawValue = (match[3] || '').trim();
-        if (rawValue.startsWith('"') && rawValue.endsWith('"')) {
-            rawValue = rawValue.slice(1, -1).replace(/\\"/g, '"').replace(/\\\\/g, '\\');
-        } else if (rawValue.startsWith('&quot;') && rawValue.endsWith('&quot;')) {
-            rawValue = rawValue
-                .slice(6, -6)
-                .replace(/\\&quot;/g, '"')
-                .replace(/&quot;/g, '"')
-                .replace(/\\\\/g, '\\');
-        }
-        cellMap.set(key, rawValue);
+        cellMap.set(key, decodeQuotedValue(match[3] || ''));
     }
     return cellMap;
+};
+
+const parseChoiceData = (data = '') => {
+    const choiceMap = new Map();
+    if (!data) return choiceMap;
+    const choiceRegex = /\((\d+)_("(?:(?:\\")|(?:\\\\)|[^"])*"|&quot;[\s\S]*?&quot;|[^)]*)\)/g;
+    let match;
+    while ((match = choiceRegex.exec(data)) !== null) {
+        const idx = parseInt(match[1], 10);
+        if (!Number.isFinite(idx)) continue;
+        choiceMap.set(String(idx), decodeQuotedValue(match[2] || ''));
+    }
+    return choiceMap;
 };
 
 const buildEditorTableElement = (rows, cols, cellData = null, options = {}) => {
@@ -60,6 +77,48 @@ const buildEditorTableElement = (rows, cols, cellData = null, options = {}) => {
     }
     table.appendChild(tbody);
     return table;
+};
+
+const buildChoiceGroupElement = (layoutToken, choiceData = null, options = {}) => {
+    const layout = Utils.normalizeChoiceLayout(layoutToken);
+    const group = document.createElement('div');
+    group.className = 'choice-group';
+    group.dataset.layout = layout;
+    const allowHtml = !!options.allowHtml;
+    const items = [];
+    for (let i = 1; i <= 5; i++) {
+        const item = document.createElement('span');
+        item.className = 'choice-item';
+        const label = document.createElement('span');
+        label.className = 'choice-label';
+        label.textContent = Utils.choiceLabels[i - 1] || `${i}.`;
+        label.setAttribute('contenteditable', 'false');
+        const text = document.createElement('span');
+        text.className = 'choice-text';
+        text.setAttribute('contenteditable', 'true');
+        const value = choiceData ? (choiceData.get(String(i)) || '') : '';
+        if (allowHtml) text.innerHTML = value;
+        else text.textContent = value;
+        item.appendChild(label);
+        item.appendChild(text);
+        items.push(item);
+    }
+    const appendRow = (rowItems) => {
+        const row = document.createElement('div');
+        row.className = 'choice-row';
+        row.dataset.count = String(rowItems.length);
+        rowItems.forEach(item => row.appendChild(item));
+        group.appendChild(row);
+    };
+    if (layout === '2') {
+        appendRow(items.slice(0, 3));
+        appendRow(items.slice(3));
+    } else if (layout === '5') {
+        items.forEach(item => appendRow([item]));
+    } else {
+        appendRow(items);
+    }
+    return group;
 };
 
 export const ManualRenderer = {
@@ -159,7 +218,7 @@ export const ManualRenderer = {
 
         const applyTokenReplacementsOutsideMath = (root) => {
             const mathRegex = /(\$\$[\s\S]+?\$\$|\$[\s\S]+?\$)/g;
-            const tokenRegex = /\[빈칸([:_])(.*?)\]|\[이미지\s*:\s*(.*?)\]|\[표_(\d+)x(\d+)\](?:\s*:\s*((?:\(\d+x\d+_(?:"(?:\\.|[^"])*"|&quot;[\s\S]*?&quot;|[^)]*)\)\s*,?\s*)+))?/g;
+            const tokenRegex = /\[빈칸([:_])(.*?)\]|\[이미지\s*:\s*(.*?)\]|\[표_(\d+)x(\d+)\](?:\s*:\s*((?:\(\d+x\d+_(?:"(?:\\.|[^"])*"|&quot;[\s\S]*?&quot;|[^)]*)\)\s*,?\s*)+))?|\[선지_(1행|2행|5행)\](?:\s*:\s*((?:\(\d+_(?:"(?:\\.|[^"])*"|&quot;[\s\S]*?&quot;|[^)]*)\)\s*,?\s*)+))?/g;
             const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null, false);
             const textNodes = [];
             while (walker.nextNode()) textNodes.push(walker.currentNode);
@@ -191,6 +250,11 @@ export const ManualRenderer = {
                         const cellData = m[6] ? parseTableCellData(m[6]) : null;
                         const tableEl = buildEditorTableElement(m[4], m[5], cellData, { allowHtml: false });
                         if (tableEl) frag.appendChild(tableEl);
+                        else frag.appendChild(document.createTextNode(m[0]));
+                    } else if (m[7] !== undefined) {
+                        const choiceData = m[8] ? parseChoiceData(m[8]) : null;
+                        const choiceEl = buildChoiceGroupElement(m[7], choiceData, { allowHtml: false });
+                        if (choiceEl) frag.appendChild(choiceEl);
                         else frag.appendChild(document.createTextNode(m[0]));
                     }
                     lastIndex = tokenRegex.lastIndex;
@@ -432,6 +496,11 @@ export const ImportParser = {
                 const cellData = data ? parseTableCellData(data) : null;
                 const tableEl = buildEditorTableElement(rows, cols, cellData, { allowHtml: true });
                 return tableEl ? tableEl.outerHTML : m;
+            });
+            content = content.replace(/\[선지_(1행|2행|5행)\](?:\s*:\s*((?:\(\d+_(?:"(?:\\.|[^"])*"|&quot;[\s\S]*?&quot;|[^)]*)\)\s*,?\s*)+))?/g, (m, layout, data) => {
+                const choiceData = data ? parseChoiceData(data) : null;
+                const choiceEl = buildChoiceGroupElement(layout, choiceData, { allowHtml: true });
+                return choiceEl ? choiceEl.outerHTML : m;
             });
             content = content.replace(/\[이미지\s*:\s*(.*?)\]/g, (m, label) => getEscapedImagePlaceholderHTML(label));
             content = content.replace(/\[빈칸([:_])(.*?)\]/g, (m, delim, label) => `<span class="blank-box" data-delim="${delim || ':'}" contenteditable="false">${label}</span>`);

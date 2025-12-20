@@ -303,6 +303,10 @@ export const Events = {
         let activeTable = null;
         let activeCell = null;
         let tableMenuOpen = false;
+        const choiceMenu = document.getElementById('choice-menu');
+        const choiceMenuHandle = document.getElementById('choice-menu-handle');
+        let activeChoiceGroup = null;
+        let choiceMenuOpen = false;
         let tableSelectAnchor = null;
         let tableSelectFocus = null;
         let tableSelectCells = [];
@@ -696,8 +700,140 @@ export const Events = {
             Renderer.debouncedRebalance();
         };
 
+        const showChoiceHandle = (rect) => {
+            if (!choiceMenuHandle) return;
+            const width = 32;
+            const height = 20;
+            const margin = 6;
+            let left = rect.right + window.scrollX - width;
+            let top = rect.top + window.scrollY - height - margin;
+            const minLeft = window.scrollX + 4;
+            const minTop = window.scrollY + 4;
+            if (left < minLeft) left = minLeft;
+            if (top < minTop) top = rect.bottom + window.scrollY + margin;
+            choiceMenuHandle.style.display = 'flex';
+            choiceMenuHandle.style.left = left + 'px';
+            choiceMenuHandle.style.top = top + 'px';
+        };
+
+        const hideChoiceHandle = () => {
+            if (!choiceMenuHandle || choiceMenuOpen) return;
+            choiceMenuHandle.style.display = 'none';
+        };
+
+        const positionChoiceMenu = (group) => {
+            if (!choiceMenu || !group) return;
+            choiceMenu.style.display = 'block';
+            choiceMenu.style.visibility = 'hidden';
+            const menuRect = choiceMenu.getBoundingClientRect();
+            const rect = group.getBoundingClientRect();
+            const margin = 6;
+            let left = rect.left + window.scrollX;
+            let top = rect.top + window.scrollY - menuRect.height - margin;
+            const maxLeft = window.scrollX + window.innerWidth - menuRect.width - margin;
+            if (left > maxLeft) left = maxLeft;
+            if (left < window.scrollX + margin) left = window.scrollX + margin;
+            if (top < window.scrollY + margin) top = rect.bottom + window.scrollY + margin;
+            choiceMenu.style.left = left + 'px';
+            choiceMenu.style.top = top + 'px';
+            choiceMenu.style.visibility = 'visible';
+        };
+
+        const openChoiceMenu = (group) => {
+            if (!choiceMenu || !group) return;
+            activeChoiceGroup = group;
+            choiceMenuOpen = true;
+            positionChoiceMenu(group);
+            showChoiceHandle(group.getBoundingClientRect());
+        };
+
+        const closeChoiceMenu = () => {
+            if (!choiceMenu) return;
+            choiceMenu.style.display = 'none';
+            choiceMenu.style.visibility = 'visible';
+            choiceMenuOpen = false;
+            hideChoiceHandle();
+        };
+
+        const createChoiceItem = (index) => {
+            const item = document.createElement('span');
+            item.className = 'choice-item';
+            const label = document.createElement('span');
+            label.className = 'choice-label';
+            label.textContent = Utils.choiceLabels[index] || `${index + 1}.`;
+            label.setAttribute('contenteditable', 'false');
+            const text = document.createElement('span');
+            text.className = 'choice-text';
+            text.setAttribute('contenteditable', 'true');
+            item.appendChild(label);
+            item.appendChild(text);
+            return item;
+        };
+
+        const normalizeChoiceItems = (group) => {
+            let items = Array.from(group.querySelectorAll('.choice-item'));
+            if (items.length < 5) {
+                for (let i = items.length; i < 5; i++) items.push(createChoiceItem(i));
+            }
+            items = items.slice(0, 5);
+            items.forEach((item, idx) => {
+                let label = item.querySelector('.choice-label');
+                if (!label) {
+                    label = document.createElement('span');
+                    label.className = 'choice-label';
+                    label.setAttribute('contenteditable', 'false');
+                    item.prepend(label);
+                }
+                label.textContent = Utils.choiceLabels[idx] || `${idx + 1}.`;
+                let text = item.querySelector('.choice-text');
+                if (!text) {
+                    text = document.createElement('span');
+                    text.className = 'choice-text';
+                    text.setAttribute('contenteditable', 'true');
+                    const nodes = Array.from(item.childNodes).filter(node => node !== label);
+                    nodes.forEach(node => text.appendChild(node));
+                    item.appendChild(text);
+                }
+            });
+            return items;
+        };
+
+        const applyChoiceLayout = (group, layoutToken) => {
+            if (!group) return;
+            const layout = Utils.normalizeChoiceLayout(layoutToken);
+            const items = normalizeChoiceItems(group);
+            group.dataset.layout = layout;
+            group.replaceChildren();
+            const appendRow = (rowItems) => {
+                const row = document.createElement('div');
+                row.className = 'choice-row';
+                row.dataset.count = String(rowItems.length);
+                rowItems.forEach(item => row.appendChild(item));
+                group.appendChild(row);
+            };
+            if (layout === '2') {
+                appendRow(items.slice(0, 3));
+                appendRow(items.slice(3));
+            } else if (layout === '5') {
+                items.forEach(item => appendRow([item]));
+            } else {
+                appendRow(items);
+            }
+        };
+
+        const syncChoiceToState = (group) => {
+            if (!group) return;
+            const wrap = group.closest('.block-wrapper');
+            if (!wrap) return;
+            const box = wrap.querySelector('.editable-box');
+            if (!box) return;
+            Actions.updateBlockContent(wrap.dataset.id, Utils.cleanRichContentToTex(box.innerHTML), true);
+            Renderer.debouncedRebalance();
+        };
+
         document.addEventListener('mousemove', (e) => {
             if (tableResizeState) {
+                hideChoiceHandle();
                 const zoom = State.docData.meta.zoom || 1;
                 if (tableResizeState.type === 'col') {
                     const delta = (e.clientX - tableResizeState.startX) / zoom;
@@ -721,6 +857,7 @@ export const Events = {
                 return;
             }
             if (isTableSelecting) {
+                hideChoiceHandle();
                 const cell = e.target.closest('table.editor-table td');
                 if (cell && cell.closest('table.editor-table') === activeTable) {
                     updateTableSelection(tableSelectAnchor, cell);
@@ -769,6 +906,17 @@ export const Events = {
                 if (table) table.style.cursor = cursor || '';
                 lastCursorTable = table || null;
                 document.body.style.cursor = cursor;
+                const choiceGroup = e.target.closest('.choice-group');
+                const isChoiceUiHover = e.target.closest('#choice-menu') || e.target.closest('#choice-menu-handle');
+                if (choiceGroup) {
+                    activeChoiceGroup = choiceGroup;
+                    showChoiceHandle(choiceGroup.getBoundingClientRect());
+                } else if (isChoiceUiHover && activeChoiceGroup) {
+                    showChoiceHandle(activeChoiceGroup.getBoundingClientRect());
+                } else {
+                    if (choiceMenuOpen && activeChoiceGroup) showChoiceHandle(activeChoiceGroup.getBoundingClientRect());
+                    else hideChoiceHandle();
+                }
             }
         });
 
@@ -941,18 +1089,42 @@ export const Events = {
                 if (tableMenuOpen) positionTableMenu(activeTable);
             });
         }
+        if (choiceMenuHandle) {
+            choiceMenuHandle.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (!activeChoiceGroup) return;
+                if (choiceMenuOpen) closeChoiceMenu();
+                else openChoiceMenu(activeChoiceGroup);
+            });
+        }
+        if (choiceMenu) {
+            choiceMenu.addEventListener('mousedown', (e) => {
+                e.stopPropagation();
+            });
+            choiceMenu.addEventListener('click', (e) => {
+                const btn = e.target.closest('[data-layout]');
+                if (!btn) return;
+                if (!activeChoiceGroup) { Utils.showToast("선지를 먼저 선택하세요.", "error"); return; }
+                applyChoiceLayout(activeChoiceGroup, btn.dataset.layout);
+                syncChoiceToState(activeChoiceGroup);
+                if (choiceMenuOpen) positionChoiceMenu(activeChoiceGroup);
+            });
+        }
 
         // [Fix] 스크롤 시 팝업 닫기 추가
         window.addEventListener('scroll', () => {
             document.getElementById('context-menu').style.display = 'none';
             document.getElementById('floating-toolbar').style.display = 'none';
             closeTableMenu();
+            closeChoiceMenu();
         }, true);
 
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
                 clearTableSelection();
                 closeTableMenu();
+                closeChoiceMenu();
                 Utils.closeModal('context-menu'); document.getElementById('floating-toolbar').style.display='none'; this.hideResizer(); Utils.closeModal('import-modal'); Utils.closeModal('find-replace-modal'); return;
             }
             const key = e.key.toLowerCase();
@@ -976,6 +1148,9 @@ export const Events = {
             if (tableMenuOpen) {
                 if (!e.target.closest('#table-menu') && !e.target.closest('#table-menu-handle')) closeTableMenu();
             }
+            if (choiceMenuOpen) {
+                if (!e.target.closest('#choice-menu') && !e.target.closest('#choice-menu-handle')) closeChoiceMenu();
+            }
             if (!e.target.closest('.image-placeholder') && !e.target.closest('#imgUpload')) { if(State.selectedPlaceholder) { State.selectedPlaceholder.classList.remove('selected'); State.selectedPlaceholder.setAttribute('contenteditable', 'false'); } State.selectedPlaceholder = null; } 
             const cell = e.target.closest('table.editor-table td');
             if (cell) {
@@ -988,6 +1163,12 @@ export const Events = {
             } else if (!e.target.closest('#table-menu') && !e.target.closest('#table-menu-handle')) {
                 clearTableSelection();
                 activeCell = null;
+            }
+            const choiceGroup = e.target.closest('.choice-group');
+            if (choiceGroup) {
+                activeChoiceGroup = choiceGroup;
+            } else if (!e.target.closest('#choice-menu') && !e.target.closest('#choice-menu-handle')) {
+                activeChoiceGroup = null;
             }
         });
         document.addEventListener('mouseup', (e) => { const target = e.target; setTimeout(() => {

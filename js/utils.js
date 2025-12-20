@@ -1,6 +1,14 @@
 // Filename: js/utils.js
 export const Utils = {
     preservedClasses: ['custom-box', 'labeled-box', 'simple-box', 'box-label', 'box-content'],
+    choiceLabels: ['①', '②', '③', '④', '⑤'],
+    normalizeChoiceLayout(value) {
+        const v = String(value || '').trim();
+        if (v === '1' || v === '1행') return '1';
+        if (v === '2' || v === '2행') return '2';
+        if (v === '5' || v === '5행') return '5';
+        return '1';
+    },
     debounce(func, wait) {
         let timeout;
         return function(...args) {

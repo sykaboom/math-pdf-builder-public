@@ -166,6 +166,20 @@ table.editor-table td.table-cell-selected { background: rgba(0, 123, 255, 0.12);
 .table-menu-btn:hover { background: #e7f5ff; border-color: #007bff; color: #007bff; }
 .table-menu-hint { font-size: 10px; color: #777; }
 
+.choice-group { display: block; margin: 6px 0; }
+.choice-row { display: flex; gap: 12px; justify-content: space-between; align-items: flex-start; flex-wrap: nowrap; }
+.choice-row + .choice-row { margin-top: 4px; }
+.choice-item { display: flex; align-items: flex-start; gap: 4px; min-width: 0; flex: 1 1 0; }
+.choice-label { font-weight: 700; flex: 0 0 auto; }
+.choice-text { flex: 1 1 auto; min-width: 0; }
+
+#choice-menu-handle { position: absolute; width: 24px; height: 20px; border: 1px solid #555; background: #fff; border-radius: 4px; display: none; align-items: center; justify-content: center; font-size: 10px; cursor: pointer; z-index: 9910; box-shadow: 0 2px 6px rgba(0,0,0,0.2); user-select: none; }
+#choice-menu { position: absolute; display: none; background: #fff; border: 1px solid #ccc; border-radius: 6px; padding: 8px; z-index: 9910; min-width: 160px; box-shadow: 0 6px 16px rgba(0,0,0,0.18); font-size: 12px; }
+.choice-menu-title { font-weight: 800; font-size: 12px; margin-bottom: 6px; color: #333; }
+.choice-menu-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.choice-menu-btn { border: 1px solid #ddd; background: #fff; border-radius: 4px; padding: 3px 8px; font-size: 11px; cursor: pointer; }
+.choice-menu-btn:hover { background: #e7f5ff; border-color: #007bff; color: #007bff; }
+
 /* [도구] */
 #floating-toolbar { position: absolute; background: #333; border-radius: 6px; padding: 5px; display: none; gap: 5px; z-index: 10000; box-shadow: 0 4px 12px rgba(0,0,0,0.3); transform: translate(-50%, -120%); align-items: center; }
 #floating-toolbar::after { content: ''; position: absolute; bottom: -6px; left: 50%; margin-left: -6px; border-width: 6px; border-style: solid; border-color: #333 transparent transparent transparent; }
@@ -222,7 +236,7 @@ table.editor-table td.table-cell-selected { background: rgba(0, 123, 255, 0.12);
 
 @media print {
     @page { size: A4 portrait; margin: 0; }
-    .sidebar, #floating-toolbar, #image-resizer, #context-menu, #table-menu, #table-menu-handle, .block-handle, .block-actions, #loading-indicator, #drop-overlay, .modal-overlay, .page-layout-control { display: none !important; }
+    .sidebar, #floating-toolbar, #image-resizer, #context-menu, #table-menu, #table-menu-handle, #choice-menu, #choice-menu-handle, .block-handle, .block-actions, #loading-indicator, #drop-overlay, .modal-overlay, .page-layout-control { display: none !important; }
     body, .workspace { background: white; overflow: visible; display: block; margin: 0; padding: 0; }
     .page { display: flex !important; flex-direction: column !important; margin: 0; box-shadow: none; border: none; page-break-after: always; transform: none !important; width: 210mm; height: 297mm !important; overflow: hidden !important; }
     .page.page-first { height: 297mm !important; }
