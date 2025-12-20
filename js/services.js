@@ -220,7 +220,7 @@ export const ManualRenderer = {
         const applyTokenReplacementsOutsideMath = (root) => {
             let didReplace = false;
             const mathRegex = /(\$\$[\s\S]+?\$\$|\$[\s\S]+?\$)/g;
-            const tokenRegex = /\[빈칸([:_])(.*?)\]|\[이미지\s*:\s*(.*?)\]|\[표_(\d+)x(\d+)\](?:\s*:\s*((?:\(\d+x\d+_(?:"(?:\\.|[^"])*"|&quot;[\s\S]*?&quot;|[^)]*)\)\s*,?\s*)+))?|\[선지_(1행|2행|5행)\](?:\s*:\s*((?:\(\d+_(?:"(?:\\.|[^"])*"|&quot;[\s\S]*?&quot;|[^)]*)\)\s*,?\s*)+))?/g;
+            const tokenPattern = /\[빈칸([:_])(.*?)\]|\[이미지\s*:\s*(.*?)\]|\[표_(\d+)x(\d+)\](?:\s*:\s*((?:\(\d+x\d+_(?:"(?:\\.|[^"])*"|&quot;[\s\S]*?&quot;|[^)]*)\)\s*,?\s*)+))?|\[선지_(1행|2행|5행)\](?:\s*:\s*((?:\(\d+_(?:"(?:\\.|[^"])*"|&quot;[\s\S]*?&quot;|[^)]*)\)\s*,?\s*)+))?|\[(굵게|볼드|BOLD|밑줄)([:_])([\s\S]*?)\]/g;
             const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null, false);
             const textNodes = [];
             while (walker.nextNode()) textNodes.push(walker.currentNode);
@@ -249,10 +249,11 @@ export const ManualRenderer = {
             };
 
             const buildFragmentFromText = (text) => {
+                const tokenRegex = new RegExp(tokenPattern.source, 'g');
                 const frag = document.createDocumentFragment();
                 if (!text) return frag;
                 const mathRanges = getMathRanges(text);
-                let lastIndex = 0; tokenRegex.lastIndex = 0; let m;
+                let lastIndex = 0; let m;
                 while ((m = tokenRegex.exec(text)) !== null) {
                     if (isIndexInRanges(m.index, mathRanges)) continue;
                     didReplace = true;
@@ -276,6 +277,12 @@ export const ManualRenderer = {
                         const choiceEl = buildChoiceTableElement(m[7], choiceData, { allowHtml: false });
                         if (choiceEl) frag.appendChild(choiceEl);
                         else frag.appendChild(document.createTextNode(m[0]));
+                    } else if (m[9] !== undefined) {
+                        const styleType = m[9];
+                        const styleText = m[11] || '';
+                        const wrapper = styleType === '밑줄' ? document.createElement('u') : document.createElement('strong');
+                        wrapper.appendChild(buildFragmentFromText(styleText));
+                        frag.appendChild(wrapper);
                     }
                     lastIndex = tokenRegex.lastIndex;
                 }
@@ -286,9 +293,7 @@ export const ManualRenderer = {
             for (let node of textNodes) {
                 const text = node.nodeValue;
                 if (!text) continue;
-                tokenRegex.lastIndex = 0;
-                const hasToken = tokenRegex.test(text);
-                tokenRegex.lastIndex = 0;
+                const hasToken = new RegExp(tokenPattern.source, 'g').test(text);
                 if (!hasToken) continue;
                 const frag = buildFragmentFromText(text);
                 node.parentNode.replaceChild(frag, node);
@@ -518,6 +523,10 @@ export const ImportParser = {
                 const choiceData = data ? parseChoiceData(data) : null;
                 const choiceEl = buildChoiceTableElement(layout, choiceData, { allowHtml: true });
                 return choiceEl ? choiceEl.outerHTML : m;
+            });
+            content = content.replace(/\[(굵게|볼드|BOLD|밑줄)([:_])([\s\S]*?)\]/g, (m, style, delim, body) => {
+                const tag = style === '밑줄' ? 'u' : 'strong';
+                return `<${tag}>${body}</${tag}>`;
             });
             content = content.replace(/\[이미지\s*:\s*(.*?)\]/g, (m, label) => getEscapedImagePlaceholderHTML(label));
             content = content.replace(/\[빈칸([:_])(.*?)\]/g, (m, delim, label) => `<span class="blank-box" data-delim="${delim || ':'}" contenteditable="false">${label}</span>`);

@@ -68,6 +68,18 @@ body.drag-over #drop-overlay { display: flex; }
 .sidebar { width: 340px; background: #fff; border-right: 1px solid #ccc; display: flex; flex-direction: column; padding: 15px; z-index: 200; flex-shrink: 0; overflow-y: auto; }
 .workspace { flex-grow: 1; overflow: auto; display: flex; flex-direction: column; align-items: center; padding: 40px 0; background-color: #525659; }
 
+.sidebar-tree { display: flex; flex-direction: column; gap: 8px; }
+.sidebar-folder { border-bottom: 1px solid #eee; padding-bottom: 6px; }
+.sidebar-folder:last-of-type { border-bottom: none; padding-bottom: 0; }
+.sidebar-folder > summary { list-style: none; cursor: pointer; font-size: 12px; font-weight: 800; color: #222; display: flex; align-items: center; gap: 6px; padding: 4px 2px; user-select: none; }
+.sidebar-folder > summary::-webkit-details-marker { display: none; }
+.sidebar-folder > summary::before { content: '▸'; font-size: 11px; color: #555; transition: transform 0.15s ease; }
+.sidebar-folder[open] > summary::before { transform: rotate(90deg); }
+.sidebar-folder-body { margin-left: 14px; padding: 6px 0 2px; display: flex; flex-direction: column; gap: 6px; }
+.sidebar-hint { font-size: 11px; color: #555; background: #f8f9fa; border: 1px dashed #ddd; padding: 6px; border-radius: 4px; line-height: 1.4; }
+.sidebar-hint code { font-family: monospace; font-size: 11px; }
+.sidebar-folder-body .shortcut-guide { margin-top: 0; }
+
 .sidebar-section { padding-bottom: 10px; margin-bottom: 10px; border-bottom: 1px solid #eee; }
 .sidebar-section:last-of-type { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
 .sidebar-section-title { font-size: 12px; font-weight: 800; color: #333; margin-bottom: 8px; letter-spacing: 0.5px; }
