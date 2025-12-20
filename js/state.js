@@ -10,6 +10,7 @@ export const State = {
     historyIndex: -1,
     renderTimer: null,
     draftTimer: null,
+    historyMeta: null,
     
     // 런타임 상태
     contextTargetId: null,
@@ -23,11 +24,40 @@ export const State = {
     selectionBlockId: null,
     keysPressed: {},
 
-    saveHistory(debounceTime = 0) {
+    saveHistory(debounceTime = 0, options = null) {
+        let delay = debounceTime;
+        let meta = options;
+        if (typeof debounceTime === 'object' && debounceTime !== null) {
+            meta = debounceTime;
+            delay = 0;
+        }
         const doSave = () => {
             const cleanData = JSON.parse(JSON.stringify(this.docData));
             cleanData.blocks.forEach(b => b.content = Utils.cleanRichContentToTex(b.content));
             const str = JSON.stringify(cleanData);
+
+            const now = Date.now();
+            const metaInfo = meta && typeof meta === 'object' ? {
+                reason: meta.reason || 'manual',
+                blockId: meta.blockId || null,
+                coalesceMs: Number.isFinite(meta.coalesceMs) ? meta.coalesceMs : 2000
+            } : null;
+            const canCoalesce = metaInfo
+                && metaInfo.reason === 'typing'
+                && this.historyIndex >= 0
+                && this.historyIndex === this.historyStack.length - 1
+                && this.historyMeta
+                && this.historyMeta.reason === 'typing'
+                && (now - this.historyMeta.time) <= metaInfo.coalesceMs
+                && (!metaInfo.blockId || metaInfo.blockId === this.historyMeta.blockId);
+
+            if (canCoalesce) {
+                if (this.historyStack[this.historyIndex] === str) return;
+                this.historyStack[this.historyIndex] = str;
+                this.historyMeta = { reason: 'typing', blockId: metaInfo.blockId, time: now };
+                localStorage.setItem('editorAutoSave', str);
+                return;
+            }
             
             if (this.historyIndex >= 0 && this.historyStack[this.historyIndex] === str) return;
             
@@ -39,12 +69,13 @@ export const State = {
                 this.historyStack.shift();
                 this.historyIndex--;
             }
+            this.historyMeta = metaInfo ? { reason: metaInfo.reason, blockId: metaInfo.blockId, time: now } : { reason: 'manual', blockId: null, time: now };
             localStorage.setItem('editorAutoSave', str);
         };
 
-        if (debounceTime > 0) {
+        if (delay > 0) {
             clearTimeout(this.renderTimer);
-            this.renderTimer = setTimeout(doSave, debounceTime);
+            this.renderTimer = setTimeout(doSave, delay);
         } else {
             doSave();
         }
@@ -92,6 +123,7 @@ export const State = {
         if (this.historyIndex > 0) {
             this.historyIndex--;
             this.docData = JSON.parse(this.historyStack[this.historyIndex]);
+            this.historyMeta = null;
             return true;
         }
         return false;
@@ -101,6 +133,7 @@ export const State = {
         if (this.historyIndex < this.historyStack.length - 1) {
             this.historyIndex++;
             this.docData = JSON.parse(this.historyStack[this.historyIndex]);
+            this.historyMeta = null;
             return true;
         }
         return false;

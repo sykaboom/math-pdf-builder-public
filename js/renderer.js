@@ -243,7 +243,7 @@ export const Renderer = {
             box.oninput=()=>{ 
                 const cleanHTML = Utils.cleanRichContentToTex(box.innerHTML); 
                 Actions.updateBlockContent(block.id, cleanHTML, false); 
-                State.saveHistory(1000);
+                State.saveHistory(1000, { reason: 'typing', blockId: block.id, coalesceMs: 2000 });
                 this.debouncedRebalance(); // 입력 시 자동 레이아웃 조정
                 this.updatePreflightPanel();
             };
