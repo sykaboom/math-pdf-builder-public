@@ -112,6 +112,11 @@ body.drag-over #drop-overlay { display: flex; }
 .block-wrapper { position: relative; margin-bottom: 2px; width: 100%; flex-shrink: 0; border-radius: 4px; border: 1px solid transparent; transition: background 0.1s; padding-right: 0; overflow: visible; }
 .block-wrapper:hover { background-color: rgba(0,0,0,0.03); }
 .block-wrapper.bg-gray-block { background-color: #f1f3f5; border-radius: 6px; padding: 5px; margin-bottom: 5px; border: 1px solid #e9ecef; }
+.block-wrapper.bg-gray-block + .block-wrapper.bg-gray-block { margin-top: -5px; border-top: 0; border-top-left-radius: 0; border-top-right-radius: 0; }
+@supports(selector(:has(*))) {
+    .block-wrapper.bg-gray-block:has(+ .block-wrapper.bg-gray-block) { margin-bottom: 0; border-bottom: 0; border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+    .block-wrapper.bg-gray-block + .block-wrapper.bg-gray-block { margin-top: 0; }
+}
 .block-wrapper.dragging { opacity: 0.4; background: #e2e6ea; }
 .drop-target-top { border-top: 3px solid #007bff; margin-top: -3px; }
 .drop-target-bottom { border-bottom: 3px solid #007bff; margin-bottom: -3px; }
