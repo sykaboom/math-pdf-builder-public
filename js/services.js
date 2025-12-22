@@ -188,14 +188,23 @@ export const ManualRenderer = {
             return renderRectBox(body);
         });
 
-        // [Fix] 블록박스를 원자적 개체로 유지하고, 뒤로 커서가 이동할 수 있도록 줄바꿈 보장
+        // [Fix] 블록박스를 원자적 개체로 유지하고, 불필요한 빈 줄을 제거
         element.querySelectorAll('.custom-box, .rect-box').forEach(boxEl => {
             boxEl.setAttribute('contenteditable', 'false');
+
+            let prev = boxEl.previousSibling;
+            while (prev && prev.nodeType === Node.TEXT_NODE && prev.textContent.trim() === '') prev = prev.previousSibling;
+            if (prev && prev.nodeType === Node.ELEMENT_NODE && prev.tagName === 'BR') prev.remove();
+
             let next = boxEl.nextSibling;
-            if (next && next.nodeType === Node.TEXT_NODE && next.textContent.trim() === '') next = next.nextSibling;
-            if (!next || !(next.nodeType === Node.ELEMENT_NODE && next.tagName === 'BR')) {
-                boxEl.after(document.createElement('br'));
+            while (next && next.nodeType === Node.TEXT_NODE && next.textContent.trim() === '') next = next.nextSibling;
+            while (next && next.nodeType === Node.ELEMENT_NODE && next.tagName === 'BR') {
+                const toRemove = next;
+                next = next.nextSibling;
+                while (next && next.nodeType === Node.TEXT_NODE && next.textContent.trim() === '') next = next.nextSibling;
+                toRemove.remove();
             }
+            boxEl.after(document.createElement('br'));
         });
 
         const escapeForMathTex = (value = '') => {
