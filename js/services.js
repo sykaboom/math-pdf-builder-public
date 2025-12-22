@@ -214,6 +214,13 @@ export const ManualRenderer = {
                 .replace(/~/g, '\\~{}');
         };
 
+        const decodeMathEntities = (value = '') => {
+            let text = String(value);
+            text = text.replace(/&amp;lt;/g, '&lt;').replace(/&amp;gt;/g, '&gt;');
+            text = text.replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+            return text;
+        };
+
         const sanitizeMathTokens = (tex) => {
             if (!tex) return tex;
             const normalizeMathBlankLabel = (value = '') => {
@@ -422,7 +429,8 @@ export const ManualRenderer = {
                 const fullTex = match[0]; 
                 const isDisplay = fullTex.startsWith('$$'); 
                 const cleanTex = isDisplay ? fullTex.slice(2, -2) : fullTex.slice(1, -1);
-                const preparedTex = sanitizeMathTokens(cleanTex);
+                const decodedTex = decodeMathEntities(cleanTex);
+                const preparedTex = sanitizeMathTokens(decodedTex);
                 const cacheKey = preparedTex + (isDisplay ? '_D' : '_I');
                 let mjxNode = null;
 
@@ -432,7 +440,7 @@ export const ManualRenderer = {
                     try {
                         mjxNode = await MathJax.tex2svgPromise(preparedTex, { display: isDisplay });
                         if (mjxNode) {
-                            mjxNode.setAttribute('data-tex', cleanTex); 
+                            mjxNode.setAttribute('data-tex', decodedTex); 
                             mjxNode.setAttribute('display', isDisplay);
                             mjxNode.setAttribute('contenteditable', 'false');
                             mjxNode.classList.add('math-atom');

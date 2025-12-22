@@ -34,6 +34,21 @@ export const Utils = {
     cleanRichContentToTex(htmlContent) {
         const div = document.createElement('div');
         div.innerHTML = htmlContent;
+        const normalizeIneqEntities = (value = '') => {
+            let text = value;
+            text = text.replace(/&amp;lt;/g, '&lt;').replace(/&amp;gt;/g, '&gt;');
+            text = text.replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+            return text;
+        };
+        const textWalker = document.createTreeWalker(div, NodeFilter.SHOW_TEXT, null, false);
+        const textNodes = [];
+        while (textWalker.nextNode()) textNodes.push(textWalker.currentNode);
+        textNodes.forEach(node => {
+            const raw = node.nodeValue;
+            if (!raw || raw.indexOf('&') === -1) return;
+            const normalized = normalizeIneqEntities(raw);
+            if (normalized !== raw) node.nodeValue = normalized;
+        });
         div.querySelectorAll('table.editor-table td.table-cell-selected').forEach(td => {
             td.classList.remove('table-cell-selected');
         });
