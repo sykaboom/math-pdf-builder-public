@@ -54,6 +54,9 @@ export const freezeTableColWidths = (table, options = {}) => {
     const firstRow = table.rows[0];
     const cells = firstRow ? Array.from(firstRow.cells) : [];
     const tableWidth = table.getBoundingClientRect().width;
+    const style = window.getComputedStyle(table);
+    const borderX = (parseFloat(style.borderLeftWidth) || 0) + (parseFloat(style.borderRightWidth) || 0);
+    const contentWidth = Math.max(0, tableWidth - borderX);
     let widths = Array.from(colgroup.children).map((col, idx) => {
         const preset = parseFloat(col.style.width);
         if (Number.isFinite(preset) && preset > 0) return Math.max(TABLE_MIN_WIDTH, preset);
@@ -62,8 +65,8 @@ export const freezeTableColWidths = (table, options = {}) => {
         return Math.max(TABLE_MIN_WIDTH, width);
     });
     const total = widths.reduce((sum, value) => sum + value, 0);
-    if (preserveWidth && total > 0 && tableWidth > 0) {
-        const diff = tableWidth - total;
+    if (preserveWidth && total > 0 && contentWidth > 0) {
+        const diff = contentWidth - total;
         if (widths.length) {
             const lastIdx = widths.length - 1;
             widths[lastIdx] = Math.max(TABLE_MIN_WIDTH, widths[lastIdx] + diff);
@@ -85,14 +88,17 @@ export const freezeTableRowHeights = (table, options = {}) => {
     const preserveHeight = options.preserveHeight !== false;
     const rows = Array.from(table.rows);
     const tableHeight = table.getBoundingClientRect().height;
+    const style = window.getComputedStyle(table);
+    const borderY = (parseFloat(style.borderTopWidth) || 0) + (parseFloat(style.borderBottomWidth) || 0);
+    const contentHeight = Math.max(0, tableHeight - borderY);
     let heights = rows.map(row => {
         const preset = parseFloat(row.style.height);
         if (Number.isFinite(preset) && preset > 0) return Math.max(TABLE_MIN_HEIGHT, preset);
         return Math.max(TABLE_MIN_HEIGHT, row.getBoundingClientRect().height);
     });
     const total = heights.reduce((sum, value) => sum + value, 0);
-    if (preserveHeight && total > 0 && tableHeight > 0) {
-        const diff = tableHeight - total;
+    if (preserveHeight && total > 0 && contentHeight > 0) {
+        const diff = contentHeight - total;
         if (heights.length) {
             const lastIdx = heights.length - 1;
             heights[lastIdx] = Math.max(TABLE_MIN_HEIGHT, heights[lastIdx] + diff);
