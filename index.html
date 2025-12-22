@@ -27,6 +27,12 @@
 	        <div style="font-size:11px; color:#666; line-height:1.4;">
 	            블록박스 멀티라인은 `[블록박스_라벨]` 시작 후 `[/블록박스]`로 종료하세요.
 	        </div>
+            <div style="font-size:11px; color:#666; line-height:1.4; margin-top:6px;">
+                <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
+                    <input type="checkbox" id="setting-normalize-llm" checked>
+                    LLM 출력 정규화(코드블록 제거, $$->$, \frac->\dfrac, ** 제거, 개념박스 번호화)
+                </label>
+            </div>
 	        <div style="display:flex; justify-content:flex-end; gap:10px;">
 	            <button class="btn btn-warning" onclick="confirmImport(true)" style="width:auto;">덮어쓰기</button>
 	            <button class="btn btn-primary" onclick="confirmImport(false)" style="width:auto;">이어쓰기</button>
@@ -186,6 +192,7 @@
                 <button class="btn btn-warning" onclick="resetProject()">🗑️ 새로 만들기 (Alt+N)</button>
                 <button class="btn btn-primary" onclick="saveProjectJSON()">💾 저장 (Ctrl+S)</button>
                 <button class="btn" onclick="document.getElementById('fileInput').click()">📂 열기 (Ctrl+O)</button>
+                <button class="btn btn-danger" onclick="printWithMath()">🖨️ 인쇄하기</button>
                 <input type="file" id="fileInput" accept=".json" style="display:none" onchange="loadProjectJSONFromInput(this)">
 
                 <div class="settings-panel" style="background:#e8f5e9; border:1px solid #c8e6c9; margin-top:10px;">
@@ -194,24 +201,21 @@
                     <div class="settings-row"><label>이미지 폴더명</label><input type="text" id="setting-img-folder" value="images" style="width:80px;"></div>
                     <button class="btn btn-success" onclick="FileSystem.openProjectFolder()">📂 작업 폴더 열기</button>
                 </div>
+            </div>
+        </details>
 
-                <div class="settings-panel">
-                    <div style="font-size:11px; font-weight:bold; margin-bottom:5px; border-bottom:1px solid #ddd; padding-bottom:3px;">⚙️ AI 입력 설정</div>
-                    <div class="settings-row"><label>단별 문제 수</label><input type="number" id="setting-limit" value="0"></div>
-                    <div class="settings-row"><label>자동 여백</label><input type="checkbox" id="setting-spacer"></div>
-                </div>
-
-                <div class="settings-panel" style="margin-bottom:0;">
-                    <div style="font-size:11px; font-weight:bold; margin-bottom:5px; border-bottom:1px solid #ddd; padding-bottom:3px;">🔤 기본 폰트</div>
-                    <div class="settings-row"><label>폰트</label>
-                        <select id="setting-font-family">
-                            <option value="serif">기본(명조)</option>
-                            <option value="gulim">굴림체</option>
-                            <option value="gothic">나눔고딕</option>
-                        </select>
-                    </div>
-                    <div class="settings-row"><label>크기(pt)</label><input type="number" id="setting-font-size" min="8" max="20" step="0.5"></div>
-                </div>
+        <details class="sidebar-folder">
+            <summary>프롬프트 다운로드</summary>
+            <div class="sidebar-folder-body">
+                <button class="btn prompt-download" data-prompt-path="LLMprompt/4.0 프롬프트 - 1단계 추출.txt" data-prompt-name="4.0 프롬프트 (1단계 추출) 다운로드" onclick="downloadPromptFile(this)">
+                    ⬇️ 4.0 프롬프트 (1단계 추출) 다운로드 <span class="prompt-date" data-prompt-date></span>
+                </button>
+                <button class="btn prompt-download" data-prompt-path="LLMprompt/4.0 프롬프트.txt" data-prompt-name="4.0 프롬프트 (2단계 변환) 다운로드" onclick="downloadPromptFile(this)">
+                    ⬇️ 4.0 프롬프트 (2단계 변환) 다운로드 <span class="prompt-date" data-prompt-date></span>
+                </button>
+                <button class="btn prompt-download" data-prompt-path="LLMprompt/4.0 수악중독 프롬프트.txt" data-prompt-name="4.0 수악중독 프롬프트 다운로드" onclick="downloadPromptFile(this)">
+                    ⬇️ 4.0 수악중독 프롬프트 다운로드 <span class="prompt-date" data-prompt-date></span>
+                </button>
             </div>
         </details>
 
@@ -228,40 +232,55 @@
         </details>
 
         <details class="sidebar-folder">
+            <summary>서식</summary>
+            <div class="sidebar-folder-body">
+                <div class="settings-panel">
+                    <div style="font-size:11px; font-weight:bold; margin-bottom:5px; border-bottom:1px solid #ddd; padding-bottom:3px;">🔤 기본 폰트</div>
+                    <div class="settings-row"><label>폰트</label>
+                        <select id="setting-font-family">
+                            <option value="serif">기본(명조)</option>
+                            <option value="gulim">굴림체</option>
+                            <option value="gothic">나눔고딕</option>
+                        </select>
+                    </div>
+                    <div class="settings-row"><label>크기(pt)</label><input type="number" id="setting-font-size" min="8" max="20" step="0.5"></div>
+                </div>
+
+                <div class="settings-panel">
+                    <div style="font-size:11px; font-weight:bold; margin-bottom:5px; border-bottom:1px solid #ddd; padding-bottom:3px;">⚙️ AI 입력 설정</div>
+                    <div class="settings-row"><label>단별 문제 수</label><input type="number" id="setting-limit" value="0"></div>
+                    <div class="settings-row"><label>자동 여백</label><input type="checkbox" id="setting-spacer"></div>
+                </div>
+
+                <div class="settings-panel">
+                    <div style="font-size:11px; font-weight:bold; margin-bottom:5px; border-bottom:1px solid #ddd; padding-bottom:3px;">📄 기본 단 구성</div>
+                    <div class="settings-row"><label>기본 단 구성</label>
+                        <select id="setting-columns">
+                            <option value="2">2단</option>
+                            <option value="1">1단</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="settings-panel" style="margin-bottom:0;">
+                    <div style="font-size:11px; font-weight:bold; margin-bottom:5px; border-bottom:1px solid #ddd; padding-bottom:3px;">🏷️ 라벨 폰트 (New)</div>
+                    <div class="settings-row"><label>폰트</label>
+                        <select id="setting-label-font-family">
+                            <option value="gothic">기본(고딕)</option>
+                            <option value="serif">명조체</option>
+                            <option value="gulim">굴림체</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </details>
+
+        <details class="sidebar-folder">
             <summary>삽입</summary>
             <div class="sidebar-folder-body">
                 <button class="btn btn-success" onclick="insertImageBoxSafe()">🖼️ 이미지 삽입 (Ctrl+Alt+I)</button>
                 <button class="btn" onclick="addBlockBelow('spacer')">↕ 여백 삽입 (Ctrl+Shift+Click)</button>
                 <button class="btn" onclick="addBlockBelow('break')">⚡ 단 나누기 삽입 (Ctrl+Alt+Click)</button>
-            </div>
-        </details>
-
-        <details class="sidebar-folder">
-            <summary>표</summary>
-            <div class="sidebar-folder-body">
-                <div class="sidebar-hint">표 태그: <code>[표_행x열]</code> : <code>(1x1_내용), (1x2_내용)</code></div>
-                <div class="sidebar-hint">선지 태그: <code>[선지_2행]</code> : <code>(1_내용), (2_내용), (3_내용), (4_내용), (5_내용)</code></div>
-            </div>
-        </details>
-
-        <details class="sidebar-folder">
-            <summary>태그 설명</summary>
-            <div class="sidebar-folder-body">
-                <div class="sidebar-hint">블록 헤더: <code>[[스타일_라벨]] : 내용</code></div>
-                <div class="sidebar-hint">스타일: <code>기본</code>, <code>박스</code>, <code>음영</code>, <code>개념</code> (콤마로 조합)</div>
-                <div class="sidebar-hint">라벨 없음: <code>[[기본_]]</code></div>
-                <div class="sidebar-hint">수식: <code>$...$</code></div>
-                <div class="sidebar-hint">빈칸: <code>[빈칸: 내용]</code> 또는 <code>[빈칸_내용]</code></div>
-                <div class="sidebar-hint">이미지: <code>[이미지: 설명]</code></div>
-                <div class="sidebar-hint">굵게: <code>[BOLD: 내용]</code>, <code>[굵게: 내용]</code>, <code>[볼드: 내용]</code></div>
-                <div class="sidebar-hint">밑줄: <code>[밑줄: 내용]</code></div>
-                <div class="sidebar-hint">블록박스: <code>[블록박스_라벨]</code> ... <code>[/블록박스]</code></div>
-                <div class="sidebar-hint">보기 박스: <code>[블록박스_보기]</code> ... <code>[/블록박스]</code></div>
-                <div class="sidebar-hint">블록박스(라벨 없음): <code>[블록박스_]</code> ... <code>[/블록박스]</code></div>
-                <div class="sidebar-hint">사각형 박스: <code>[블록사각형_내용]</code></div>
-                <div class="sidebar-hint">표: <code>[표_행x열]</code> : <code>(1x1_내용), (1x2_내용)</code></div>
-                <div class="sidebar-hint">선지: <code>[선지_1행/2행/5행]</code> : <code>(1_내용), ...</code></div>
-                <div class="sidebar-hint">쉼표/괄호 포함 내용은 <code>"내용"</code>으로 감싸고 <code>\"</code> 이스케이프</div>
             </div>
         </details>
 
@@ -272,45 +291,17 @@
                     <span style="font-size:12px;">확대/축소</span>
                     <input type="range" id="zoomRange" min="0.5" max="1.5" step="0.1" value="1.0" style="width: 100%;">
                 </div>
-                <div class="settings-panel" style="margin-bottom:0;">
+                <div class="settings-panel" style="margin-bottom:10px;">
                     <div style="font-size:11px; font-weight:bold; margin-bottom:5px; border-bottom:1px solid #ddd; padding-bottom:3px;">📄 레이아웃</div>
-                    <div class="settings-row"><label>기본 단 구성</label>
-                        <select id="setting-columns">
-                            <option value="2">2단</option>
-                            <option value="1">1단</option>
-                        </select>
-                    </div>
                     <div class="settings-row"><label>상/하 여백(mm)</label><input type="number" id="setting-margin-top" min="5" max="30" step="1"></div>
                     <div class="settings-row"><label>좌/우 여백(mm)</label><input type="number" id="setting-margin-side" min="5" max="30" step="1"></div>
                     <div class="settings-row"><label>단 간격(mm)</label><input type="number" id="setting-column-gap" min="0" max="20" step="1"></div>
                     <div class="settings-row"><label>푸터 텍스트</label><input type="text" id="setting-footer-text"></div>
                 </div>
-            </div>
-        </details>
-
-        <details class="sidebar-folder">
-            <summary>출력</summary>
-            <div class="sidebar-folder-body">
                 <button id="toggle-rendering-btn" class="btn" onclick="toggleRenderingMode()" style="margin-bottom:6px;">🔓 렌더링 해제 (편집 모드)</button>
-                <button class="btn btn-purple" onclick="renderAllSafe()" style="margin-bottom:8px; padding: 12px;">
+                <button class="btn btn-purple" onclick="renderAllSafe()" style="margin-bottom:0; padding: 12px;">
                     ⚡ 수식 변환 (Render)<br>
                     <span style="font-size:10px; opacity:0.8;">Click: $..$ → SVG / DblClick: Edit</span>
-                </button>
-                <button class="btn btn-danger" onclick="printWithMath()">🖨️ 인쇄하기</button>
-            </div>
-        </details>
-
-        <details class="sidebar-folder">
-            <summary>프롬프트</summary>
-            <div class="sidebar-folder-body">
-                <button class="btn prompt-download" data-prompt-path="LLMprompt/4.0 프롬프트 - 1단계 추출.txt" data-prompt-name="4.0 프롬프트 (1단계 추출) 다운로드" onclick="downloadPromptFile(this)">
-                    ⬇️ 4.0 프롬프트 (1단계 추출) 다운로드 <span class="prompt-date" data-prompt-date></span>
-                </button>
-                <button class="btn prompt-download" data-prompt-path="LLMprompt/4.0 프롬프트.txt" data-prompt-name="4.0 프롬프트 (2단계 변환) 다운로드" onclick="downloadPromptFile(this)">
-                    ⬇️ 4.0 프롬프트 (2단계 변환) 다운로드 <span class="prompt-date" data-prompt-date></span>
-                </button>
-                <button class="btn prompt-download" data-prompt-path="LLMprompt/4.0 수악중독 프롬프트.txt" data-prompt-name="4.0 수악중독 프롬프트 다운로드" onclick="downloadPromptFile(this)">
-                    ⬇️ 4.0 수악중독 프롬프트 다운로드 <span class="prompt-date" data-prompt-date></span>
                 </button>
             </div>
         </details>
@@ -336,6 +327,27 @@
                         <div class="shortcut-item"><span>찾기/바꾸기</span><span class="shortcut-key">Ctrl+Shift+F</span></div>
                     </div>
                 </div>
+            </div>
+        </details>
+
+        <details class="sidebar-folder">
+            <summary>태그 설명</summary>
+            <div class="sidebar-folder-body">
+                <div class="sidebar-hint">블록 헤더: <code>[[스타일_라벨]] : 내용</code></div>
+                <div class="sidebar-hint">스타일: <code>기본</code>, <code>박스</code>, <code>음영</code>, <code>개념</code> (콤마로 조합)</div>
+                <div class="sidebar-hint">라벨 없음: <code>[[기본_]]</code></div>
+                <div class="sidebar-hint">수식: <code>$...$</code></div>
+                <div class="sidebar-hint">빈칸: <code>[빈칸: 내용]</code> 또는 <code>[빈칸_내용]</code></div>
+                <div class="sidebar-hint">이미지: <code>[이미지: 설명]</code></div>
+                <div class="sidebar-hint">굵게: <code>[BOLD: 내용]</code>, <code>[굵게: 내용]</code>, <code>[볼드: 내용]</code></div>
+                <div class="sidebar-hint">밑줄: <code>[밑줄: 내용]</code></div>
+                <div class="sidebar-hint">블록박스: <code>[블록박스_라벨]</code> ... <code>[/블록박스]</code></div>
+                <div class="sidebar-hint">보기 박스: <code>[블록박스_보기]</code> ... <code>[/블록박스]</code></div>
+                <div class="sidebar-hint">블록박스(라벨 없음): <code>[블록박스_]</code> ... <code>[/블록박스]</code></div>
+                <div class="sidebar-hint">사각형 박스: <code>[블록사각형_내용]</code></div>
+                <div class="sidebar-hint">표: <code>[표_행x열]</code> : <code>(1x1_내용), (1x2_내용)</code></div>
+                <div class="sidebar-hint">선지: <code>[선지_1행/2행/5행]</code> : <code>(1_내용), ...</code></div>
+                <div class="sidebar-hint">쉼표/괄호 포함 내용은 <code>"내용"</code>으로 감싸고 <code>\"</code> 이스케이프</div>
             </div>
         </details>
     </div>

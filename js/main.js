@@ -43,7 +43,8 @@ window.loadProjectJSONFromInput = (input) => {
     r.readAsText(file);
 };
 window.confirmImport = (overwrite) => {
-    if(Actions.confirmImport(document.getElementById('import-textarea').value.trim(), overwrite, parseInt(document.getElementById('setting-limit').value)||0, document.getElementById('setting-spacer').checked)) {
+    const normalizeLlm = document.getElementById('setting-normalize-llm');
+    if(Actions.confirmImport(document.getElementById('import-textarea').value.trim(), overwrite, parseInt(document.getElementById('setting-limit').value)||0, document.getElementById('setting-spacer').checked, normalizeLlm ? normalizeLlm.checked : false)) {
         Renderer.renderPages(); ManualRenderer.renderAll();
     }
 };
@@ -279,8 +280,10 @@ window.addEventListener('DOMContentLoaded', () => {
 
     const fontFamilySel = document.getElementById('setting-font-family');
     const fontSizeInp = document.getElementById('setting-font-size');
+    const labelFontFamilySel = document.getElementById('setting-label-font-family');
     if (fontFamilySel) fontFamilySel.value = meta.fontFamily || 'serif';
     if (fontSizeInp) fontSizeInp.value = meta.fontSizePt || 10.5;
+    if (labelFontFamilySel) labelFontFamilySel.value = meta.labelFontFamily || 'gothic';
     if (fontFamilySel) fontFamilySel.addEventListener('change', async (e) => {
         State.docData.meta.fontFamily = e.target.value;
         Renderer.renderPages();
@@ -289,6 +292,12 @@ window.addEventListener('DOMContentLoaded', () => {
     });
     if (fontSizeInp) fontSizeInp.addEventListener('change', async (e) => {
         State.docData.meta.fontSizePt = parseFloat(e.target.value) || 10.5;
+        Renderer.renderPages();
+        await ManualRenderer.renderAll();
+        State.saveHistory();
+    });
+    if (labelFontFamilySel) labelFontFamilySel.addEventListener('change', async (e) => {
+        State.docData.meta.labelFontFamily = e.target.value;
         Renderer.renderPages();
         await ManualRenderer.renderAll();
         State.saveHistory();

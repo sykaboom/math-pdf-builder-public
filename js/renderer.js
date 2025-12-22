@@ -66,6 +66,13 @@ export const Renderer = {
     renderPages() {
         const workspace = document.getElementById('workspace');
         const scrollTop = workspace ? workspace.scrollTop : 0;
+        const labelFamilyMap = {
+            serif: "'Noto Serif KR', serif",
+            gothic: "'Nanum Gothic', 'Noto Sans KR', sans-serif",
+            gulim: "Gulim, 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif"
+        };
+        const labelKey = State.docData.meta.labelFontFamily || 'gothic';
+        document.documentElement.style.setProperty('--label-font-family', labelFamilyMap[labelKey] || labelFamilyMap.gothic);
 
         let preserveScrollAfterFocus = false;
         if (!State.lastFocusId) {

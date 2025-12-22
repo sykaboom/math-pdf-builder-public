@@ -3,7 +3,7 @@ import { Utils } from './utils.js';
 
 export const State = {
     docData: {
-        meta: { title: "시험지 제목", subtitle: "단원명", footerText: "학원명", zoom: 1.0, columns: 2, marginTopMm: 15, marginSideMm: 10, columnGapMm: 5, fontFamily: 'serif', fontSizePt: 10.5, pageLayouts: {} },
+        meta: { title: "시험지 제목", subtitle: "단원명", footerText: "학원명", zoom: 1.0, columns: 2, marginTopMm: 15, marginSideMm: 10, columnGapMm: 5, fontFamily: 'serif', fontSizePt: 10.5, labelFontFamily: 'gothic', pageLayouts: {} },
         blocks: [ { id: 'b0', type: 'concept', content: '<span class="q-label">안내</span> 내용 입력...' } ]
     },
     historyStack: [],
@@ -113,6 +113,7 @@ export const State = {
                 columnGapMm: 5,
                 fontFamily: 'serif',
                 fontSizePt: 10.5,
+                labelFontFamily: 'gothic',
                 pageLayouts: {}
             }, parsed.meta || {});
             return true;

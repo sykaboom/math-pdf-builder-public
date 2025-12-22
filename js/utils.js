@@ -135,6 +135,29 @@ export const Utils = {
         });
     },
 
+    normalizeLlmOutput(rawInput = '') {
+        let text = String(rawInput || '').trim();
+        const fenced = text.match(/^```[^\n]*\n([\s\S]*?)\n```$/);
+        if (fenced) text = fenced[1].trim();
+        text = text.replace(/^\s*```[^\n]*\n?/gm, '').replace(/\n?\s*```[\s]*$/gm, '');
+        text = text.replace(/\*\*([^*]+?)\*\*/g, '$1').replace(/\*\*/g, '');
+        text = text.replace(/\$\$/g, '$');
+        text = text.replace(/\\frac/g, '\\dfrac');
+        text = text.replace(/\[선지_([^\]]+)\]\s*:?\s*/g, (match, layout) => {
+            const normalized = String(layout || '').trim();
+            if (normalized === '1행' || normalized === '2행' || normalized === '5행') return match;
+            return '';
+        });
+        text = text.replace(/\[블록박스_개념\]\s*([\s\S]*?)\s*\[\/블록박스\]/g, (match, body) => {
+            const cleaned = String(body || '').trim();
+            return `[[박스_개념]] :\n${cleaned}`;
+        });
+        text = text.replace(/\[\/?블록박스_개념\]/g, '');
+        let conceptIndex = 1;
+        text = text.replace(/\[\[(박스_개념(?:\s*\d+)?|개념_[^\]]+)\]\]/g, () => `[[박스_개념 ${conceptIndex++}]]`);
+        return text.trim();
+    },
+
     getImagePlaceholderHTML(labelText = '') {
         const label = (labelText || '').trim();
         const safeLabel = label
