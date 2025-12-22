@@ -144,7 +144,7 @@ body.drag-over #drop-overlay { display: flex; }
 .editable-box img { max-width: 100%; cursor: pointer; } 
 .editable-box img[src=""]::before { content: '❌ 이미지 없음'; color: red; border: 1px dashed red; padding: 10px; display: block; }
 .concept-box { border: 1px solid #333; border-radius: 6px; background: #fff; padding: 8px 10px; margin-bottom: 5px; width: 100%; }
-.q-label { color: #1a6fc0; font-weight: var(--label-font-weight, 800); text-decoration: var(--label-text-decoration, none); font-family: var(--label-font-family, 'Noto Sans KR', sans-serif); margin-right: 5px; }
+.q-label { color: #1a6fc0; font-weight: var(--label-font-weight, 800); text-decoration: var(--label-text-decoration, none); font-family: var(--label-font-family, 'Noto Sans KR', sans-serif); font-size: var(--label-font-size, inherit); margin-right: 5px; }
 
 .custom-box { width: 100%; margin: 15px 0; background: #fff; border: 2px solid #28a745; padding: 15px; position: relative; border-radius: 4px; }
 .custom-box.labeled-box { }
@@ -154,8 +154,8 @@ body.drag-over #drop-overlay { display: flex; }
 .box-label::after { content: "\275A"; display: inline-block; margin: 0 6px; }
 .box-content { line-height: 1.6; text-align: left; }
 
-.rect-box { display: inline-block; max-width: 100%; border: 1.5px solid #000; padding: 6px 10px; margin: 6px 0; border-radius: 2px; background: #fff; box-sizing: border-box; }
-.rect-box-content { line-height: 1.5; text-align: left; }
+.rect-box { width: 100%; margin: 15px 0; background: #fff; border: 2px solid #000; padding: 15px; position: relative; border-radius: 4px; box-sizing: border-box; }
+.rect-box-content { line-height: 1.6; text-align: left; }
 
 .spacer-block { width: 100%; background: repeating-linear-gradient(45deg, #f9f9f9, #f9f9f9 10px, #fff 10px, #fff 20px); border: 1px dashed #ddd; cursor: ns-resize; display: flex; align-items: center; justify-content: center; margin: 5px 0; }
 .break-line { height: 24px; border-bottom: 2px dotted #ff4444; margin: 5px 0 15px 0; text-align: center; color: #ff4444; font-size: 11px; cursor: pointer; background: rgba(255, 200, 200, 0.1); }

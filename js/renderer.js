@@ -74,9 +74,11 @@ export const Renderer = {
         const labelKey = State.docData.meta.labelFontFamily || 'gothic';
         const labelBold = State.docData.meta.labelBold !== false;
         const labelUnderline = State.docData.meta.labelUnderline === true;
+        const labelSize = State.docData.meta.labelFontSizePt;
         document.documentElement.style.setProperty('--label-font-family', labelFamilyMap[labelKey] || labelFamilyMap.gothic);
         document.documentElement.style.setProperty('--label-font-weight', labelBold ? '800' : '400');
         document.documentElement.style.setProperty('--label-text-decoration', labelUnderline ? 'underline' : 'none');
+        document.documentElement.style.setProperty('--label-font-size', Number.isFinite(labelSize) ? `${labelSize}pt` : 'inherit');
 
         let preserveScrollAfterFocus = false;
         if (!State.lastFocusId) {

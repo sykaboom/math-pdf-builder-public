@@ -227,7 +227,6 @@
                     <button class="btn" style="width:48%" onclick="performRedo()" title="다시 실행">↷ Redo<br><span style="font-size:9px;">(Ctrl+Shift+Z)</span></button>
                 </div>
                 <button class="btn" onclick="openModal('find-replace-modal'); document.getElementById('fr-find-input').focus()">🔍 찾기/바꾸기 (Ctrl+Shift+F)</button>
-                <div class="sidebar-hint">서식 태그: <code>[BOLD: 내용]</code>, <code>[굵게: 내용]</code>, <code>[밑줄: 내용]</code></div>
             </div>
         </details>
 
@@ -271,6 +270,7 @@
                             <option value="gulim">굴림체</option>
                         </select>
                     </div>
+                    <div class="settings-row"><label>크기(pt)</label><input type="number" id="setting-label-font-size" min="8" max="20" step="0.5" placeholder="기본"></div>
                     <div class="settings-row">
                         <label>굵게</label>
                         <input type="checkbox" id="setting-label-bold">
@@ -347,12 +347,11 @@
                 <div class="sidebar-hint">수식: <code>$...$</code></div>
                 <div class="sidebar-hint">빈칸: <code>[빈칸: 내용]</code> 또는 <code>[빈칸_내용]</code></div>
                 <div class="sidebar-hint">이미지: <code>[이미지: 설명]</code></div>
-                <div class="sidebar-hint">굵게: <code>[BOLD: 내용]</code>, <code>[굵게: 내용]</code>, <code>[볼드: 내용]</code></div>
-                <div class="sidebar-hint">밑줄: <code>[밑줄: 내용]</code></div>
+                <div class="sidebar-hint">서식 태그: <code>[BOLD: 내용]</code>, <code>[굵게: 내용]</code>, <code>[볼드: 내용]</code>, <code>[밑줄: 내용]</code></div>
                 <div class="sidebar-hint">블록박스: <code>[블록박스_라벨]</code> ... <code>[/블록박스]</code></div>
                 <div class="sidebar-hint">보기 박스: <code>[블록박스_보기]</code> ... <code>[/블록박스]</code></div>
                 <div class="sidebar-hint">블록박스(라벨 없음): <code>[블록박스_]</code> ... <code>[/블록박스]</code></div>
-                <div class="sidebar-hint">사각형 박스: <code>[블록사각형_내용]</code></div>
+                <div class="sidebar-hint">사각형 박스: <code>[블록사각형]</code> ... <code>[/블록사각형]</code></div>
                 <div class="sidebar-hint">표: <code>[표_행x열]</code> : <code>(1x1_내용), (1x2_내용)</code></div>
                 <div class="sidebar-hint">선지: <code>[선지_1행/2행/5행]</code> : <code>(1_내용), ...</code></div>
                 <div class="sidebar-hint">쉼표/괄호 포함 내용은 <code>"내용"</code>으로 감싸고 <code>\"</code> 이스케이프</div>

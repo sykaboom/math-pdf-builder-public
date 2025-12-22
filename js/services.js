@@ -164,6 +164,12 @@ export const ManualRenderer = {
             }
             return `<div class="custom-box simple-box" contenteditable="false"><div class="box-content">${body}</div></div>`;
         };
+        const renderRectBox = (bodyHtml) => {
+            let body = (bodyHtml || '').trim();
+            body = body.replace(/^(<br\s*\/?>)+/gi, '').replace(/(<br\s*\/?>)+$/gi, '');
+            body = body.replace(/\n/g, '<br>');
+            return `<div class="rect-box" contenteditable="false"><div class="rect-box-content">${body}</div></div>`;
+        };
 
         const multilineBoxRegex = /\[블록박스_([^\]]*)\]\s*(?::)?\s*([\s\S]*?)\[\/블록박스\]/g;
         element.innerHTML = element.innerHTML.replace(multilineBoxRegex, (m, label, body) => {
@@ -175,6 +181,11 @@ export const ManualRenderer = {
             const trimmedBody = (body || '').replace(/^\s+/, '');
             if (!trimmedBody.trim()) return m; // 종료 토큰 누락 등은 원문 유지
             return renderBox((label || '').trim(), trimmedBody);
+        });
+
+        const multilineRectBoxRegex = /\[블록사각형\]\s*([\s\S]*?)\[\/블록사각형\]/g;
+        element.innerHTML = element.innerHTML.replace(multilineRectBoxRegex, (m, body) => {
+            return renderRectBox(body);
         });
 
         // [Fix] 블록박스를 원자적 개체로 유지하고, 뒤로 커서가 이동할 수 있도록 줄바꿈 보장
@@ -593,15 +604,51 @@ export const ImportParser = {
                 }
                 return outLines.join('\n');
             };
+            const convertRectBoxes = (input) => {
+                const lines = input.split('\n');
+                const outLines = [];
+                for (let i = 0; i < lines.length; ) {
+                    const line = lines[i];
+                    const m = line.match(/^\s*\[블록사각형\]\s*(?::)?\s*(.*)$/);
+                    if (!m) { outLines.push(line); i++; continue; }
+
+                    const rest = (m[1] || '').trim();
+                    if (rest) {
+                        outLines.push(renderRectBox(rest));
+                        i++; continue;
+                    }
+
+                    const bodyLines = [];
+                    let j = i + 1; let foundEnd = false;
+                    for (; j < lines.length; j++) {
+                        const endPos = lines[j].indexOf('[/블록사각형]');
+                        if (endPos !== -1) {
+                            foundEnd = true;
+                            const before = lines[j].slice(0, endPos);
+                            if (before.trim() !== '') bodyLines.push(before);
+                            outLines.push(renderRectBox(bodyLines.join('\n')));
+                            const after = lines[j].slice(endPos + '[/블록사각형]'.length);
+                            if (after.trim() !== '') outLines.push(after.trim());
+                            break;
+                        }
+                        bodyLines.push(lines[j]);
+                    }
+                    if (foundEnd) i = j + 1;
+                    else { outLines.push(line); outLines.push(...bodyLines); i = j; }
+                }
+                return outLines.join('\n');
+            };
 
             const convertLegacyBlockBoxes = (input) => {
                 return input.replace(/\[블록박스_(.*?)\]\s*(?::)?\s*([^\n]*?)\s*\]/g, (m, label, body) => {
                     return renderBox((label || '').trim(), body);
                 });
             };
+            const convertLegacyRectBoxes = (input) => {
+                return input.replace(/\[블록사각형_([^\]]*?)\]/g, (m, body) => renderRectBox(body));
+            };
 
-            content = convertLegacyBlockBoxes(convertBlockBoxes(content));
-            content = content.replace(/\[블록사각형_([^\]]*?)\]/g, (m, body) => renderRectBox(body));
+            content = convertLegacyRectBoxes(convertRectBoxes(convertLegacyBlockBoxes(convertBlockBoxes(content))));
             content = content.replace(/\[표_(\d+)x(\d+)\](?:\s*:\s*((?:\(\d+x\d+_(?:"(?:\\.|[^"])*"|&quot;[\s\S]*?&quot;|[^)]*)\)\s*,?\s*)+))?/g, (m, rows, cols, data) => {
                 const cellData = data ? parseTableCellData(data) : null;
                 const tableEl = buildEditorTableElement(rows, cols, cellData, { allowHtml: true });

@@ -394,9 +394,21 @@ export const Events = {
                     const cleaned = Utils.cleanRichContentToTex(contentEl.innerHTML);
                     const tmp = document.createElement('div');
                     tmp.innerHTML = cleaned;
-                    bodyText = (tmp.innerText || '').replace(/\u00A0/g, ' ').replace(/\s*\n\s*/g, ' ').trim();
+                    bodyText = (tmp.innerText || '').replace(/\u00A0/g, ' ').trim();
                 }
-                rectBox.replaceWith(document.createTextNode(`[블록사각형_${bodyText}]`));
+                const frag = document.createDocumentFragment();
+                frag.appendChild(document.createTextNode('[블록사각형]'));
+                frag.appendChild(document.createElement('br'));
+                if (bodyText) {
+                    const lines = bodyText.split(/\n/);
+                    lines.forEach((ln, idx) => {
+                        frag.appendChild(document.createTextNode(ln));
+                        if (idx < lines.length - 1) frag.appendChild(document.createElement('br'));
+                    });
+                }
+                frag.appendChild(document.createElement('br'));
+                frag.appendChild(document.createTextNode('[/블록사각형]'));
+                rectBox.replaceWith(frag);
                 if (id) Renderer.syncBlock(id);
                 return;
             }
