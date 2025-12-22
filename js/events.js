@@ -295,6 +295,13 @@ export const Events = {
 
     initGlobalListeners() {
         const body = document.body;
+        const isTypingTarget = () => {
+            const el = document.activeElement;
+            if (!el) return false;
+            if (el.isContentEditable) return true;
+            const tag = el.tagName;
+            return tag === 'INPUT' || tag === 'TEXTAREA';
+        };
 
         const isFileDrag = (e) => {
             const dt = e.dataTransfer;
@@ -354,6 +361,32 @@ export const Events = {
             }
             const key = e.key.toLowerCase();
             State.keysPressed[key] = true; 
+            if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && key === 'i') {
+                e.preventDefault();
+                Utils.openModal('import-modal');
+                const ta = document.getElementById('import-textarea');
+                if (ta) ta.focus();
+                return;
+            }
+            if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && key === 'n') {
+                e.preventDefault();
+                if (typeof window.resetProject === 'function') window.resetProject();
+                return;
+            }
+            if ((e.ctrlKey || e.metaKey) && key === 'o') {
+                e.preventDefault();
+                const fileInput = document.getElementById('fileInput');
+                if (fileInput) fileInput.click();
+                return;
+            }
+            if (!isTypingTarget() && key === 'delete') {
+                if (State.contextTargetId && Actions.deleteBlockById(State.contextTargetId)) {
+                    e.preventDefault();
+                    Renderer.renderPages();
+                    ManualRenderer.renderAll();
+                }
+                return;
+            }
             if ((e.ctrlKey || e.metaKey) && e.shiftKey && key === 'f') { e.preventDefault(); Utils.openModal('find-replace-modal'); document.getElementById('fr-find-input').focus(); return; } 
             if ((e.ctrlKey || e.metaKey) && key === 's') { e.preventDefault(); FileSystem.saveProjectJSON(() => Renderer.syncAllBlocks()); return; } 
             if ((e.ctrlKey || e.metaKey) && e.shiftKey && key === 'z') { e.preventDefault(); if(State.redo()) { Renderer.renderPages(); ManualRenderer.renderAll(); } return; } 
