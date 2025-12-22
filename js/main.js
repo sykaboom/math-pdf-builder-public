@@ -137,7 +137,9 @@ window.downloadPromptFile = async (target) => {
     const promptDate = (btn && btn.dataset ? btn.dataset.promptDate : '') || '';
     const fallbackName = path.split('/').pop() || 'prompt.txt';
     const baseName = promptName || fallbackName.replace(/\.txt$/i, '');
-    const filename = promptDate ? `${baseName} (${promptDate}).txt` : `${baseName}.txt`;
+    const cleanedBaseName = baseName.replace(/\s*다운로드\s*/g, ' ').replace(/\s+/g, ' ').trim();
+    const safeBaseName = cleanedBaseName || baseName;
+    const filename = promptDate ? `${safeBaseName} (${promptDate}).txt` : `${safeBaseName}.txt`;
     const triggerDownload = (url, useNewTab = false) => {
         const link = document.createElement('a');
         link.href = url;
