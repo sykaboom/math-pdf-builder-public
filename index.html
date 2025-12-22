@@ -185,6 +185,8 @@
     </div>
 
     <div class="sidebar-tree">
+        <button class="btn btn-danger" onclick="printWithMath()" style="margin-bottom:8px;">🖨️ 인쇄하기</button>
+
         <details class="sidebar-folder">
             <summary>파일</summary>
             <div class="sidebar-folder-body">
@@ -192,7 +194,6 @@
                 <button class="btn btn-warning" onclick="resetProject()">🗑️ 새로 만들기 (Alt+N)</button>
                 <button class="btn btn-primary" onclick="saveProjectJSON()">💾 저장 (Ctrl+S)</button>
                 <button class="btn" onclick="document.getElementById('fileInput').click()">📂 열기 (Ctrl+O)</button>
-                <button class="btn btn-danger" onclick="printWithMath()">🖨️ 인쇄하기</button>
                 <input type="file" id="fileInput" accept=".json" style="display:none" onchange="loadProjectJSONFromInput(this)">
 
                 <div class="settings-panel" style="background:#e8f5e9; border:1px solid #c8e6c9; margin-top:10px;">

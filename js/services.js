@@ -204,7 +204,6 @@ export const ManualRenderer = {
                 while (next && next.nodeType === Node.TEXT_NODE && next.textContent.trim() === '') next = next.nextSibling;
                 toRemove.remove();
             }
-            boxEl.after(document.createElement('br'));
         });
 
         const escapeForMathTex = (value = '') => {

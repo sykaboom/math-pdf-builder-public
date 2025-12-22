@@ -12,7 +12,6 @@ import {
     setColumnWidthRaw,
     freezeTableColWidths,
     freezeTableRowHeights,
-    applyColumnWidth,
     applyRowHeight,
     getColWidth,
     getRowHeight,
@@ -595,9 +594,20 @@ export const createTableEditor = () => {
                     const neighborWidth = total - nextWidth;
                     setColumnWidthRaw(tableResizeState.table, tableResizeState.index, nextWidth);
                     setColumnWidthRaw(tableResizeState.table, tableResizeState.neighborIndex, neighborWidth);
-                    syncTableWidthFromCols(tableResizeState.table);
+                    if (Number.isFinite(tableResizeState.tableWidth)) {
+                        tableResizeState.table.style.width = tableResizeState.tableWidth + 'px';
+                        tableResizeState.table.style.tableLayout = 'fixed';
+                    } else {
+                        syncTableWidthFromCols(tableResizeState.table);
+                    }
                 } else {
-                    applyColumnWidth(tableResizeState.table, tableResizeState.index, tableResizeState.startWidth + delta);
+                    setColumnWidthRaw(tableResizeState.table, tableResizeState.index, tableResizeState.startWidth + delta);
+                    if (Number.isFinite(tableResizeState.tableWidth)) {
+                        tableResizeState.table.style.width = tableResizeState.tableWidth + 'px';
+                        tableResizeState.table.style.tableLayout = 'fixed';
+                    } else {
+                        syncTableWidthFromCols(tableResizeState.table);
+                    }
                 }
                 document.body.style.cursor = 'col-resize';
             } else if (tableResizeState.type === 'row') {
@@ -613,7 +623,11 @@ export const createTableEditor = () => {
                 } else {
                     applyRowHeight(tableResizeState.row, tableResizeState.startHeight + delta);
                 }
-                syncTableHeightFromRows(tableResizeState.table);
+                if (Number.isFinite(tableResizeState.tableHeight)) {
+                    tableResizeState.table.style.height = tableResizeState.tableHeight + 'px';
+                } else {
+                    syncTableHeightFromRows(tableResizeState.table);
+                }
                 document.body.style.cursor = 'row-resize';
             } else if (tableResizeState.type === 'table') {
                 const deltaX = (e.clientX - tableResizeState.startX) / zoom;
@@ -745,11 +759,12 @@ export const createTableEditor = () => {
         e.stopPropagation();
         document.body.style.userSelect = 'none';
         if (hit.type === 'col') {
-            freezeTableColWidths(tableForCell);
+            freezeTableColWidths(tableForCell, { preserveWidth: true });
             const startWidth = getColWidth(tableForCell, hit.index);
             const neighborIndex = hit.index + 1;
             const hasNeighbor = !!(ensureColgroup(tableForCell)?.children[neighborIndex]);
             const startNeighborWidth = hasNeighbor ? getColWidth(tableForCell, neighborIndex) : null;
+            const tableRect = tableForCell.getBoundingClientRect();
             tableResizeState = {
                 type: 'col',
                 table: tableForCell,
@@ -758,14 +773,16 @@ export const createTableEditor = () => {
                 startWidth,
                 neighborIndex: hasNeighbor ? neighborIndex : null,
                 startNeighborWidth,
-                totalWidth: hasNeighbor ? (startWidth + startNeighborWidth) : null
+                totalWidth: hasNeighbor ? (startWidth + startNeighborWidth) : null,
+                tableWidth: tableRect.width
             };
         } else {
-            freezeTableRowHeights(tableForCell);
+            freezeTableRowHeights(tableForCell, { preserveHeight: true });
             const row = cell.parentElement;
             const startHeight = getRowHeight(tableForCell, hit.index);
             const neighborRow = tableForCell.rows[hit.index + 1] || null;
             const startNeighborHeight = neighborRow ? getRowHeight(tableForCell, hit.index + 1) : null;
+            const tableRect = tableForCell.getBoundingClientRect();
             tableResizeState = {
                 type: 'row',
                 table: tableForCell,
@@ -775,7 +792,8 @@ export const createTableEditor = () => {
                 startHeight,
                 neighborRow,
                 startNeighborHeight,
-                totalHeight: neighborRow ? (startHeight + startNeighborHeight) : null
+                totalHeight: neighborRow ? (startHeight + startNeighborHeight) : null,
+                tableHeight: tableRect.height
             };
         }
     };

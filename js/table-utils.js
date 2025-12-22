@@ -47,29 +47,69 @@ export const setColumnWidthRaw = (table, index, width) => {
     colgroup.children[index].style.width = Math.max(TABLE_MIN_WIDTH, width) + 'px';
 };
 
-export const freezeTableColWidths = (table) => {
+export const freezeTableColWidths = (table, options = {}) => {
     const colgroup = ensureColgroup(table);
     if (!colgroup) return;
+    const preserveWidth = options.preserveWidth !== false;
     const firstRow = table.rows[0];
     const cells = firstRow ? Array.from(firstRow.cells) : [];
-    Array.from(colgroup.children).forEach((col, idx) => {
+    const tableWidth = table.getBoundingClientRect().width;
+    let widths = Array.from(colgroup.children).map((col, idx) => {
+        const preset = parseFloat(col.style.width);
+        if (Number.isFinite(preset) && preset > 0) return Math.max(TABLE_MIN_WIDTH, preset);
         const cell = cells[idx];
-        if (!cell) return;
-        const width = Math.max(TABLE_MIN_WIDTH, cell.getBoundingClientRect().width);
+        const width = cell ? cell.getBoundingClientRect().width : TABLE_MIN_WIDTH;
+        return Math.max(TABLE_MIN_WIDTH, width);
+    });
+    const total = widths.reduce((sum, value) => sum + value, 0);
+    if (preserveWidth && total > 0 && tableWidth > 0) {
+        const diff = tableWidth - total;
+        if (widths.length) {
+            const lastIdx = widths.length - 1;
+            widths[lastIdx] = Math.max(TABLE_MIN_WIDTH, widths[lastIdx] + diff);
+        }
+    }
+    Array.from(colgroup.children).forEach((col, idx) => {
+        const width = widths[idx] || TABLE_MIN_WIDTH;
         col.style.width = width + 'px';
     });
-    syncTableWidthFromCols(table);
+    if (preserveWidth && tableWidth > 0) {
+        table.style.width = tableWidth + 'px';
+        table.style.tableLayout = 'fixed';
+    } else {
+        syncTableWidthFromCols(table);
+    }
 };
 
-export const freezeTableRowHeights = (table) => {
-    Array.from(table.rows).forEach(row => {
-        const height = Math.max(TABLE_MIN_HEIGHT, row.getBoundingClientRect().height);
+export const freezeTableRowHeights = (table, options = {}) => {
+    const preserveHeight = options.preserveHeight !== false;
+    const rows = Array.from(table.rows);
+    const tableHeight = table.getBoundingClientRect().height;
+    let heights = rows.map(row => {
+        const preset = parseFloat(row.style.height);
+        if (Number.isFinite(preset) && preset > 0) return Math.max(TABLE_MIN_HEIGHT, preset);
+        return Math.max(TABLE_MIN_HEIGHT, row.getBoundingClientRect().height);
+    });
+    const total = heights.reduce((sum, value) => sum + value, 0);
+    if (preserveHeight && total > 0 && tableHeight > 0) {
+        const diff = tableHeight - total;
+        if (heights.length) {
+            const lastIdx = heights.length - 1;
+            heights[lastIdx] = Math.max(TABLE_MIN_HEIGHT, heights[lastIdx] + diff);
+        }
+    }
+    rows.forEach((row, idx) => {
+        const height = heights[idx] || TABLE_MIN_HEIGHT;
         row.style.height = height + 'px';
         row.querySelectorAll('td').forEach(td => {
             td.style.height = height + 'px';
         });
     });
-    syncTableHeightFromRows(table);
+    if (preserveHeight && tableHeight > 0) {
+        table.style.height = tableHeight + 'px';
+    } else {
+        syncTableHeightFromRows(table);
+    }
 };
 
 export const applyColumnWidth = (table, index, width) => {
