@@ -105,35 +105,31 @@ export const Events = {
         if (sel.rangeCount && !sel.isCollapsed) sel.collapseToEnd();
 
         if (!sel.rangeCount) return false;
+        const range = sel.getRangeAt(0);
+        if (!range.collapsed) range.deleteContents();
 
-        const caretRange = sel.getRangeAt(0).cloneRange();
-        caretRange.collapse(true);
-        let lastBr = null;
-        box.querySelectorAll('br').forEach(br => {
-            const brRange = document.createRange();
-            brRange.setStartBefore(br);
-            brRange.setEndAfter(br);
-            if (brRange.compareBoundaryPoints(Range.END_TO_START, caretRange) <= 0) lastBr = br;
-        });
+        const br = document.createElement('br');
+        const atomAfter = Utils.getAtomAfterCaret(box);
+        if (atomAfter && atomAfter.parentNode) atomAfter.parentNode.insertBefore(br, atomAfter);
+        else range.insertNode(br);
 
         const beforeRange = document.createRange();
-        beforeRange.setStart(box, 0);
-        if (lastBr) beforeRange.setEndBefore(lastBr);
-        else beforeRange.setEnd(box, 0);
+        beforeRange.selectNodeContents(box);
+        beforeRange.setEndBefore(br);
 
         const afterRange = document.createRange();
         afterRange.selectNodeContents(box);
-        if (lastBr) afterRange.setStartAfter(lastBr);
-        else afterRange.setStart(box, 0);
+        afterRange.setStartAfter(br);
 
-        const rangeToHtml = (range) => {
+        const rangeToHtml = (r) => {
             const tmp = document.createElement('div');
-            tmp.appendChild(range.cloneContents());
+            tmp.appendChild(r.cloneContents());
             return tmp.innerHTML;
         };
 
         let beforeHtml = rangeToHtml(beforeRange);
         let afterHtml = rangeToHtml(afterRange);
+        br.remove();
 
         const labelEl = box.querySelector('.q-label');
         const labelHtml = labelEl ? labelEl.outerHTML : '';
