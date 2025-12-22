@@ -281,9 +281,13 @@ window.addEventListener('DOMContentLoaded', () => {
     const fontFamilySel = document.getElementById('setting-font-family');
     const fontSizeInp = document.getElementById('setting-font-size');
     const labelFontFamilySel = document.getElementById('setting-label-font-family');
+    const labelBoldChk = document.getElementById('setting-label-bold');
+    const labelUnderlineChk = document.getElementById('setting-label-underline');
     if (fontFamilySel) fontFamilySel.value = meta.fontFamily || 'serif';
     if (fontSizeInp) fontSizeInp.value = meta.fontSizePt || 10.5;
     if (labelFontFamilySel) labelFontFamilySel.value = meta.labelFontFamily || 'gothic';
+    if (labelBoldChk) labelBoldChk.checked = meta.labelBold !== false;
+    if (labelUnderlineChk) labelUnderlineChk.checked = meta.labelUnderline === true;
     if (fontFamilySel) fontFamilySel.addEventListener('change', async (e) => {
         State.docData.meta.fontFamily = e.target.value;
         Renderer.renderPages();
@@ -298,6 +302,18 @@ window.addEventListener('DOMContentLoaded', () => {
     });
     if (labelFontFamilySel) labelFontFamilySel.addEventListener('change', async (e) => {
         State.docData.meta.labelFontFamily = e.target.value;
+        Renderer.renderPages();
+        await ManualRenderer.renderAll();
+        State.saveHistory();
+    });
+    if (labelBoldChk) labelBoldChk.addEventListener('change', async (e) => {
+        State.docData.meta.labelBold = !!e.target.checked;
+        Renderer.renderPages();
+        await ManualRenderer.renderAll();
+        State.saveHistory();
+    });
+    if (labelUnderlineChk) labelUnderlineChk.addEventListener('change', async (e) => {
+        State.docData.meta.labelUnderline = !!e.target.checked;
         Renderer.renderPages();
         await ManualRenderer.renderAll();
         State.saveHistory();
