@@ -113,31 +113,24 @@ export const Events = {
         if (atomAfter && atomAfter.parentNode) atomAfter.parentNode.insertBefore(br, atomAfter);
         else range.insertNode(br);
 
-        const beforeRange = document.createRange();
-        beforeRange.selectNodeContents(box);
-        beforeRange.setEndBefore(br);
-
         const afterRange = document.createRange();
         afterRange.selectNodeContents(box);
         afterRange.setStartAfter(br);
+        const afterFrag = afterRange.extractContents();
 
-        const rangeToHtml = (r) => {
-            const tmp = document.createElement('div');
-            tmp.appendChild(r.cloneContents());
-            return tmp.innerHTML;
-        };
-
-        let beforeHtml = rangeToHtml(beforeRange);
-        let afterHtml = rangeToHtml(afterRange);
         br.remove();
+        let beforeHtml = box.innerHTML;
+        const tmpAfter = document.createElement('div');
+        tmpAfter.appendChild(afterFrag);
+        let afterHtml = tmpAfter.innerHTML;
 
         const labelEl = box.querySelector('.q-label');
         const labelHtml = labelEl ? labelEl.outerHTML : '';
         if (labelHtml) {
-            const tmpAfter = document.createElement('div');
-            tmpAfter.innerHTML = afterHtml;
-            tmpAfter.querySelectorAll('.q-label').forEach(el => el.remove());
-            afterHtml = tmpAfter.innerHTML;
+            const tmpAfterNoLabel = document.createElement('div');
+            tmpAfterNoLabel.innerHTML = afterHtml;
+            tmpAfterNoLabel.querySelectorAll('.q-label').forEach(el => el.remove());
+            afterHtml = tmpAfterNoLabel.innerHTML;
 
             const tmpBefore = document.createElement('div');
             tmpBefore.innerHTML = beforeHtml;
