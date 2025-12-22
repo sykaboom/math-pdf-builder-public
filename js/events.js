@@ -104,49 +104,36 @@ export const Events = {
         }
         if (sel.rangeCount && !sel.isCollapsed) sel.collapseToEnd();
 
-        const lineIndex = (() => {
-            if (!sel.rangeCount) return null;
-            const range = sel.getRangeAt(0);
-            if (!box.contains(range.startContainer)) return null;
-            const preRange = range.cloneRange();
-            preRange.selectNodeContents(box);
-            preRange.setEnd(range.startContainer, range.startOffset);
-            const tmp = document.createElement('div');
-            tmp.appendChild(preRange.cloneContents());
-            let count = 0;
-            tmp.childNodes.forEach(node => {
-                if (node.nodeType === Node.ELEMENT_NODE && node.tagName === 'BR') count++;
-            });
-            return count;
-        })();
-        if (lineIndex === null) return false;
+        if (!sel.rangeCount) return false;
 
-        const lines = [];
-        let current = document.createDocumentFragment();
-        const flush = () => {
-            lines.push(current);
-            current = document.createDocumentFragment();
-        };
-        box.childNodes.forEach(node => {
-            if (node.nodeType === Node.ELEMENT_NODE && node.tagName === 'BR') flush();
-            else current.appendChild(node.cloneNode(true));
+        const caretRange = sel.getRangeAt(0).cloneRange();
+        caretRange.collapse(true);
+        let lastBr = null;
+        box.querySelectorAll('br').forEach(br => {
+            const brRange = document.createRange();
+            brRange.setStartBefore(br);
+            brRange.setEndAfter(br);
+            if (brRange.compareBoundaryPoints(Range.END_TO_START, caretRange) <= 0) lastBr = br;
         });
-        lines.push(current);
 
-        const beforeLines = lines.slice(0, lineIndex);
-        const afterLines = lines.slice(lineIndex);
+        const beforeRange = document.createRange();
+        beforeRange.setStart(box, 0);
+        if (lastBr) beforeRange.setEndBefore(lastBr);
+        else beforeRange.setEnd(box, 0);
 
-        const linesToHtml = (parts) => {
+        const afterRange = document.createRange();
+        afterRange.selectNodeContents(box);
+        if (lastBr) afterRange.setStartAfter(lastBr);
+        else afterRange.setStart(box, 0);
+
+        const rangeToHtml = (range) => {
             const tmp = document.createElement('div');
-            parts.forEach((frag, idx) => {
-                tmp.appendChild(frag);
-                if (idx < parts.length - 1) tmp.appendChild(document.createElement('br'));
-            });
+            tmp.appendChild(range.cloneContents());
             return tmp.innerHTML;
         };
 
-        let beforeHtml = linesToHtml(beforeLines);
-        let afterHtml = linesToHtml(afterLines);
+        let beforeHtml = rangeToHtml(beforeRange);
+        let afterHtml = rangeToHtml(afterRange);
 
         const labelEl = box.querySelector('.q-label');
         const labelHtml = labelEl ? labelEl.outerHTML : '';
@@ -285,6 +272,11 @@ export const Events = {
                     }
                 } 
             }
+        }
+        if (e.key === 'Enter' && e.altKey && e.shiftKey) {
+            e.preventDefault();
+            if (this.splitBlockAtCursor(id)) renderCallback();
+            return;
         }
         if (e.key === 'Enter' && e.shiftKey) { const atomAfter = Utils.getAtomAfterCaret(box); if (atomAfter) { e.preventDefault(); const br = document.createElement('br'); atomAfter.parentNode.insertBefore(br, atomAfter); const r = document.createRange(); const s = window.getSelection(); r.setStartAfter(br); r.collapse(true); s.removeAllRanges(); s.addRange(r); Actions.updateBlockContent(id, Utils.cleanRichContentToTex(box.innerHTML), true); return; } }
         if(e.key === 'Tab') { e.preventDefault(); if(e.shiftKey) document.execCommand('insertHTML', false, '&nbsp;'.repeat(10)); else if(e.ctrlKey) this.focusNextBlock(id, -1); else this.focusNextBlock(id, 1); return; }
