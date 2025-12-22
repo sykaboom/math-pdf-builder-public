@@ -135,6 +135,50 @@ export const Utils = {
         });
     },
 
+    replaceBlockBoxesWithTokensInDom(root) {
+        if (!root) return;
+        const buildTokenFragment = (startToken, endToken, bodyText) => {
+            const frag = document.createDocumentFragment();
+            frag.appendChild(document.createTextNode(startToken));
+            frag.appendChild(document.createElement('br'));
+            if (bodyText) {
+                const lines = bodyText.split(/\n/);
+                lines.forEach((line, idx) => {
+                    frag.appendChild(document.createTextNode(line));
+                    if (idx < lines.length - 1) frag.appendChild(document.createElement('br'));
+                });
+            }
+            frag.appendChild(document.createElement('br'));
+            frag.appendChild(document.createTextNode(endToken));
+            return frag;
+        };
+
+        const getBodyText = (contentEl) => {
+            if (!contentEl) return '';
+            const cleaned = Utils.cleanRichContentToTex(contentEl.innerHTML);
+            const tmp = document.createElement('div');
+            tmp.innerHTML = cleaned;
+            return (tmp.innerText || '').replace(/\u00A0/g, ' ').trim();
+        };
+
+        Array.from(root.querySelectorAll('.custom-box')).forEach(customBox => {
+            const labelEl = customBox.querySelector('.box-label');
+            const labelText = labelEl ? labelEl.textContent.replace(/[<>]/g, '').trim() : '';
+            const contentEl = customBox.querySelector('.box-content');
+            const bodyText = getBodyText(contentEl);
+            const startToken = labelText ? `[블록박스_${labelText}]` : '[블록박스_]';
+            const frag = buildTokenFragment(startToken, '[/블록박스]', bodyText);
+            customBox.replaceWith(frag);
+        });
+
+        Array.from(root.querySelectorAll('.rect-box')).forEach(rectBox => {
+            const contentEl = rectBox.querySelector('.rect-box-content');
+            const bodyText = getBodyText(contentEl);
+            const frag = buildTokenFragment('[블록사각형]', '[/블록사각형]', bodyText);
+            rectBox.replaceWith(frag);
+        });
+    },
+
     normalizeLlmOutput(rawInput = '') {
         let text = String(rawInput || '').trim();
         const fenced = text.match(/^```[^\n]*\n([\s\S]*?)\n```$/);

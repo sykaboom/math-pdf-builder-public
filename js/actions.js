@@ -107,6 +107,24 @@ export const Actions = {
         return true;
     },
 
+    splitBlockWithContents(id, beforeHtml, afterHtml) {
+        const idx = State.docData.blocks.findIndex(b => b.id === id);
+        if (idx < 0) return false;
+        const base = State.docData.blocks[idx];
+        if (!base || !['concept', 'example', 'answer'].includes(base.type)) return false;
+
+        const newBlock = JSON.parse(JSON.stringify(base));
+        newBlock.id = 'b_' + Date.now() + '_' + Math.random().toString(16).slice(2, 6);
+        newBlock.content = afterHtml || '';
+
+        State.docData.blocks[idx].content = beforeHtml || '';
+        State.docData.blocks.splice(idx + 1, 0, newBlock);
+        State.lastFocusId = newBlock.id;
+        State.lastEditableId = newBlock.id;
+        State.saveHistory();
+        return true;
+    },
+
     confirmImport(input, overwrite, limit, addSpacer, normalizeLlm = false) {
         if(!input) return false;
         let finalBlocks = [];

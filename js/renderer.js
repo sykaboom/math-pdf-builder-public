@@ -267,6 +267,13 @@ export const Renderer = {
             // 렌더링 콜백을 Events로 전달
             box.onkeydown = (e) => Events.handleBlockKeydown(e, block.id, box, () => { this.renderPages(); ManualRenderer.renderAll(); });
             box.onmousedown = (e) => Events.handleBlockMousedown(e, block.id);
+            box.addEventListener('click', (e) => {
+                if (e.altKey && e.shiftKey) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    this.performAndRender(() => Events.splitBlockAtCursor(block.id));
+                }
+            });
             wrap.appendChild(box);
         }
         return wrap;

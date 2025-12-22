@@ -85,6 +85,91 @@ export const Events = {
         State.lastEditableId = targetId;
     },
 
+    splitBlockAtCursor(refId) {
+        const targetId = refId || State.lastEditableId || State.contextTargetId;
+        if (!targetId) return false;
+        const block = State.docData.blocks.find(b => b.id === targetId);
+        if (!block || !['concept', 'example', 'answer'].includes(block.type)) return false;
+        const box = document.querySelector(`.block-wrapper[data-id="${targetId}"] .editable-box`);
+        if (!box) return false;
+
+        const sel = window.getSelection();
+        if (!sel.rangeCount || !box.contains(sel.anchorNode)) {
+            box.focus();
+            const r = document.createRange();
+            r.selectNodeContents(box);
+            r.collapse(false);
+            sel.removeAllRanges();
+            sel.addRange(r);
+        }
+        if (sel.rangeCount && !sel.isCollapsed) sel.collapseToEnd();
+
+        const lineIndex = (() => {
+            if (!sel.rangeCount) return null;
+            const range = sel.getRangeAt(0);
+            if (!box.contains(range.startContainer)) return null;
+            const preRange = range.cloneRange();
+            preRange.selectNodeContents(box);
+            preRange.setEnd(range.startContainer, range.startOffset);
+            const tmp = document.createElement('div');
+            tmp.appendChild(preRange.cloneContents());
+            let count = 0;
+            tmp.childNodes.forEach(node => {
+                if (node.nodeType === Node.ELEMENT_NODE && node.tagName === 'BR') count++;
+            });
+            return count;
+        })();
+        if (lineIndex === null) return false;
+
+        const lines = [];
+        let current = document.createDocumentFragment();
+        const flush = () => {
+            lines.push(current);
+            current = document.createDocumentFragment();
+        };
+        box.childNodes.forEach(node => {
+            if (node.nodeType === Node.ELEMENT_NODE && node.tagName === 'BR') flush();
+            else current.appendChild(node.cloneNode(true));
+        });
+        lines.push(current);
+
+        const beforeLines = lines.slice(0, lineIndex);
+        const afterLines = lines.slice(lineIndex);
+
+        const linesToHtml = (parts) => {
+            const tmp = document.createElement('div');
+            parts.forEach((frag, idx) => {
+                tmp.appendChild(frag);
+                if (idx < parts.length - 1) tmp.appendChild(document.createElement('br'));
+            });
+            return tmp.innerHTML;
+        };
+
+        let beforeHtml = linesToHtml(beforeLines);
+        let afterHtml = linesToHtml(afterLines);
+
+        const labelEl = box.querySelector('.q-label');
+        const labelHtml = labelEl ? labelEl.outerHTML : '';
+        if (labelHtml) {
+            const tmpAfter = document.createElement('div');
+            tmpAfter.innerHTML = afterHtml;
+            tmpAfter.querySelectorAll('.q-label').forEach(el => el.remove());
+            afterHtml = tmpAfter.innerHTML;
+
+            const tmpBefore = document.createElement('div');
+            tmpBefore.innerHTML = beforeHtml;
+            if (!tmpBefore.querySelector('.q-label')) {
+                if (tmpBefore.innerHTML.trim()) tmpBefore.insertAdjacentHTML('afterbegin', `${labelHtml} `);
+                else tmpBefore.innerHTML = `${labelHtml} `;
+            }
+            beforeHtml = tmpBefore.innerHTML;
+        }
+
+        const cleanBefore = Utils.cleanRichContentToTex(beforeHtml);
+        const cleanAfter = Utils.cleanRichContentToTex(afterHtml);
+        return Actions.splitBlockWithContents(targetId, cleanBefore, cleanAfter);
+    },
+
     populateFontMenu(targetId) {
         const b = State.docData.blocks.find(x => x.id === targetId);
         const famSel = document.getElementById('block-font-family-select');

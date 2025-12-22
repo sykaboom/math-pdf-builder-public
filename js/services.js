@@ -506,13 +506,17 @@ export const FileSystem = {
     },
     async saveProjectJSON(syncCallback) {
         syncCallback(); // 저장 전 최신 상태 동기화
-        Utils.showLoading("💾 저장 중...");
+        const defaultBase = '과정_단원';
+        const inputName = prompt('저장 파일 이름', defaultBase);
+        if (inputName === null) return;
+        let baseName = inputName.trim();
+        if (!baseName) baseName = defaultBase;
+        baseName = baseName.replace(/\.json$/i, '');
+        const safeBase = baseName.replace(/[\\/:*?"<>|]/g, '').replace(/\s+/g, '_').slice(0, 40);
+        const fallbackBase = defaultBase.replace(/[\\/:*?"<>|]/g, '').replace(/\s+/g, '_').slice(0, 40) || '과정_단원';
+        const filename = `${safeBase || fallbackBase}.json`;
 
-        const title = (State.docData.meta.title || 'exam').trim();
-        const safeTitle = title.replace(/[\\/:*?"<>|]/g, '').replace(/\s+/g, '_').slice(0, 40) || 'exam';
-        const now = new Date();
-        const stamp = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}`;
-        const filename = `${safeTitle}_${stamp}.json`;
+        Utils.showLoading("💾 저장 중...");
         
         const rawData = JSON.parse(JSON.stringify(State.docData)); 
         rawData.blocks.forEach(block => {

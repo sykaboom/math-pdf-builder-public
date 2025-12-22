@@ -110,7 +110,18 @@ window.toggleRenderingMode = async (forceState) => {
         await ManualRenderer.renderAll();
     } else {
         const container = document.getElementById('paper-container');
-        if (container) Utils.replaceTablesWithTokensInDom(container);
+        if (container) {
+            const boxes = container.querySelectorAll('.editable-box');
+            boxes.forEach(box => {
+                Utils.replaceTablesWithTokensInDom(box);
+                Utils.replaceBlockBoxesWithTokensInDom(box);
+                const cleaned = Utils.cleanRichContentToTex(box.innerHTML);
+                box.innerHTML = cleaned;
+                const wrap = box.closest('.block-wrapper');
+                if (wrap) Actions.updateBlockContent(wrap.dataset.id, cleaned, false);
+            });
+            State.saveHistory();
+        }
     }
     updateRenderingToggleUI();
 };
@@ -122,6 +133,7 @@ window.renderAllSafe = async () => {
 window.insertImageBoxSafe = () => Events.insertImageBoxSafe();
 window.addImageBlockBelow = (id) => Events.addImageBlockBelow(id);
 window.insertImagePlaceholderAtEnd = (id) => Events.insertImagePlaceholderAtEnd(id);
+window.splitBlockAtCursor = (id) => Renderer.performAndRender(() => Events.splitBlockAtCursor(id));
 window.applyBlockFont = () => Events.applyBlockFontFromMenu();
 window.applyInlineFontFamily = (value) => Events.applyInlineFontFamily(value);
 window.applyInlineFontSize = (value) => Events.applyInlineFontSize(value);
