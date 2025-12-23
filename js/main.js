@@ -137,8 +137,10 @@ window.splitBlockAtCursor = (id) => Renderer.performAndRender(() => Events.split
 window.applyBlockFont = () => Events.applyBlockFontFromMenu();
 window.applyInlineFontFamily = (value) => Events.applyInlineFontFamily(value);
 window.applyInlineFontSize = (value) => Events.applyInlineFontSize(value);
+window.applyConceptBlank = () => Events.applyConceptBlankToSelection();
 window.openModal = Utils.openModal;
 window.closeModal = Utils.closeModal;
+window.resolveConfirm = (result) => Utils.resolveConfirm(result);
 window.execStyle = (cmd, val) => document.execCommand(cmd, false, val);
 window.downloadPromptFile = async (target) => {
     const btn = typeof target === 'string'

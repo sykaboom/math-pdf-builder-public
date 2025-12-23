@@ -318,6 +318,55 @@ export const Events = {
         this.applyInlineStyleToSelection({ fontSize });
     },
 
+    async applyConceptBlankToSelection() {
+        const sel = window.getSelection();
+        const baseRange = State.selectionRange
+            ? State.selectionRange.cloneRange()
+            : (sel.rangeCount ? sel.getRangeAt(0).cloneRange() : null);
+        if (!baseRange || baseRange.collapsed) return;
+        const container = baseRange.commonAncestorContainer.nodeType === Node.ELEMENT_NODE
+            ? baseRange.commonAncestorContainer
+            : baseRange.commonAncestorContainer.parentNode;
+        const box = container ? container.closest('.editable-box') : null;
+        if (!box) return;
+        const wrap = box.closest('.block-wrapper');
+        if (!wrap) return;
+
+        const extracted = baseRange.extractContents();
+        const extractedClone = extracted.cloneNode(true);
+        const tmp = document.createElement('div');
+        tmp.appendChild(extractedClone);
+        const cleaned = Utils.cleanRichContentToTex(tmp.innerHTML);
+        const textHolder = document.createElement('div');
+        textHolder.innerHTML = cleaned;
+        const answerText = (textHolder.innerText || '').replace(/\u00A0/g, ' ').trim();
+
+        if (!answerText) {
+            baseRange.insertNode(extracted);
+            return;
+        }
+
+        const token = document.createTextNode(`[개념빈칸:#]${answerText}[/개념빈칸]`);
+        baseRange.insertNode(token);
+        const nextRange = document.createRange();
+        nextRange.setStartAfter(token);
+        nextRange.collapse(true);
+        sel.removeAllRanges();
+        sel.addRange(nextRange);
+        State.selectionRange = nextRange.cloneRange();
+        State.selectionBlockId = wrap.dataset.id || null;
+
+        Actions.updateBlockContent(wrap.dataset.id, Utils.cleanRichContentToTex(box.innerHTML), true);
+        Renderer.debouncedRebalance();
+        if (State.renderingEnabled) {
+            await Renderer.updateConceptBlankSummary({ changedBlockId: wrap.dataset.id });
+        } else {
+            Renderer.updatePreflightPanel();
+        }
+        const toolbar = document.getElementById('floating-toolbar');
+        if (toolbar) toolbar.style.display = 'none';
+    },
+
     handleBlockMousedown(e, id) {
         State.lastEditableId = id;
         if(e.target.tagName==='IMG') { this.showResizer(e.target); e.stopPropagation(); State.selectedImage=e.target; }
@@ -456,6 +505,70 @@ export const Events = {
             mathMenu.style.top = `${top}px`;
             mathMenu.style.left = `${left}px`;
         };
+        let mathDragState = null;
+        let mathSelectionRaf = null;
+        const highlightedMath = new Set();
+        const clearMathSelectionHighlight = () => {
+            highlightedMath.forEach(node => node.classList.remove('math-selected'));
+            highlightedMath.clear();
+        };
+        const updateMathSelectionHighlight = () => {
+            clearMathSelectionHighlight();
+            const sel = window.getSelection();
+            if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return;
+            const range = sel.getRangeAt(0);
+            let root = range.commonAncestorContainer;
+            if (root && root.nodeType !== Node.ELEMENT_NODE) root = root.parentNode;
+            if (!root) return;
+            let scope = root.closest ? root.closest('.editable-box') : null;
+            if (!scope) scope = document.getElementById('paper-container') || document;
+            scope.querySelectorAll('mjx-container').forEach((node) => {
+                try {
+                    if (range.intersectsNode(node)) {
+                        node.classList.add('math-selected');
+                        highlightedMath.add(node);
+                    }
+                } catch (err) { }
+            });
+        };
+        const scheduleMathSelectionHighlight = () => {
+            if (mathSelectionRaf) return;
+            mathSelectionRaf = requestAnimationFrame(() => {
+                mathSelectionRaf = null;
+                updateMathSelectionHighlight();
+            });
+        };
+        const showFloatingToolbarForRange = (range) => {
+            const container = range.commonAncestorContainer.nodeType === 1
+                ? range.commonAncestorContainer
+                : range.commonAncestorContainer.parentNode;
+            if (!container) return false;
+            const box = container.closest('.editable-box');
+            if (!box) return false;
+            const rect = range.getBoundingClientRect();
+            const tb = document.getElementById('floating-toolbar');
+            if (!tb) return false;
+            const desiredTop = rect.top + window.scrollY - 45;
+            const desiredLeft = rect.left + window.scrollX + rect.width / 2;
+            tb.style.display = 'flex';
+            tb.style.top = desiredTop + 'px';
+            tb.style.left = desiredLeft + 'px';
+
+            const pad = 8;
+            const tbRect = tb.getBoundingClientRect();
+            let top = desiredTop; let left = desiredLeft;
+            if (tbRect.left < pad) left += pad - tbRect.left;
+            if (tbRect.right > window.innerWidth - pad) left -= tbRect.right - (window.innerWidth - pad);
+            if (tbRect.top < pad) top += pad - tbRect.top;
+            if (tbRect.bottom > window.innerHeight - pad) top -= tbRect.bottom - (window.innerHeight - pad);
+            tb.style.top = top + 'px';
+            tb.style.left = left + 'px';
+
+            State.selectionRange = range.cloneRange();
+            const wrap = container.closest('.block-wrapper');
+            State.selectionBlockId = wrap ? wrap.dataset.id : null;
+            return true;
+        };
 
         body.addEventListener('dragover', (e) => {
             if (State.dragSrcId) return;
@@ -488,6 +601,9 @@ export const Events = {
             });
         }
         document.addEventListener('preflight:update', () => Renderer.updatePreflightPanel());
+        document.addEventListener('conceptblanks:update', async () => {
+            await Renderer.refreshConceptBlankAnswerBlocks();
+        });
 
         const tableEditor = createTableEditor();
         tableEditor.init();
@@ -503,6 +619,7 @@ export const Events = {
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
                 tableEditor.handleEscape();
+                Utils.resolveConfirm(false);
                 Utils.closeModal('context-menu'); document.getElementById('floating-toolbar').style.display='none'; closeMathMenu(); this.hideResizer(); Utils.closeModal('import-modal'); Utils.closeModal('find-replace-modal'); return;
             }
             const key = e.key.toLowerCase();
@@ -551,41 +668,44 @@ export const Events = {
             if (menu && menu.style.display === 'block') { if (!e.target.closest('#context-menu') && !e.target.closest('.block-handle')) menu.style.display = 'none'; }
             if (!e.target.closest('.image-placeholder') && !e.target.closest('#imgUpload')) { if(State.selectedPlaceholder) { State.selectedPlaceholder.classList.remove('selected'); State.selectedPlaceholder.setAttribute('contenteditable', 'false'); } State.selectedPlaceholder = null; } 
             if (!e.target.closest('#math-menu') && !e.target.closest('mjx-container')) closeMathMenu();
+            const mjx = e.target.closest('mjx-container');
+            mathDragState = mjx ? { target: mjx, x: e.clientX, y: e.clientY } : null;
             tableEditor.handleDocumentMouseDown(e);
         });
-        document.addEventListener('mouseup', (e) => { const target = e.target; setTimeout(() => {
-            const sel = window.getSelection();
-            if (sel.rangeCount && !sel.isCollapsed) {
-                const range = sel.getRangeAt(0);
-                const container = range.commonAncestorContainer.nodeType===1 ? range.commonAncestorContainer : range.commonAncestorContainer.parentNode;
-                if (container.closest('.editable-box')) {
-                    const rect = range.getBoundingClientRect();
-                    const tb = document.getElementById('floating-toolbar');
-                    const desiredTop = rect.top + window.scrollY - 45;
-                    const desiredLeft = rect.left + window.scrollX + rect.width / 2;
-                    tb.style.display = 'flex';
-                    tb.style.top = desiredTop + 'px';
-                    tb.style.left = desiredLeft + 'px';
-
-                    const pad = 8;
-                    const tbRect = tb.getBoundingClientRect();
-                    let top = desiredTop; let left = desiredLeft;
-                    if (tbRect.left < pad) left += pad - tbRect.left;
-                    if (tbRect.right > window.innerWidth - pad) left -= tbRect.right - (window.innerWidth - pad);
-                    if (tbRect.top < pad) top += pad - tbRect.top;
-                    if (tbRect.bottom > window.innerHeight - pad) top -= tbRect.bottom - (window.innerHeight - pad);
-                    tb.style.top = top + 'px';
-                    tb.style.left = left + 'px';
-
-                    State.selectionRange = range.cloneRange();
-                    const wrap = container.closest('.block-wrapper');
-                    State.selectionBlockId = wrap ? wrap.dataset.id : null;
+        document.addEventListener('mouseup', (e) => {
+            const target = e.target;
+            const dragCandidate = mathDragState
+                ? { target: mathDragState.target, dx: e.clientX - mathDragState.x, dy: e.clientY - mathDragState.y }
+                : null;
+            mathDragState = null;
+            setTimeout(() => {
+                const sel = window.getSelection();
+                let range = null;
+                if (sel.rangeCount && !sel.isCollapsed) {
+                    range = sel.getRangeAt(0);
+                } else if (dragCandidate && dragCandidate.target) {
+                    const distance = Math.hypot(dragCandidate.dx, dragCandidate.dy);
+                    if (distance > 3) {
+                        range = document.createRange();
+                        range.selectNode(dragCandidate.target);
+                        sel.removeAllRanges();
+                        sel.addRange(range);
+                    }
                 }
-            } else if (!target.closest('#floating-toolbar')) {
-                State.selectionRange = null;
-                State.selectionBlockId = null;
-            }
-        }, 10); });
+                if (range) {
+                    if (showFloatingToolbarForRange(range)) {
+                        scheduleMathSelectionHighlight();
+                        return;
+                    }
+                }
+                if (!target.closest('#floating-toolbar')) {
+                    State.selectionRange = null;
+                    State.selectionBlockId = null;
+                }
+                scheduleMathSelectionHighlight();
+            }, 10);
+        });
+        document.addEventListener('selectionchange', scheduleMathSelectionHighlight);
 
         document.addEventListener('click', (e) => {
             const btn = e.target.closest('.image-load-btn');
@@ -634,13 +754,21 @@ export const Events = {
         document.addEventListener('click', (e) => {
             const mjx = e.target.closest('mjx-container');
             if (mjx && State.renderingEnabled) {
+                const sel = window.getSelection();
+                if (sel && sel.rangeCount && !sel.isCollapsed) {
+                    try {
+                        if (sel.containsNode(mjx, true)) return;
+                    } catch (err) {
+                        return;
+                    }
+                }
                 openMathMenu(mjx);
                 return;
             }
             if (!e.target.closest('#math-menu')) closeMathMenu();
         });
         
-        document.addEventListener('dblclick', (e) => {
+        document.addEventListener('dblclick', async (e) => {
             if (!State.renderingEnabled) return;
             if (tableEditor.handleDoubleClick(e)) return;
             const mjx = e.target.closest('mjx-container');
@@ -654,9 +782,34 @@ export const Events = {
             const blank = e.target.closest('.blank-box');
             if (blank) {
                 e.preventDefault(); e.stopPropagation();
-                const text = blank.innerText;
-                const delim = blank.dataset ? (blank.dataset.delim || ':') : ':';
-                blank.replaceWith(document.createTextNode(`[빈칸${delim}${text}]`));
+                const dataset = blank.dataset || {};
+                if (dataset.blankKind === 'concept') {
+                    const decodeHtml = (value = '') => {
+                        const tmp = document.createElement('div');
+                        tmp.innerHTML = String(value);
+                        return tmp.textContent || '';
+                    };
+                    const confirmed = await Utils.confirmDialog('개념빈칸을 없애겠습니까?');
+                    if (!confirmed) return;
+                    const wrap = blank.closest('.block-wrapper');
+                    const answer = dataset.answer ? decodeHtml(dataset.answer) : '';
+                    const frag = document.createDocumentFragment();
+                    if (answer) {
+                        const lines = answer.split(/\n/);
+                        lines.forEach((line, idx) => {
+                            frag.appendChild(document.createTextNode(line));
+                            if (idx < lines.length - 1) frag.appendChild(document.createElement('br'));
+                        });
+                    }
+                    blank.replaceWith(frag);
+                    if (wrap) Renderer.syncBlock(wrap.dataset.id, true);
+                    await Renderer.updateConceptBlankSummary({ changedBlockId: wrap ? wrap.dataset.id : null });
+                    return;
+                } else {
+                    const text = blank.innerText;
+                    const delim = dataset.delim || ':';
+                    blank.replaceWith(document.createTextNode(`[빈칸${delim}${text}]`));
+                }
                 Renderer.syncBlock(blank.closest('.block-wrapper').dataset.id);
                 return;
             }

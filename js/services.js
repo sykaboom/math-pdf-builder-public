@@ -125,25 +125,67 @@ const buildChoiceTableElement = (layoutToken, choiceData = null, options = {}) =
 export const ManualRenderer = {
     mathCache: new Map(),
     isRendering: false,
+    conceptBlankCounter: 0,
+    conceptBlankAnswers: [],
+    conceptBlankMathQueue: [],
+
+    resetConceptBlankTracking() {
+        this.conceptBlankCounter = 0;
+        this.conceptBlankAnswers = [];
+        this.conceptBlankMathQueue = [];
+    },
+
+    recordConceptBlank(rawAnswer = '') {
+        const tmp = document.createElement('div');
+        tmp.innerHTML = String(rawAnswer);
+        const normalized = (tmp.textContent || '').replace(/\u00A0/g, ' ');
+        this.conceptBlankCounter += 1;
+        this.conceptBlankAnswers.push(normalized);
+        return this.conceptBlankCounter;
+    },
+
+    syncConceptBlankAnswers() {
+        const nextAnswers = this.conceptBlankAnswers.slice();
+        const nextHash = JSON.stringify(nextAnswers);
+        if (nextHash === State.conceptBlankAnswersHash) return false;
+        State.conceptBlankAnswers = nextAnswers;
+        State.conceptBlankAnswersHash = nextHash;
+        return true;
+    },
 
     async renderAll(callback, options = {}) {
         if (!options.force && State.renderingEnabled === false) return;
         if (!window.isMathJaxReady) { console.log("MathJax Waiting..."); return; }
         if (this.isRendering) return; 
         this.isRendering = true;
+        this.resetConceptBlankTracking();
         try {
             Utils.showLoading("⚡ 수식 변환 중...");
             const boxes = document.querySelectorAll('.editable-box');
-            for (let box of boxes) await this.typesetElement(box);
+            for (let box of boxes) {
+                const wrap = box.closest('.block-wrapper');
+                const isDerivedAnswer = wrap && wrap.dataset && wrap.dataset.derived === 'concept-answers';
+                await this.typesetElement(box, { trackConceptBlanks: !isDerivedAnswer });
+            }
             if (callback) callback(); 
         } catch(e) { console.error("Render Error:", e); } 
-        finally { this.isRendering = false; Utils.hideLoading(); document.dispatchEvent(new Event('preflight:update')); }
+        finally {
+            this.isRendering = false;
+            Utils.hideLoading();
+            if (!options.skipConceptBlankSync) {
+                const conceptChanged = this.syncConceptBlankAnswers();
+                if (conceptChanged) document.dispatchEvent(new Event('conceptblanks:update'));
+            }
+            document.dispatchEvent(new Event('preflight:update'));
+        }
     },
 
-    async typesetElement(element) {
+    async typesetElement(element, options = {}) {
         if (element.querySelector('mjx-container') || element.querySelector('.blank-box') || element.querySelector('.image-placeholder')) {
             element.innerHTML = Utils.cleanRichContentToTex(element.innerHTML);
         }
+        const renderer = this;
+        const trackConceptBlanks = options.trackConceptBlanks !== false;
         // [Fix] 에디터에서 직접 타이핑한 블록박스 문법도 렌더링
         const renderBox = (label, bodyHtml) => {
             let body = (bodyHtml || '').trim();
@@ -226,24 +268,42 @@ export const ManualRenderer = {
             const normalizeMathBlankLabel = (value = '') => {
                 return String(value).replace(/\s+/g, ' ').trim();
             };
+            const formatConceptBlankLabel = (value = '') => {
+                const normalized = normalizeMathBlankLabel(value);
+                return `(${normalized || '#'})`;
+            };
             const toMathBlankText = (label = '') => {
                 const normalized = normalizeMathBlankLabel(label);
                 return `\\class{math-blank-box}{\\bbox[border:1.5px solid #000; padding: 3px 12px; background: #fff]{\\text{${escapeForMathTex(normalized)}}}}`;
             };
+            const getConceptBlankIndexForMath = (answerText = '') => {
+                if (renderer.conceptBlankMathQueue.length) return renderer.conceptBlankMathQueue.shift();
+                return renderer.recordConceptBlank(answerText);
+            };
+            const toConceptBlankText = (answerText = '', rawLabel = '#') => {
+                if (!trackConceptBlanks) return toMathBlankText(formatConceptBlankLabel(rawLabel));
+                const index = getConceptBlankIndexForMath(answerText);
+                return toMathBlankText(`(${index})`);
+            };
             const toBoxedText = (label = '') => {
                 return `\\boxed{\\text{${escapeForMathTex(label)}}}`;
             };
+            tex = tex.replace(/\[개념빈칸([:_])([^\]]*?)\]([\s\S]*?)\[\/개념빈칸\]/g, (m, delim, label, body) => toConceptBlankText(body, label));
             tex = tex.replace(/\[빈칸[:_](.*?)\]/g, (m, label) => toMathBlankText(label));
             tex = tex.replace(/\[이미지\s*:\s*(.*?)\]/g, (m, label) => toBoxedText(label));
             return tex;
         };
 
-        const applyTokenReplacementsOutsideMath = (root) => {
+        const applyTokenReplacementsOutsideMath = (root, options = {}) => {
             let didReplace = false;
+            const passIndex = Number.isFinite(options.passIndex) ? options.passIndex : 0;
             const mathRegex = /(\$\$[\s\S]+?\$\$|\$[\s\S]+?\$)/g;
-            const tokenPattern = /\[빈칸([:_])(.*?)\]|\[이미지\s*:\s*(.*?)\]|\[표_(\d+)x(\d+)\](?:\s*:\s*((?:\(\d+x\d+_(?:"(?:\\.|[^"])*"|&quot;[\s\S]*?&quot;|[^)]*)\)\s*,?\s*)+))?|\[선지_(1행|2행|5행)\](?:\s*:\s*((?:\(\d+_(?:"(?:\\.|[^"])*"|&quot;[\s\S]*?&quot;|[^)]*)\)\s*,?\s*)+))?|\[(굵게|볼드|BOLD|밑줄)([:_])([\s\S]*?)\]|\[블록사각형_([^\]]*?)\]/g;
+            const tokenPattern = /\[개념빈칸([:_])([^\]]*?)\]([\s\S]*?)\[\/개념빈칸\]|\[빈칸([:_])(.*?)\]|\[이미지\s*:\s*(.*?)\]|\[표_(\d+)x(\d+)\](?:\s*:\s*((?:\(\d+x\d+_(?:"(?:\\.|[^"])*"|&quot;[\s\S]*?&quot;|[^)]*)\)\s*,?\s*)+))?|\[선지_(1행|2행|5행)\](?:\s*:\s*((?:\(\d+_(?:"(?:\\.|[^"])*"|&quot;[\s\S]*?&quot;|[^)]*)\)\s*,?\s*)+))?|\[(굵게|볼드|BOLD|밑줄)([:_])([\s\S]*?)\]|\[블록사각형_([^\]]*?)\]/g;
             const tableDataRegex = /^\s*:\s*((?:\(\d+x\d+_(?:"(?:\\.|[^"])*"|&quot;[\s\S]*?&quot;|[^)]*)\)\s*,?\s*)+)/;
             const choiceDataRegex = /^\s*:\s*((?:\(\d+_(?:"(?:\\.|[^"])*"|&quot;[\s\S]*?&quot;|[^)]*)\)\s*,?\s*)+)/;
+            const normalizeTextBlankLabel = (value = '') => {
+                return String(value).replace(/\s+/g, ' ').trim();
+            };
             const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null, false);
             const textNodes = [];
             const shouldSkipTokenization = (node) => {
@@ -287,20 +347,44 @@ export const ManualRenderer = {
                 const mathRanges = getMathRanges(text);
                 let lastIndex = 0; let m;
                 while ((m = tokenRegex.exec(text)) !== null) {
-                    if (isIndexInRanges(m.index, mathRanges)) continue;
+                    const insideMath = isIndexInRanges(m.index, mathRanges);
+                    if (insideMath) {
+                        if (passIndex === 0 && m[1] !== undefined && trackConceptBlanks) {
+                            const body = m[3] || '';
+                            const index = renderer.recordConceptBlank(body);
+                            renderer.conceptBlankMathQueue.push(index);
+                        }
+                        continue;
+                    }
                     didReplace = true;
                     if (m.index > lastIndex) frag.appendChild(document.createTextNode(text.slice(lastIndex, m.index)));
                     if (m[1] !== undefined) {
+                        const rawLabel = m[2];
+                        const body = m[3] || '';
+                        const index = trackConceptBlanks
+                            ? renderer.recordConceptBlank(body)
+                            : normalizeTextBlankLabel(rawLabel || '#');
+                        const span = document.createElement('span');
+                        span.className = 'blank-box concept-blank-box';
+                        span.setAttribute('contenteditable', 'false');
+                        span.dataset.blankKind = 'concept';
+                        if (rawLabel !== undefined) span.dataset.rawLabel = rawLabel;
+                        span.dataset.delim = m[1] || ':';
+                        span.dataset.answer = body;
+                        span.dataset.index = String(index);
+                        span.textContent = `(${index})`;
+                        frag.appendChild(span);
+                    } else if (m[4] !== undefined) {
                         const span = document.createElement('span');
                         span.className = 'blank-box';
                         span.setAttribute('contenteditable', 'false');
-                        span.dataset.delim = m[1] || ':';
-                        span.textContent = m[2];
+                        span.dataset.delim = m[4] || ':';
+                        span.textContent = m[5];
                         frag.appendChild(span);
-                    } else if (m[3] !== undefined) {
-                        frag.appendChild(createImageFragment(m[3]));
-                    } else if (m[4] !== undefined) {
-                        let tableData = m[6];
+                    } else if (m[6] !== undefined) {
+                        frag.appendChild(createImageFragment(m[6]));
+                    } else if (m[7] !== undefined) {
+                        let tableData = m[9];
                         if (!tableData) {
                             const after = text.slice(tokenRegex.lastIndex);
                             const dataMatch = after.match(tableDataRegex);
@@ -310,11 +394,11 @@ export const ManualRenderer = {
                             }
                         }
                         const cellData = tableData ? parseTableCellData(tableData) : null;
-                        const tableEl = buildEditorTableElement(m[4], m[5], cellData, { allowHtml: false });
+                        const tableEl = buildEditorTableElement(m[7], m[8], cellData, { allowHtml: false });
                         if (tableEl) frag.appendChild(tableEl);
                         else frag.appendChild(document.createTextNode(m[0]));
-                    } else if (m[7] !== undefined) {
-                        let choiceDataText = m[8];
+                    } else if (m[10] !== undefined) {
+                        let choiceDataText = m[11];
                         if (!choiceDataText) {
                             const after = text.slice(tokenRegex.lastIndex);
                             const dataMatch = after.match(choiceDataRegex);
@@ -324,23 +408,23 @@ export const ManualRenderer = {
                             }
                         }
                         const choiceData = choiceDataText ? parseChoiceData(choiceDataText) : null;
-                        const choiceEl = buildChoiceTableElement(m[7], choiceData, { allowHtml: false });
+                        const choiceEl = buildChoiceTableElement(m[10], choiceData, { allowHtml: false });
                         if (choiceEl) frag.appendChild(choiceEl);
                         else frag.appendChild(document.createTextNode(m[0]));
-                    } else if (m[9] !== undefined) {
-                        const styleType = m[9];
-                        const styleText = m[11] || '';
+                    } else if (m[12] !== undefined) {
+                        const styleType = m[12];
+                        const styleText = m[14] || '';
                         const wrapper = styleType === '밑줄' ? document.createElement('u') : document.createElement('strong');
                         wrapper.appendChild(buildFragmentFromText(styleText));
                         frag.appendChild(wrapper);
-                    } else if (m[12] !== undefined) {
+                    } else if (m[15] !== undefined) {
                         const rectBox = document.createElement('div');
                         rectBox.className = 'rect-box';
                         rectBox.setAttribute('contenteditable', 'false');
                         const rectContent = document.createElement('div');
                         rectContent.className = 'rect-box-content';
                         rectContent.setAttribute('contenteditable', 'false');
-                        rectContent.appendChild(buildFragmentFromText(m[12] || ''));
+                        rectContent.appendChild(buildFragmentFromText(m[15] || ''));
                         rectBox.appendChild(rectContent);
                         frag.appendChild(rectBox);
                     }
@@ -411,7 +495,7 @@ export const ManualRenderer = {
 
         let tokensReplaced = true;
         for (let pass = 0; pass < 2 && tokensReplaced; pass++) {
-            tokensReplaced = applyTokenReplacementsOutsideMath(element);
+            tokensReplaced = applyTokenReplacementsOutsideMath(element, { passIndex: pass });
         }
 
         const regex = /(\$\$[\s\S]+?\$\$|\$[\s\S]+?\$)/g;
@@ -602,6 +686,17 @@ export const ImportParser = {
                 const display = label ? `[이미지: ${label}]` : '이미지 박스';
                 return `<span class="image-placeholder" contenteditable="false" data-label="${label}">${display}<button class="image-load-btn" contenteditable="false" tabindex="-1">불러오기</button></span>`;
             };
+            const getConceptBlankPlaceholderHTML = (rawLabelText = '#', answerText = '', delim = ':') => {
+                const span = document.createElement('span');
+                span.className = 'blank-box concept-blank-box';
+                span.setAttribute('contenteditable', 'false');
+                span.dataset.blankKind = 'concept';
+                span.dataset.rawLabel = rawLabelText;
+                span.dataset.delim = delim || ':';
+                span.dataset.answer = answerText;
+                span.textContent = '(#)';
+                return span.outerHTML;
+            };
 
             const convertBlockBoxes = (input) => {
                 const lines = input.split('\n');
@@ -696,6 +791,10 @@ export const ImportParser = {
             content = content.replace(/\[(굵게|볼드|BOLD|밑줄)([:_])([\s\S]*?)\]/g, (m, style, delim, body) => {
                 const tag = style === '밑줄' ? 'u' : 'strong';
                 return `<${tag}>${body}</${tag}>`;
+            });
+            content = content.replace(/\[개념빈칸([:_])([^\]]*?)\]([\s\S]*?)\[\/개념빈칸\]/g, (m, delim, label, body) => {
+                const rawLabel = label !== undefined ? label : '#';
+                return getConceptBlankPlaceholderHTML(rawLabel, body || '', delim);
             });
             content = content.replace(/\[이미지\s*:\s*(.*?)\]/g, (m, label) => getEscapedImagePlaceholderHTML(label));
             content = content.replace(/\[빈칸([:_])(.*?)\]/g, (m, delim, label) => `<span class="blank-box" data-delim="${delim || ':'}" contenteditable="false">${label}</span>`);

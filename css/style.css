@@ -7,7 +7,7 @@ body { margin: 0; padding: 0; height: 100vh; overflow: hidden; display: flex; fo
 :focus-visible { outline: 2px solid #007bff; outline-offset: 2px; }
 
 /* [수식 Atom 스타일] */
-mjx-container { display: inline-block !important; vertical-align: middle !important; margin: 0 2px; cursor: pointer; user-select: none; color: inherit !important; }
+mjx-container { display: inline-block !important; vertical-align: middle !important; margin: 0 2px; cursor: text; user-select: text; -webkit-user-select: text; color: inherit !important; }
 mjx-container[display="false"] { padding-right: 0.1em; }
 mjx-container svg { overflow: visible; }
 mjx-assistive-mml { display: none !important; }
@@ -21,6 +21,7 @@ mjx-container svg line { stroke: currentColor !important; }
 mjx-container .math-blank-box rect[data-bgcolor] { fill: #fff; stroke: #000; stroke-width: 1.5px; vector-effect: non-scaling-stroke; }
 mjx-container:hover { background-color: rgba(0, 0, 0, 0.05); border-radius: 4px; }
 mjx-container:focus { outline: 2px solid #007bff; border-radius: 4px; }
+mjx-container.math-selected { background-color: rgba(0, 123, 255, 0.18); border-radius: 4px; outline: 1px solid rgba(0, 123, 255, 0.45); }
 
 /* [빈칸 박스 스타일] */
 span.blank-box {

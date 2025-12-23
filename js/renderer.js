@@ -6,6 +6,7 @@ import { Utils } from './utils.js';
 import { Events } from './events.js';
 
 export const Renderer = {
+    conceptBlankSyncing: false,
     getPageColumnsCount(pageNum) {
         const meta = State.docData.meta || {};
         const layouts = meta.pageLayouts || {};
@@ -117,6 +118,21 @@ export const Renderer = {
             } 
         });
 
+        const conceptAnswerBlocks = this.buildConceptBlankAnswerBlocks();
+        conceptAnswerBlocks.forEach((block) => {
+            const el = this.createBlock(block);
+            curCol.appendChild(el);
+            if (curCol.scrollHeight > curCol.clientHeight + 5) {
+                if (curCol.children.length === 1) {
+                    moveToNextColumn();
+                } else {
+                    curCol.removeChild(el);
+                    moveToNextColumn();
+                    curCol.appendChild(el);
+                }
+            }
+        });
+
         if (workspace) workspace.scrollTop = scrollTop;
         this.updatePreflightPanel();
         
@@ -144,6 +160,34 @@ export const Renderer = {
     },
 
     createBlock(block) {
+        if (block.derived) {
+            const wrap = document.createElement('div');
+            wrap.className = 'block-wrapper derived-block';
+            wrap.dataset.derived = block.derived;
+            if (block.style && block.style.textAlign) wrap.style.textAlign = block.style.textAlign;
+            if (block.bgGray) wrap.classList.add('bg-gray-block');
+
+            const box = document.createElement('div');
+            box.className = `editable-box ${block.type}-box`;
+            box.innerHTML = block.content;
+            box.contentEditable = false;
+            if (block.type === 'concept') box.classList.add('concept-box');
+            if (block.bordered) box.classList.add('bordered-box');
+
+            const familyKey = block.fontFamily || State.docData.meta.fontFamily || 'serif';
+            const sizePt = block.fontSizePt || State.docData.meta.fontSizePt || 10.5;
+            const familyMap = {
+                serif: "'Noto Serif KR', serif",
+                gothic: "'Nanum Gothic', 'Noto Sans KR', sans-serif",
+                gulim: "Gulim, 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif"
+            };
+            box.style.fontFamily = familyMap[familyKey] || familyMap.serif;
+            box.style.fontSize = sizePt + 'pt';
+
+            wrap.appendChild(box);
+            return wrap;
+        }
+
         const wrap = document.createElement('div'); wrap.className = 'block-wrapper'; wrap.dataset.id = block.id;
         if(block.style && block.style.textAlign) wrap.style.textAlign = block.style.textAlign;
         if(block.bgGray) wrap.classList.add('bg-gray-block'); 
@@ -246,7 +290,11 @@ export const Renderer = {
                     return;
                 }
                 if(!window.isMathJaxReady) return;
-                if(/\[빈칸[:_]/.test(box.innerText) || box.innerText.includes('$') || box.innerText.includes('[이미지') || box.innerText.includes('[블록박스') || box.innerText.includes('[블록사각형') || box.innerText.includes('[표_') || box.innerText.includes('[선지_') || box.innerText.includes('[BOLD') || box.innerText.includes('[굵게') || box.innerText.includes('[밑줄')) {
+                const hasConceptBlank = !!box.querySelector('.concept-blank-box')
+                    || /\[개념빈칸[:_]/.test(box.innerText);
+                if (hasConceptBlank) {
+                    await ManualRenderer.renderAll();
+                } else if(/\[빈칸[:_]/.test(box.innerText) || box.innerText.includes('$') || box.innerText.includes('[이미지') || box.innerText.includes('[블록박스') || box.innerText.includes('[블록사각형') || box.innerText.includes('[표_') || box.innerText.includes('[선지_') || box.innerText.includes('[BOLD') || box.innerText.includes('[굵게') || box.innerText.includes('[밑줄')) {
                     await ManualRenderer.typesetElement(box);
                 }
                 Actions.updateBlockContent(block.id, Utils.cleanRichContentToTex(box.innerHTML), true);
@@ -270,6 +318,127 @@ export const Renderer = {
             wrap.appendChild(box);
         }
         return wrap;
+    },
+
+    buildConceptBlankAnswerBlocks(answersInput) {
+        if (!State.renderingEnabled) return [];
+        const answers = Array.isArray(answersInput)
+            ? answersInput
+            : (Array.isArray(State.conceptBlankAnswers) ? State.conceptBlankAnswers : []);
+        if (!answers.length) return [];
+
+        const escapeHtml = (value = '') => {
+            return String(value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        };
+        const normalizeAnswer = (value = '') => {
+            return String(value).replace(/\r\n/g, '\n').replace(/\n/g, ' ').trim();
+        };
+
+        const blocks = [];
+        const chunkSize = 3;
+        for (let i = 0; i < answers.length; i += chunkSize) {
+            const chunk = answers.slice(i, i + chunkSize);
+            const lines = chunk.map((answer, idx) => {
+                const index = i + idx + 1;
+                const cleaned = escapeHtml(normalizeAnswer(answer));
+                return cleaned ? `(${index}) ${cleaned}` : `(${index})`;
+            });
+            const labelHtml = i === 0 ? `<span class="q-label">개념 빈칸 정답</span> ` : '';
+            const content = labelHtml + lines.join('&nbsp;&nbsp;');
+            blocks.push({
+                type: 'answer',
+                content,
+                bgGray: true,
+                derived: 'concept-answers'
+            });
+        }
+        return blocks;
+    },
+
+    async refreshConceptBlankAnswerBlocks(answersInput) {
+        const container = document.getElementById('paper-container');
+        if (!container) return;
+
+        container.querySelectorAll('.block-wrapper.derived-block[data-derived="concept-answers"]')
+            .forEach(block => block.remove());
+
+        if (!State.renderingEnabled) {
+            this.debouncedRebalance();
+            return;
+        }
+
+        const blocks = this.buildConceptBlankAnswerBlocks(answersInput);
+        if (!blocks.length) {
+            this.debouncedRebalance();
+            return;
+        }
+
+        const userBlocks = Array.from(container.querySelectorAll('.block-wrapper[data-id]'));
+        const anchor = userBlocks[userBlocks.length - 1] || null;
+        let targetColumn = anchor ? anchor.parentElement : null;
+        if (!targetColumn) {
+            const firstPage = container.querySelector('.page');
+            targetColumn = firstPage
+                ? (firstPage.querySelector('.column.single')
+                    || firstPage.querySelector('.column.left')
+                    || firstPage.querySelector('.column.right'))
+                : null;
+        }
+        if (!targetColumn) return;
+
+        const createdBoxes = [];
+        blocks.forEach((block) => {
+            const el = this.createBlock(block);
+            targetColumn.appendChild(el);
+            const box = el.querySelector('.editable-box');
+            if (box) createdBoxes.push(box);
+        });
+
+        if (window.isMathJaxReady && createdBoxes.length) {
+            await Promise.all(createdBoxes.map(box => ManualRenderer.typesetElement(box, { trackConceptBlanks: false })));
+        }
+
+        this.debouncedRebalance();
+    },
+
+    async updateConceptBlankSummary(options = {}) {
+        if (this.conceptBlankSyncing) return;
+        if (!State.renderingEnabled) {
+            await this.refreshConceptBlankAnswerBlocks([]);
+            return;
+        }
+        if (!window.isMathJaxReady || ManualRenderer.isRendering) return;
+
+        const idsWithConceptBlank = new Set();
+        State.docData.blocks.forEach((block) => {
+            if (typeof block.content === 'string' && block.content.includes('[개념빈칸')) {
+                idsWithConceptBlank.add(block.id);
+            }
+        });
+        if (options.changedBlockId) idsWithConceptBlank.add(options.changedBlockId);
+
+        this.conceptBlankSyncing = true;
+        try {
+            ManualRenderer.resetConceptBlankTracking();
+            for (const block of State.docData.blocks) {
+                if (!idsWithConceptBlank.has(block.id)) continue;
+                const wrap = document.querySelector(`.block-wrapper[data-id="${block.id}"]`);
+                if (!wrap) continue;
+                const box = wrap.querySelector('.editable-box');
+                if (!box) continue;
+                await ManualRenderer.typesetElement(box);
+            }
+            ManualRenderer.syncConceptBlankAnswers();
+            await this.refreshConceptBlankAnswerBlocks();
+            this.updatePreflightPanel();
+        } finally {
+            this.conceptBlankSyncing = false;
+        }
     },
 
     rebalanceLayout: Utils.debounce(function() {
@@ -338,10 +507,10 @@ export const Renderer = {
     },
     
     // [Fix] 누락된 수식 동기화 함수 복구
-    syncBlock(id) {
+    syncBlock(id, recordHistory = false) {
         const wrap = document.querySelector(`.block-wrapper[data-id="${id}"]`); if (!wrap) return;
         const box = wrap.querySelector('.editable-box');
-        if (box) Actions.updateBlockContent(id, Utils.cleanRichContentToTex(box.innerHTML), false);
+        if (box) Actions.updateBlockContent(id, Utils.cleanRichContentToTex(box.innerHTML), recordHistory);
     },
 
     syncAllBlocks() { 

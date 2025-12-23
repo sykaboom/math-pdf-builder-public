@@ -68,10 +68,25 @@
     </div>
 </div>
 
+<div id="confirm-modal" class="modal-overlay">
+    <div class="modal-content" style="width:360px; gap:12px;">
+        <div style="font-weight:bold; display:flex; justify-content:space-between;">
+            <span>확인</span>
+            <span style="cursor:pointer;" onclick="resolveConfirm(false)">×</span>
+        </div>
+        <div id="confirm-modal-message" style="font-size:13px; line-height:1.6; color:#333;"></div>
+        <div style="display:flex; justify-content:flex-end; gap:8px;">
+            <button class="btn btn-primary btn-sm" onclick="resolveConfirm(true)">예</button>
+            <button class="btn btn-sm" onclick="resolveConfirm(false)">아니오</button>
+        </div>
+    </div>
+</div>
+
 <div id="floating-toolbar">
     <button class="ft-btn" onmousedown="execStyle('bold')" title="굵게">B</button>
     <button class="ft-btn" onmousedown="execStyle('italic')" title="기울임">I</button>
     <button class="ft-btn" onmousedown="execStyle('underline')" title="밑줄">U</button>
+    <button class="ft-btn" onmousedown="applyConceptBlank()" title="개념 빈칸">개념</button>
     <div class="ft-sep"></div>
     <button class="ft-btn" onmousedown="execStyle('justifyLeft')">⇤</button>
     <button class="ft-btn" onmousedown="execStyle('justifyCenter')">↔</button>
@@ -356,7 +371,8 @@
                 <div class="sidebar-hint">스타일: <code>기본</code>, <code>박스</code>, <code>음영</code>, <code>개념</code> (콤마로 조합)</div>
                 <div class="sidebar-hint">라벨 없음: <code>[[기본_]]</code></div>
                 <div class="sidebar-hint">수식: <code>$...$</code></div>
-                <div class="sidebar-hint">빈칸: <code>[빈칸: 내용]</code> 또는 <code>[빈칸_내용]</code></div>
+                <div class="sidebar-hint">개념빈칸: <code>[개념빈칸:#]정답[/개념빈칸]</code> (자동 번호/정답 모음)</div>
+                <div class="sidebar-hint">독립 빈칸: <code>[빈칸: 내용]</code> 또는 <code>[빈칸_내용]</code></div>
                 <div class="sidebar-hint">이미지: <code>[이미지: 설명]</code></div>
                 <div class="sidebar-hint">서식 태그: <code>[BOLD: 내용]</code>, <code>[굵게: 내용]</code>, <code>[볼드: 내용]</code>, <code>[밑줄: 내용]</code></div>
                 <div class="sidebar-hint">블록박스: <code>[블록박스_라벨]</code> ... <code>[/블록박스]</code></div>

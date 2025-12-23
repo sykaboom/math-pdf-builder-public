@@ -2,6 +2,7 @@
 export const Utils = {
     preservedClasses: ['custom-box', 'labeled-box', 'simple-box', 'box-label', 'box-content', 'rect-box', 'rect-box-content'],
     choiceLabels: ['①', '②', '③', '④', '⑤'],
+    confirmResolver: null,
     choiceLayoutGrid: {
         '1': [[1, 2, 3, 4, 5]],
         '2': [[1, 2, 3], [4, 5, 0]],
@@ -77,8 +78,23 @@ export const Utils = {
             const isDisplay = mjx.getAttribute('display') === 'true'; 
             if (tex) mjx.replaceWith(document.createTextNode(isDisplay ? `$$${tex}$$` : `$${tex}$`));
         });
+        const decodeHtml = (value = '') => {
+            const tmp = document.createElement('div');
+            tmp.innerHTML = String(value);
+            return tmp.textContent || '';
+        };
         div.querySelectorAll('.blank-box').forEach(blank => {
-            const delim = blank.dataset ? (blank.dataset.delim || ':') : ':';
+            const dataset = blank.dataset || {};
+            if (dataset.blankKind === 'concept') {
+                const rawLabel = dataset.rawLabel !== undefined
+                    ? decodeHtml(dataset.rawLabel)
+                    : (dataset.label !== undefined ? decodeHtml(dataset.label) : '#');
+                const delim = dataset.delim || ':';
+                const answer = dataset.answer ? decodeHtml(dataset.answer) : '';
+                blank.replaceWith(document.createTextNode(`[개념빈칸${delim}${rawLabel}]${answer}[/개념빈칸]`));
+                return;
+            }
+            const delim = dataset.delim || ':';
             blank.replaceWith(document.createTextNode(`[빈칸${delim}${blank.innerText}]`));
         });
         div.querySelectorAll('.image-placeholder').forEach(ph => {
@@ -313,5 +329,21 @@ export const Utils = {
         }, duration);
     },
     openModal(id) { document.getElementById(id).style.display = 'flex'; },
-    closeModal(id) { document.getElementById(id).style.display = 'none'; }
+    closeModal(id) { document.getElementById(id).style.display = 'none'; },
+    confirmDialog(message) {
+        const modal = document.getElementById('confirm-modal');
+        const msgEl = document.getElementById('confirm-modal-message');
+        if (!modal || !msgEl) return Promise.resolve(window.confirm(message));
+        msgEl.textContent = message;
+        return new Promise((resolve) => {
+            this.confirmResolver = resolve;
+            this.openModal('confirm-modal');
+        });
+    },
+    resolveConfirm(result) {
+        const resolver = this.confirmResolver;
+        this.confirmResolver = null;
+        this.closeModal('confirm-modal');
+        if (resolver) resolver(!!result);
+    }
 };

@@ -22,6 +22,8 @@ export const State = {
     renderingEnabled: true,
     selectionRange: null,
     selectionBlockId: null,
+    conceptBlankAnswers: [],
+    conceptBlankAnswersHash: '',
     keysPressed: {},
 
     saveHistory(debounceTime = 0, options = null) {
