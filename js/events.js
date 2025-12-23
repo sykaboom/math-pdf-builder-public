@@ -737,6 +737,20 @@ export const Events = {
                         if (id) Renderer.syncBlock(id);
                         return;
                     }
+                    if (action === 'blank') {
+                        const tex = targetMath.getAttribute('data-tex') || '';
+                        if (!tex) {
+                            Utils.showToast('수식 정보를 찾지 못했습니다.', 'info');
+                            return;
+                        }
+                        const isDisplay = targetMath.getAttribute('display') === 'true';
+                        const mathSource = isDisplay ? `$$${tex}$$` : `$${tex}$`;
+                        const token = `[개념빈칸:#]${mathSource}[/개념빈칸]`;
+                        targetMath.replaceWith(document.createTextNode(token));
+                        if (id) Renderer.syncBlock(id, true);
+                        Renderer.updateConceptBlankSummary({ changedBlockId: id || null });
+                        return;
+                    }
                     return;
                 }
                 if (splitBtn) {
