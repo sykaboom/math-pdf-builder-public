@@ -85,6 +85,10 @@ body.drag-over #drop-overlay { display: flex; }
 .sidebar-folder-body { margin-left: 14px; padding: 6px 0 2px; display: flex; flex-direction: column; gap: 6px; }
 .sidebar-hint { font-size: 11px; color: #555; background: #f8f9fa; border: 1px dashed #ddd; padding: 6px; border-radius: 4px; line-height: 1.4; }
 .sidebar-hint code { font-family: monospace; font-size: 11px; }
+.workflow-hint { display: flex; flex-direction: column; gap: 4px; }
+.workflow-title { font-weight: bold; color: #333; }
+.workflow-step { display: flex; align-items: center; gap: 6px; }
+.workflow-badge { background: #333; color: #fff; border-radius: 999px; padding: 1px 6px; font-size: 10px; }
 .sidebar-folder-body .shortcut-guide { margin-top: 0; }
 
 .sidebar-section { padding-bottom: 10px; margin-bottom: 10px; border-bottom: 1px solid #eee; }
