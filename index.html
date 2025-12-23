@@ -82,6 +82,19 @@
     </div>
 </div>
 
+<div id="patch-notes-modal" class="modal-overlay">
+    <div class="modal-content" style="width:520px; gap:12px;">
+        <div style="font-weight:bold; display:flex; justify-content:space-between;">
+            <span>패치노트</span>
+            <span style="cursor:pointer;" onclick="closeModal('patch-notes-modal')">×</span>
+        </div>
+        <div id="patch-notes-body" class="patch-notes-body">불러오는 중...</div>
+        <div style="display:flex; justify-content:flex-end; gap:8px;">
+            <button class="btn btn-sm" onclick="closeModal('patch-notes-modal')">닫기</button>
+        </div>
+    </div>
+</div>
+
 <div id="floating-toolbar">
     <button class="ft-btn" onmousedown="execStyle('bold')" title="굵게">B</button>
     <button class="ft-btn" onmousedown="execStyle('italic')" title="기울임">I</button>
@@ -209,6 +222,7 @@
 
     <div class="sidebar-tree">
         <button class="btn btn-danger" onclick="printWithMath()" style="margin-bottom:8px;">🖨️ 인쇄하기</button>
+        <button class="btn" onclick="openPatchNotes()" style="margin-bottom:8px;">📝 패치노트</button>
 
         <details class="sidebar-folder">
             <summary>파일</summary>

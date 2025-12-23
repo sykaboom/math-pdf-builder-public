@@ -64,6 +64,12 @@ body.drag-over #drop-overlay { display: flex; }
 .fr-label { width: 80px; font-size: 13px; font-weight: bold; color: #333; }
 .fr-input { flex-grow: 1; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; }
 .fr-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
+.patch-notes-body { max-height: 60vh; overflow-y: auto; font-size: 12px; color: #333; line-height: 1.6; background: #f8f9fa; border: 1px solid #ddd; border-radius: 6px; padding: 10px 12px; }
+.patch-notes-date { font-weight: bold; margin-top: 6px; }
+.patch-notes-list { margin: 4px 0 8px 18px; padding: 0; }
+.patch-notes-list li { margin-bottom: 2px; }
+.patch-notes-text { margin: 4px 0; }
+.patch-notes-spacer { height: 6px; }
 
 /* [레이아웃] */
 .sidebar { width: 340px; background: #fff; border-right: 1px solid #ccc; display: flex; flex-direction: column; padding: 15px; z-index: 200; flex-shrink: 0; overflow-y: auto; }

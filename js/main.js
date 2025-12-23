@@ -33,6 +33,61 @@ const getFileHandleByPath = async (root, relPath) => {
     return dir.getFileHandle(parts[parts.length - 1]);
 };
 
+const PATCH_NOTES_PATH = 'PATCH_NOTES.txt';
+
+const renderPatchNotes = (container, text) => {
+    if (!container) return;
+    container.innerHTML = '';
+    const lines = String(text || '').split(/\r?\n/);
+    const frag = document.createDocumentFragment();
+    let list = null;
+    const flushList = () => {
+        if (list) {
+            frag.appendChild(list);
+            list = null;
+        }
+    };
+    lines.forEach((line) => {
+        const trimmed = line.trim();
+        if (!trimmed) {
+            flushList();
+            const spacer = document.createElement('div');
+            spacer.className = 'patch-notes-spacer';
+            frag.appendChild(spacer);
+            return;
+        }
+        if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) {
+            flushList();
+            const dateEl = document.createElement('div');
+            dateEl.className = 'patch-notes-date';
+            dateEl.textContent = trimmed;
+            frag.appendChild(dateEl);
+            return;
+        }
+        if (trimmed.startsWith('- ')) {
+            if (!list) {
+                list = document.createElement('ul');
+                list.className = 'patch-notes-list';
+            }
+            const li = document.createElement('li');
+            li.textContent = trimmed.slice(2);
+            list.appendChild(li);
+            return;
+        }
+        flushList();
+        const textEl = document.createElement('div');
+        textEl.className = 'patch-notes-text';
+        textEl.textContent = trimmed;
+        frag.appendChild(textEl);
+    });
+    flushList();
+    if (!frag.childNodes.length) {
+        container.textContent = '패치노트가 없습니다.';
+        return;
+    }
+    container.appendChild(frag);
+};
+
 window.FileSystem = FileSystem;
 window.ManualRenderer = ManualRenderer;
 window.saveProjectJSON = () => FileSystem.saveProjectJSON(() => Renderer.syncAllBlocks());
@@ -184,6 +239,28 @@ window.downloadPromptFile = async (target) => {
     } catch (err) {
         // 최후 수단: 브라우저 기본 다운로드 동작에 맡김
         triggerDownload(encodeURI(path), true);
+    }
+};
+window.openPatchNotes = async () => {
+    const body = document.getElementById('patch-notes-body');
+    if (body) body.textContent = '불러오는 중...';
+    Utils.openModal('patch-notes-modal');
+    try {
+        let text = '';
+        if (FileSystem.dirHandle) {
+            const fileHandle = await getFileHandleByPath(FileSystem.dirHandle, PATCH_NOTES_PATH);
+            const file = await fileHandle.getFile();
+            text = await file.text();
+        } else if (window.location.protocol !== 'file:') {
+            const response = await fetch(encodeURI(PATCH_NOTES_PATH), { cache: 'no-store' });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            text = await response.text();
+        } else {
+            throw new Error('file-protocol');
+        }
+        renderPatchNotes(body, text);
+    } catch (err) {
+        if (body) body.textContent = '패치노트를 불러오지 못했습니다.';
     }
 };
 window.updatePromptDates = async () => {
