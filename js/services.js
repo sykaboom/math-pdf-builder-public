@@ -563,7 +563,21 @@ export const ImportParser = {
             const closeIdx = chunk.indexOf(']]'); if (closeIdx === -1) return;
             const meta = chunk.substring(0, closeIdx); let content = chunk.substring(closeIdx + 2).trim();
             if (content.startsWith(':')) content = content.substring(1).trim();
+            const metaClean = meta.trim();
+            const [stylePart, labelPart] = metaClean.includes('_') ? metaClean.split('_') : ['기본', metaClean];
+            const styles = stylePart.split(',');
+            const labelTrim = (labelPart || '').trim();
+            const hasStyle = (name) => styles.some(style => style.trim() === name);
+            const isConceptBlock = hasStyle('개념')
+                || /^박스_개념\b/.test(metaClean)
+                || /^개념\b/.test(metaClean)
+                || (hasStyle('박스') && /^개념\b/.test(labelTrim));
+
             content = escapeHtml(content);
+            if (isConceptBlock) {
+                content = content.replace(/\[블록박스_[^\]]*\]/g, '[블록사각형]');
+                content = content.replace(/\[\/블록박스\]/g, '[/블록사각형]');
+            }
 
             const renderBox = (label, body) => {
                 const bodyText = (body || '').trim().replace(/\n/g, '<br>');
@@ -686,12 +700,10 @@ export const ImportParser = {
             content = content.replace(/\[이미지\s*:\s*(.*?)\]/g, (m, label) => getEscapedImagePlaceholderHTML(label));
             content = content.replace(/\[빈칸([:_])(.*?)\]/g, (m, delim, label) => `<span class="blank-box" data-delim="${delim || ':'}" contenteditable="false">${label}</span>`);
             content = content.replace(/\n/g, '<br>');
-            const [stylePart, labelPart] = meta.includes('_') ? meta.split('_') : ['기본', meta];
-            const styles = stylePart.split(',');
-            let type = 'example'; let bordered = styles.includes('박스'); let bgGray = styles.includes('음영');
+            let type = 'example'; let bordered = hasStyle('박스'); let bgGray = hasStyle('음영');
             const safeQLabel = labelPart ? escapeHtml(labelPart) : '';
             let label = safeQLabel ? `<span class="q-label">${safeQLabel}</span>` : '';
-            if (styles.includes('개념')) type = 'concept';
+            if (hasStyle('개념')) type = 'concept';
             blocks.push({ id: 'imp_' + Date.now() + Math.random(), type: type, content: label + ' ' + content, bordered: bordered, bgGray: bgGray });
         });
         return blocks;

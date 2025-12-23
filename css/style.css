@@ -199,6 +199,19 @@ table.choice-table .choice-text { display: inline-block; min-width: 0; }
 .choice-menu-btn { border: 1px solid #ddd; background: #fff; border-radius: 4px; padding: 3px 8px; font-size: 11px; cursor: pointer; }
 .choice-menu-btn:hover { background: #e7f5ff; border-color: #007bff; color: #007bff; }
 
+#math-menu { position: absolute; display: none; flex-direction: column; align-items: stretch; gap: 6px; background: #fff; border: 1px solid #ccc; border-radius: 6px; padding: 8px 10px; z-index: 10005; box-shadow: 0 6px 16px rgba(0,0,0,0.18); font-size: 12px; min-width: 220px; }
+.math-menu-row { display: flex; gap: 6px; }
+.math-menu-title { font-size: 10px; font-weight: 700; color: #666; }
+.math-menu-btn { border: 1px solid #ddd; background: #fff; border-radius: 4px; padding: 3px 8px; font-size: 11px; cursor: pointer; }
+.math-menu-btn:hover { background: #e7f5ff; border-color: #007bff; color: #007bff; }
+.math-menu-ops { display: flex; flex-direction: column; gap: 4px; max-height: 180px; overflow: auto; }
+.math-menu-op { border: 1px solid #eee; background: #fff; border-radius: 4px; padding: 4px 6px; font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 6px; }
+.math-menu-op:hover { background: #f8fbff; border-color: #007bff; color: #007bff; }
+.math-menu-op-left { flex: 1; text-align: right; color: #555; }
+.math-menu-op-token { font-family: 'Courier New', monospace; font-weight: 700; color: #222; }
+.math-menu-op-right { flex: 1; text-align: left; color: #555; }
+.math-menu-empty { font-size: 11px; color: #888; padding: 2px 4px; }
+
 /* [도구] */
 #floating-toolbar { position: absolute; background: #333; border-radius: 6px; padding: 5px; display: none; gap: 5px; z-index: 10000; box-shadow: 0 4px 12px rgba(0,0,0,0.3); transform: translate(-50%, -120%); align-items: center; }
 #floating-toolbar::after { content: ''; position: absolute; bottom: -6px; left: 50%; margin-left: -6px; border-width: 6px; border-style: solid; border-color: #333 transparent transparent transparent; }
@@ -255,7 +268,7 @@ table.choice-table .choice-text { display: inline-block; min-width: 0; }
 
 @media print {
     @page { size: A4 portrait; margin: 0; }
-    .sidebar, #floating-toolbar, #image-resizer, #context-menu, #table-menu, #table-menu-handle, #choice-menu, #choice-menu-handle, .block-handle, .block-actions, #loading-indicator, #drop-overlay, .modal-overlay, .page-layout-control { display: none !important; }
+    .sidebar, #floating-toolbar, #image-resizer, #context-menu, #table-menu, #table-menu-handle, #choice-menu, #choice-menu-handle, #math-menu, .block-handle, .block-actions, #loading-indicator, #drop-overlay, .modal-overlay, .page-layout-control { display: none !important; }
     body, .workspace { background: white; overflow: visible; display: block; margin: 0; padding: 0; }
     .page { display: flex !important; flex-direction: column !important; margin: 0; box-shadow: none; border: none; page-break-after: always; transform: none !important; width: 210mm; height: 297mm !important; overflow: hidden !important; }
     .page.page-first { height: 297mm !important; }

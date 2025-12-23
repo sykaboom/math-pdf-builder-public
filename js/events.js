@@ -146,6 +146,92 @@ export const Events = {
         return Actions.splitBlockWithContents(targetId, cleanBefore, cleanAfter);
     },
 
+    getMathSplitCandidates(tex) {
+        const envRegex = /\\begin\{(matrix|pmatrix|bmatrix|vmatrix|Vmatrix|array|aligned|align|cases)\}/;
+        if (!tex) return { candidates: [], reason: '나눌 연산자가 없습니다.' };
+        if (envRegex.test(tex)) return { candidates: [], reason: '정렬/행렬 수식은 나누기를 지원하지 않습니다.' };
+
+        const operatorCommands = new Set(['le', 'leq', 'leqslant', 'ge', 'geq', 'geqslant', 'ne', 'neq']);
+        const rawCandidates = [];
+        let braceDepth = 0;
+        let bracketDepth = 0;
+        let parenDepth = 0;
+
+        for (let i = 0; i < tex.length; i++) {
+            const ch = tex[i];
+            if (ch === '\\') {
+                const rest = tex.slice(i + 1);
+                const match = rest.match(/^([a-zA-Z]+|.)/);
+                if (match) {
+                    const cmd = match[1];
+                    if (braceDepth === 0 && bracketDepth === 0 && parenDepth === 0 && operatorCommands.has(cmd)) {
+                        rawCandidates.push({ index: i, token: `\\${cmd}` });
+                    }
+                    i += cmd.length;
+                    continue;
+                }
+            }
+            if (ch === '{') { braceDepth++; continue; }
+            if (ch === '}') { braceDepth = Math.max(0, braceDepth - 1); continue; }
+            if (ch === '[') { bracketDepth++; continue; }
+            if (ch === ']') { bracketDepth = Math.max(0, bracketDepth - 1); continue; }
+            if (ch === '(') { parenDepth++; continue; }
+            if (ch === ')') { parenDepth = Math.max(0, parenDepth - 1); continue; }
+            if (braceDepth === 0 && bracketDepth === 0 && parenDepth === 0) {
+                if (ch === '=' || ch === '<' || ch === '>') rawCandidates.push({ index: i, token: ch });
+            }
+        }
+
+        const normalizeSpace = (value = '') => String(value).replace(/\s+/g, ' ').trim();
+        const trimPreview = (value, maxLen, trimLeft) => {
+            const text = normalizeSpace(value);
+            if (text.length <= maxLen) return text;
+            return trimLeft ? `...${text.slice(-maxLen)}` : `${text.slice(0, maxLen)}...`;
+        };
+        const stripOperator = (right, token) => {
+            const cleaned = normalizeSpace(right);
+            if (!token) return cleaned;
+            if (cleaned.startsWith(token)) return normalizeSpace(cleaned.slice(token.length));
+            if (token.length === 1 && cleaned[0] === token) return normalizeSpace(cleaned.slice(1));
+            return cleaned;
+        };
+
+        const candidates = rawCandidates.map(candidate => {
+            const left = tex.slice(0, candidate.index).trim();
+            const right = tex.slice(candidate.index).trim();
+            if (!left || !right) return null;
+            const rightBody = stripOperator(right, candidate.token);
+            if (!rightBody) return null;
+            const leftPreview = trimPreview(left, 18, true) || '...';
+            const rightPreview = trimPreview(rightBody, 18, false) || '...';
+            return {
+                index: candidate.index,
+                token: candidate.token,
+                leftPreview,
+                rightPreview
+            };
+        }).filter(Boolean);
+
+        return candidates.length
+            ? { candidates, reason: '' }
+            : { candidates: [], reason: '나눌 연산자가 없습니다.' };
+    },
+
+    splitMathAtIndex(mjxContainer, splitIndex) {
+        if (!mjxContainer || !Number.isFinite(splitIndex)) return false;
+        const tex = mjxContainer.getAttribute('data-tex');
+        if (!tex) return false;
+        const left = tex.slice(0, splitIndex).trim();
+        const right = tex.slice(splitIndex).trim();
+        if (!left || !right) {
+            Utils.showToast('나눌 위치를 찾지 못했습니다.', 'info');
+            return false;
+        }
+        const nextText = `$${left}$$${right}$`;
+        mjxContainer.replaceWith(document.createTextNode(nextText));
+        return true;
+    },
+
     populateFontMenu(targetId) {
         const b = State.docData.blocks.find(x => x.id === targetId);
         const famSel = document.getElementById('block-font-family-select');
@@ -294,6 +380,7 @@ export const Events = {
     },
 
     initGlobalListeners() {
+        const eventsApi = this;
         const body = document.body;
         const isTypingTarget = () => {
             const el = document.activeElement;
@@ -310,6 +397,64 @@ export const Events = {
             if (dt.items && Array.from(dt.items).some(item => item.kind === 'file')) return true;
             if (dt.files && dt.files.length > 0) return true;
             return false;
+        };
+
+        const mathMenu = document.getElementById('math-menu');
+        const mathMenuOps = mathMenu ? mathMenu.querySelector('.math-menu-ops') : null;
+        let activeMath = null;
+        const closeMathMenu = () => {
+            if (mathMenu) mathMenu.style.display = 'none';
+            activeMath = null;
+        };
+        const openMathMenu = (mjx) => {
+            if (!mathMenu) return;
+            activeMath = mjx;
+            if (mathMenuOps) {
+                const tex = mjx.getAttribute('data-tex') || '';
+                const splitData = eventsApi.getMathSplitCandidates(tex);
+                mathMenuOps.innerHTML = '';
+                if (splitData.candidates.length === 0) {
+                    const empty = document.createElement('div');
+                    empty.className = 'math-menu-empty';
+                    empty.textContent = splitData.reason || '나눌 연산자가 없습니다.';
+                    mathMenuOps.appendChild(empty);
+                } else {
+                    splitData.candidates.forEach((candidate) => {
+                        const btn = document.createElement('button');
+                        btn.type = 'button';
+                        btn.className = 'math-menu-op';
+                        btn.dataset.splitIndex = String(candidate.index);
+
+                        const leftSpan = document.createElement('span');
+                        leftSpan.className = 'math-menu-op-left';
+                        leftSpan.textContent = candidate.leftPreview;
+
+                        const tokenSpan = document.createElement('span');
+                        tokenSpan.className = 'math-menu-op-token';
+                        tokenSpan.textContent = candidate.token;
+
+                        const rightSpan = document.createElement('span');
+                        rightSpan.className = 'math-menu-op-right';
+                        rightSpan.textContent = candidate.rightPreview;
+
+                        btn.appendChild(leftSpan);
+                        btn.appendChild(tokenSpan);
+                        btn.appendChild(rightSpan);
+                        mathMenuOps.appendChild(btn);
+                    });
+                }
+            }
+            mathMenu.style.display = 'flex';
+            const rect = mjx.getBoundingClientRect();
+            const menuRect = mathMenu.getBoundingClientRect();
+            const pad = 8;
+            let top = rect.top + window.scrollY - menuRect.height - 8;
+            if (top < window.scrollY + pad) top = rect.bottom + window.scrollY + 8;
+            let left = rect.left + window.scrollX + (rect.width / 2) - (menuRect.width / 2);
+            left = Math.min(Math.max(left, window.scrollX + pad), window.scrollX + window.innerWidth - pad - menuRect.width);
+            top = Math.min(Math.max(top, window.scrollY + pad), window.scrollY + window.innerHeight - pad - menuRect.height);
+            mathMenu.style.top = `${top}px`;
+            mathMenu.style.left = `${left}px`;
         };
 
         body.addEventListener('dragover', (e) => {
@@ -351,13 +496,14 @@ export const Events = {
         window.addEventListener('scroll', () => {
             document.getElementById('context-menu').style.display = 'none';
             document.getElementById('floating-toolbar').style.display = 'none';
+            closeMathMenu();
             tableEditor.handleScroll();
         }, true);
 
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
                 tableEditor.handleEscape();
-                Utils.closeModal('context-menu'); document.getElementById('floating-toolbar').style.display='none'; this.hideResizer(); Utils.closeModal('import-modal'); Utils.closeModal('find-replace-modal'); return;
+                Utils.closeModal('context-menu'); document.getElementById('floating-toolbar').style.display='none'; closeMathMenu(); this.hideResizer(); Utils.closeModal('import-modal'); Utils.closeModal('find-replace-modal'); return;
             }
             const key = e.key.toLowerCase();
             State.keysPressed[key] = true; 
@@ -404,6 +550,7 @@ export const Events = {
             const menu = document.getElementById('context-menu');
             if (menu && menu.style.display === 'block') { if (!e.target.closest('#context-menu') && !e.target.closest('.block-handle')) menu.style.display = 'none'; }
             if (!e.target.closest('.image-placeholder') && !e.target.closest('#imgUpload')) { if(State.selectedPlaceholder) { State.selectedPlaceholder.classList.remove('selected'); State.selectedPlaceholder.setAttribute('contenteditable', 'false'); } State.selectedPlaceholder = null; } 
+            if (!e.target.closest('#math-menu') && !e.target.closest('mjx-container')) closeMathMenu();
             tableEditor.handleDocumentMouseDown(e);
         });
         document.addEventListener('mouseup', (e) => { const target = e.target; setTimeout(() => {
@@ -452,12 +599,53 @@ export const Events = {
             placeholder.setAttribute('contenteditable', 'false');
             document.getElementById('imgUpload').click();
         });
+
+        if (mathMenu) {
+            mathMenu.addEventListener('click', (e) => {
+                const btn = e.target.closest('[data-action]');
+                const splitBtn = e.target.closest('[data-split-index]');
+                if ((!btn && !splitBtn) || !activeMath) return;
+                e.preventDefault(); e.stopPropagation();
+                const targetMath = activeMath;
+                const wrap = targetMath.closest('.block-wrapper');
+                const id = wrap ? wrap.dataset.id : null;
+                if (btn) {
+                    const action = btn.dataset.action;
+                    closeMathMenu();
+                    if (action === 'edit') {
+                        ManualRenderer.revertToSource(targetMath);
+                        if (id) Renderer.syncBlock(id);
+                        return;
+                    }
+                    return;
+                }
+                if (splitBtn) {
+                    const splitIndex = parseInt(splitBtn.dataset.splitIndex, 10);
+                    closeMathMenu();
+                    const didSplit = eventsApi.splitMathAtIndex(targetMath, splitIndex);
+                    if (didSplit && id) {
+                        Renderer.syncBlock(id);
+                        ManualRenderer.renderAll();
+                    }
+                }
+            });
+        }
+
+        document.addEventListener('click', (e) => {
+            const mjx = e.target.closest('mjx-container');
+            if (mjx && State.renderingEnabled) {
+                openMathMenu(mjx);
+                return;
+            }
+            if (!e.target.closest('#math-menu')) closeMathMenu();
+        });
         
         document.addEventListener('dblclick', (e) => {
             if (!State.renderingEnabled) return;
             if (tableEditor.handleDoubleClick(e)) return;
             const mjx = e.target.closest('mjx-container');
             if (mjx) {
+                closeMathMenu();
                 e.preventDefault(); e.stopPropagation();
                 ManualRenderer.revertToSource(mjx);
                 Renderer.syncBlock(mjx.closest('.block-wrapper').dataset.id);

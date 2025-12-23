@@ -194,14 +194,49 @@ export const Utils = {
         });
     },
 
+    protectMathEnvironments(rawInput = '') {
+        let text = String(rawInput || '');
+        const envs = ['matrix', 'pmatrix', 'bmatrix', 'vmatrix', 'Vmatrix', 'array', 'aligned', 'align', 'cases'];
+        const envPattern = `(?:${envs.join('|')})`;
+        const envRegex = new RegExp(`\\\\begin\\{(${envPattern})\\}[\\s\\S]*?\\\\end\\{\\1\\}`, 'g');
+        text = text.replace(envRegex, (match) => match.replace(/\$/g, ''));
+
+        const wrapRegex = new RegExp(`\\\\begin\\{(${envPattern})\\}[\\s\\S]*?\\\\end\\{\\1\\}`, 'g');
+        let result = '';
+        let cursor = 0;
+        let inMath = false;
+        const updateInMath = (segment) => {
+            for (let i = 0; i < segment.length; i++) {
+                if (segment[i] !== '$') continue;
+                if (i > 0 && segment[i - 1] === '\\') continue;
+                inMath = !inMath;
+            }
+        };
+
+        let match;
+        while ((match = wrapRegex.exec(text)) !== null) {
+            const start = match.index;
+            const end = start + match[0].length;
+            const before = text.slice(cursor, start);
+            updateInMath(before);
+            result += before;
+            if (inMath) result += match[0];
+            else result += `$${match[0]}$`;
+            cursor = end;
+        }
+        result += text.slice(cursor);
+        return result;
+    },
+
     normalizeLlmOutput(rawInput = '') {
         let text = String(rawInput || '').trim();
         const fenced = text.match(/^```[^\n]*\n([\s\S]*?)\n```$/);
         if (fenced) text = fenced[1].trim();
         text = text.replace(/^\s*```[^\n]*\n?/gm, '').replace(/\n?\s*```[\s]*$/gm, '');
         text = text.replace(/\*\*([^*]+?)\*\*/g, '$1').replace(/\*\*/g, '');
-        text = text.replace(/\$\$/g, '$');
+        text = text.replace(/\$\$([\s\S]*?)\$\$/g, (match, body) => `$${body}$`);
         text = text.replace(/\\frac/g, '\\dfrac');
+        text = this.protectMathEnvironments(text);
         text = text.replace(/\[선지_([^\]]+)\]\s*:?\s*/g, (match, layout) => {
             const normalized = String(layout || '').trim();
             if (normalized === '1행' || normalized === '2행' || normalized === '5행') return match;
