@@ -789,10 +789,37 @@ export const Events = {
                         tmp.innerHTML = String(value);
                         return tmp.textContent || '';
                     };
+                    const wrapEl = blank.closest('.block-wrapper');
+                    const wrapId = wrapEl?.dataset?.id || null;
+                    const blankMeta = {
+                        index: dataset.index || '',
+                        rawLabel: dataset.rawLabel !== undefined ? dataset.rawLabel : (dataset.label || ''),
+                        answer: dataset.answer !== undefined ? dataset.answer : ''
+                    };
                     const confirmed = await Utils.confirmDialog('개념빈칸을 없애겠습니까?');
                     if (!confirmed) return;
-                    const wrap = blank.closest('.block-wrapper');
-                    const answer = dataset.answer ? decodeHtml(dataset.answer) : '';
+                    const wrap = wrapId
+                        ? document.querySelector(`.block-wrapper[data-id="${wrapId}"]`)
+                        : (wrapEl && wrapEl.isConnected ? wrapEl : null);
+                    let targetBlank = blank.isConnected ? blank : null;
+                    if (!targetBlank && wrap) {
+                        const blanks = Array.from(wrap.querySelectorAll('.blank-box.concept-blank-box'));
+                        if (blankMeta.index) {
+                            targetBlank = blanks.find(node => node.dataset.index === blankMeta.index) || null;
+                        }
+                        if (!targetBlank) {
+                            targetBlank = blanks.find(node => {
+                                const raw = node.dataset.rawLabel !== undefined ? node.dataset.rawLabel : (node.dataset.label || '');
+                                return (node.dataset.answer || '') === blankMeta.answer && raw === blankMeta.rawLabel;
+                            }) || null;
+                        }
+                        if (!targetBlank && blanks.length === 1) targetBlank = blanks[0];
+                    }
+                    if (!targetBlank) return;
+                    const answerSource = (targetBlank.dataset.answer !== undefined && targetBlank.dataset.answer !== '')
+                        ? targetBlank.dataset.answer
+                        : blankMeta.answer;
+                    const answer = answerSource ? decodeHtml(answerSource) : '';
                     const frag = document.createDocumentFragment();
                     if (answer) {
                         const lines = answer.split(/\n/);
@@ -801,9 +828,9 @@ export const Events = {
                             if (idx < lines.length - 1) frag.appendChild(document.createElement('br'));
                         });
                     }
-                    blank.replaceWith(frag);
-                    if (wrap) Renderer.syncBlock(wrap.dataset.id, true);
-                    await Renderer.updateConceptBlankSummary({ changedBlockId: wrap ? wrap.dataset.id : null });
+                    targetBlank.replaceWith(frag);
+                    if (wrapId) Renderer.syncBlock(wrapId, true);
+                    await Renderer.updateConceptBlankSummary({ changedBlockId: wrapId || null });
                     return;
                 } else {
                     const text = blank.innerText;
