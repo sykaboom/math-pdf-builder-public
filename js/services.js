@@ -152,7 +152,9 @@ export const ManualRenderer = {
         const nextAnswers = this.conceptBlankAnswers.slice();
         const nextIsMath = this.conceptBlankAnswersIsMath.slice();
         const nextHash = JSON.stringify({ answers: nextAnswers, isMath: nextIsMath });
-        if (nextHash === State.conceptBlankAnswersHash) return false;
+        const hasAnswerBlocks = Array.isArray(State.docData.blocks)
+            && State.docData.blocks.some(block => block.derived === 'concept-answers');
+        if (nextHash === State.conceptBlankAnswersHash && (hasAnswerBlocks || nextAnswers.length === 0)) return false;
         State.conceptBlankAnswers = nextAnswers;
         State.conceptBlankAnswersIsMath = nextIsMath;
         State.conceptBlankAnswersHash = nextHash;

@@ -324,16 +324,18 @@ export const Renderer = {
         return wrap;
     },
 
-    createConceptAnswerBlock(capacity = 3) {
+    createConceptAnswerBlock(capacity = null, manualSplit = false) {
         const suffix = Math.random().toString(16).slice(2, 6);
-        return {
+        const block = {
             id: `concept_${Date.now()}_${suffix}`,
             type: 'answer',
             content: '',
             bgGray: true,
-            derived: 'concept-answers',
-            conceptAnswerCount: capacity
+            derived: 'concept-answers'
         };
+        if (Number.isFinite(capacity) && capacity > 0) block.conceptAnswerCount = capacity;
+        if (manualSplit) block.conceptAnswerSplit = true;
+        return block;
     },
 
     syncConceptAnswerBlocks(answersInput) {
@@ -343,17 +345,14 @@ export const Renderer = {
         const answersIsMath = Array.isArray(State.conceptBlankAnswersIsMath)
             ? State.conceptBlankAnswersIsMath
             : [];
-        const defaultChunkSize = 3;
         let structureChanged = false;
         let contentChanged = false;
 
         const blocks = State.docData.blocks;
         let conceptBlocks = [];
-        let conceptIndices = [];
         blocks.forEach((block, idx) => {
             if (block.derived === 'concept-answers') {
                 conceptBlocks.push(block);
-                conceptIndices.push(idx);
             }
         });
 
@@ -365,11 +364,17 @@ export const Renderer = {
             return { structureChanged, contentChanged, blocks: [] };
         }
 
+        const hasManualSplit = conceptBlocks.some(block => block.conceptAnswerSplit);
+        if (conceptBlocks.length > 1 && !hasManualSplit) {
+            const keep = conceptBlocks[0];
+            State.docData.blocks = blocks.filter(block => block.derived !== 'concept-answers' || block === keep);
+            structureChanged = true;
+            conceptBlocks = [keep];
+        }
         if (!conceptBlocks.length) {
-            const created = this.createConceptAnswerBlock(defaultChunkSize);
+            const created = this.createConceptAnswerBlock();
             blocks.push(created);
             conceptBlocks = [created];
-            conceptIndices = [blocks.length - 1];
             structureChanged = true;
         }
 
@@ -403,34 +408,45 @@ export const Renderer = {
             return labelHtml + items.join('&nbsp;&nbsp;');
         };
 
+        if (conceptBlocks.length === 1) {
+            const block = conceptBlocks[0];
+            const nextContent = buildContent(answers, 0, true);
+            if (block.content !== nextContent) {
+                block.content = nextContent;
+                contentChanged = true;
+            }
+            block.type = 'answer';
+            block.bgGray = true;
+            block.derived = 'concept-answers';
+            block.conceptAnswerSplit = false;
+            block.conceptAnswerCount = answers.length;
+            block.conceptAnswerStart = answers.length ? 1 : null;
+            block.conceptAnswerAssigned = answers.length;
+            return { structureChanged, contentChanged, blocks: conceptBlocks };
+        }
+
         const capacities = conceptBlocks.map((block) => {
             const count = parseInt(block.conceptAnswerCount, 10);
             if (Number.isFinite(count) && count > 0) return count;
-            block.conceptAnswerCount = defaultChunkSize;
-            return defaultChunkSize;
+            const assigned = parseInt(block.conceptAnswerAssigned, 10);
+            if (Number.isFinite(assigned) && assigned > 0) return assigned;
+            return null;
         });
 
         const assignments = [];
         let answerIndex = 0;
         for (let i = 0; i < conceptBlocks.length; i++) {
             const remaining = answers.length - answerIndex;
-            const capacity = capacities[i];
-            const count = remaining > 0 ? Math.min(capacity, remaining) : 0;
+            let count = 0;
+            if (remaining > 0) {
+                if (i === conceptBlocks.length - 1) {
+                    count = remaining;
+                } else {
+                    const capacity = capacities[i];
+                    if (capacity) count = Math.min(capacity, remaining);
+                }
+            }
             assignments.push({ block: conceptBlocks[i], startIndex: answerIndex, count });
-            answerIndex += count;
-        }
-
-        let lastInsertIndex = conceptIndices.length ? conceptIndices[conceptIndices.length - 1] : blocks.length - 1;
-        while (answerIndex < answers.length) {
-            const remaining = answers.length - answerIndex;
-            const count = Math.min(defaultChunkSize, remaining);
-            const created = this.createConceptAnswerBlock(defaultChunkSize);
-            blocks.splice(lastInsertIndex + 1, 0, created);
-            structureChanged = true;
-            lastInsertIndex += 1;
-            conceptBlocks.push(created);
-            conceptIndices.push(lastInsertIndex);
-            assignments.push({ block: created, startIndex: answerIndex, count });
             answerIndex += count;
         }
 
@@ -447,6 +463,22 @@ export const Renderer = {
             }
             assignments.pop();
         }
+        if (assignments.length === 1) {
+            const onlyBlock = assignments[0].block;
+            const nextContent = buildContent(answers, 0, true);
+            if (onlyBlock.content !== nextContent) {
+                onlyBlock.content = nextContent;
+                contentChanged = true;
+            }
+            onlyBlock.type = 'answer';
+            onlyBlock.bgGray = true;
+            onlyBlock.derived = 'concept-answers';
+            onlyBlock.conceptAnswerSplit = false;
+            onlyBlock.conceptAnswerCount = answers.length;
+            onlyBlock.conceptAnswerStart = answers.length ? 1 : null;
+            onlyBlock.conceptAnswerAssigned = answers.length;
+            return { structureChanged, contentChanged, blocks: [onlyBlock] };
+        }
 
         assignments.forEach((assignment, idx) => {
             const includeLabel = idx === 0;
@@ -459,6 +491,12 @@ export const Renderer = {
             assignment.block.type = 'answer';
             assignment.block.bgGray = true;
             assignment.block.derived = 'concept-answers';
+            assignment.block.conceptAnswerSplit = true;
+            if (idx === assignments.length - 1) {
+                assignment.block.conceptAnswerCount = assignment.count;
+            } else if (assignment.block.conceptAnswerCount === undefined || assignment.block.conceptAnswerCount === null) {
+                assignment.block.conceptAnswerCount = assignment.count;
+            }
             assignment.block.conceptAnswerStart = assignment.count ? assignment.startIndex + 1 : null;
             assignment.block.conceptAnswerAssigned = assignment.count;
         });

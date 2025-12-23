@@ -491,8 +491,9 @@ export const Events = {
             : items.length;
         const nextCapacity = Math.max(1, currentCapacity - newCount);
         block.conceptAnswerCount = newCount;
+        block.conceptAnswerSplit = true;
 
-        const newBlock = Renderer.createConceptAnswerBlock(nextCapacity);
+        const newBlock = Renderer.createConceptAnswerBlock(nextCapacity, true);
         newBlock.conceptAnswerCount = nextCapacity;
 
         const idx = State.docData.blocks.findIndex(item => item.id === id);
