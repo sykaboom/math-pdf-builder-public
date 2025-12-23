@@ -152,10 +152,12 @@ export const Events = {
         if (envRegex.test(tex)) return { candidates: [], reason: '정렬/행렬 수식은 나누기를 지원하지 않습니다.' };
 
         const operatorCommands = new Set(['le', 'leq', 'leqslant', 'ge', 'geq', 'geqslant', 'ne', 'neq']);
+        const cdotsOperatorCommands = new Set(['times', 'cdot', 'ast']);
         const rawCandidates = [];
         let braceDepth = 0;
         let bracketDepth = 0;
         let parenDepth = 0;
+        let awaitingCdotsOperator = false;
 
         for (let i = 0; i < tex.length; i++) {
             const ch = tex[i];
@@ -164,7 +166,19 @@ export const Events = {
                 const match = rest.match(/^([a-zA-Z]+|.)/);
                 if (match) {
                     const cmd = match[1];
-                    if (braceDepth === 0 && bracketDepth === 0 && parenDepth === 0 && operatorCommands.has(cmd)) {
+                    const atTopLevel = braceDepth === 0 && bracketDepth === 0 && parenDepth === 0;
+                    if (atTopLevel && cmd === 'cdots') {
+                        awaitingCdotsOperator = true;
+                        i += cmd.length;
+                        continue;
+                    }
+                    if (atTopLevel && awaitingCdotsOperator && cdotsOperatorCommands.has(cmd)) {
+                        rawCandidates.push({ index: i, token: `\\${cmd}` });
+                        awaitingCdotsOperator = false;
+                        i += cmd.length;
+                        continue;
+                    }
+                    if (atTopLevel && operatorCommands.has(cmd)) {
                         rawCandidates.push({ index: i, token: `\\${cmd}` });
                     }
                     i += cmd.length;
@@ -179,6 +193,10 @@ export const Events = {
             if (ch === ')') { parenDepth = Math.max(0, parenDepth - 1); continue; }
             if (braceDepth === 0 && bracketDepth === 0 && parenDepth === 0) {
                 if (ch === '=' || ch === '<' || ch === '>') rawCandidates.push({ index: i, token: ch });
+                if (awaitingCdotsOperator && (ch === '+' || ch === '-')) {
+                    rawCandidates.push({ index: i, token: ch });
+                    awaitingCdotsOperator = false;
+                }
             }
         }
 
