@@ -23,6 +23,7 @@ export const State = {
     selectionRange: null,
     selectionBlockId: null,
     conceptBlankAnswers: [],
+    conceptBlankAnswersIsMath: [],
     conceptBlankAnswersHash: '',
     keysPressed: {},
 

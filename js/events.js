@@ -446,6 +446,62 @@ export const Events = {
         if(styleChanged) renderCallback();
     },
 
+    handleConceptAnswerKeydown(e, id, box) {
+        if (!(e && e.key === 'Enter' && e.altKey && e.shiftKey)) return;
+        e.preventDefault();
+        if (this.splitConceptAnswerBlock(id, box)) {
+            Renderer.refreshConceptBlankAnswerBlocks();
+        }
+    },
+
+    splitConceptAnswerBlock(id, box) {
+        const block = State.docData.blocks.find(item => item.id === id && item.derived === 'concept-answers');
+        if (!block || !box) return false;
+        const items = Array.from(box.querySelectorAll('.concept-answer-item'));
+        if (items.length < 2) return false;
+
+        let splitIndex = null;
+        const sel = window.getSelection();
+        if (sel && sel.rangeCount) {
+            const anchor = sel.anchorNode;
+            const anchorEl = anchor
+                ? (anchor.nodeType === Node.ELEMENT_NODE ? anchor : anchor.parentElement)
+                : null;
+            const item = anchorEl ? anchorEl.closest('.concept-answer-item') : null;
+            if (item && box.contains(item)) {
+                const parsed = parseInt(item.dataset.answerIndex, 10);
+                if (Number.isFinite(parsed)) splitIndex = parsed;
+            }
+        }
+
+        if (!Number.isFinite(splitIndex)) {
+            const mid = Math.ceil(items.length / 2);
+            const fallback = items[mid - 1];
+            if (fallback) splitIndex = parseInt(fallback.dataset.answerIndex, 10);
+        }
+
+        const firstIndex = parseInt(items[0].dataset.answerIndex, 10);
+        const lastIndex = parseInt(items[items.length - 1].dataset.answerIndex, 10);
+        if (!Number.isFinite(firstIndex) || !Number.isFinite(lastIndex) || !Number.isFinite(splitIndex)) return false;
+        if (splitIndex >= lastIndex) return false;
+
+        const newCount = Math.max(1, splitIndex - firstIndex + 1);
+        const currentCapacity = Number.isFinite(parseInt(block.conceptAnswerCount, 10))
+            ? parseInt(block.conceptAnswerCount, 10)
+            : items.length;
+        const nextCapacity = Math.max(1, currentCapacity - newCount);
+        block.conceptAnswerCount = newCount;
+
+        const newBlock = Renderer.createConceptAnswerBlock(nextCapacity);
+        newBlock.conceptAnswerCount = nextCapacity;
+
+        const idx = State.docData.blocks.findIndex(item => item.id === id);
+        if (idx === -1) return false;
+        State.docData.blocks.splice(idx + 1, 0, newBlock);
+        State.saveHistory();
+        return true;
+    },
+
     initGlobalListeners() {
         const eventsApi = this;
         const body = document.body;

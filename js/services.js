@@ -127,28 +127,34 @@ export const ManualRenderer = {
     isRendering: false,
     conceptBlankCounter: 0,
     conceptBlankAnswers: [],
+    conceptBlankAnswersIsMath: [],
     conceptBlankMathQueue: [],
 
     resetConceptBlankTracking() {
         this.conceptBlankCounter = 0;
         this.conceptBlankAnswers = [];
+        this.conceptBlankAnswersIsMath = [];
         this.conceptBlankMathQueue = [];
     },
 
-    recordConceptBlank(rawAnswer = '') {
+    recordConceptBlank(rawAnswer = '', options = {}) {
+        const isMath = options && options.isMath === true;
         const tmp = document.createElement('div');
         tmp.innerHTML = String(rawAnswer);
         const normalized = (tmp.textContent || '').replace(/\u00A0/g, ' ');
         this.conceptBlankCounter += 1;
         this.conceptBlankAnswers.push(normalized);
+        this.conceptBlankAnswersIsMath.push(isMath);
         return this.conceptBlankCounter;
     },
 
     syncConceptBlankAnswers() {
         const nextAnswers = this.conceptBlankAnswers.slice();
-        const nextHash = JSON.stringify(nextAnswers);
+        const nextIsMath = this.conceptBlankAnswersIsMath.slice();
+        const nextHash = JSON.stringify({ answers: nextAnswers, isMath: nextIsMath });
         if (nextHash === State.conceptBlankAnswersHash) return false;
         State.conceptBlankAnswers = nextAnswers;
+        State.conceptBlankAnswersIsMath = nextIsMath;
         State.conceptBlankAnswersHash = nextHash;
         return true;
     },
@@ -278,7 +284,7 @@ export const ManualRenderer = {
             };
             const getConceptBlankIndexForMath = (answerText = '') => {
                 if (renderer.conceptBlankMathQueue.length) return renderer.conceptBlankMathQueue.shift();
-                return renderer.recordConceptBlank(answerText);
+                return renderer.recordConceptBlank(answerText, { isMath: true });
             };
             const toConceptBlankText = (answerText = '', rawLabel = '#') => {
                 if (!trackConceptBlanks) return toMathBlankText(formatConceptBlankLabel(rawLabel));
@@ -351,7 +357,7 @@ export const ManualRenderer = {
                     if (insideMath) {
                         if (passIndex === 0 && m[1] !== undefined && trackConceptBlanks) {
                             const body = m[3] || '';
-                            const index = renderer.recordConceptBlank(body);
+                            const index = renderer.recordConceptBlank(body, { isMath: true });
                             renderer.conceptBlankMathQueue.push(index);
                         }
                         continue;
@@ -362,7 +368,7 @@ export const ManualRenderer = {
                         const rawLabel = m[2];
                         const body = m[3] || '';
                         const index = trackConceptBlanks
-                            ? renderer.recordConceptBlank(body)
+                            ? renderer.recordConceptBlank(body, { isMath: false })
                             : normalizeTextBlankLabel(rawLabel || '#');
                         const span = document.createElement('span');
                         span.className = 'blank-box concept-blank-box';

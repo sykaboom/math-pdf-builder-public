@@ -118,21 +118,6 @@ export const Renderer = {
             } 
         });
 
-        const conceptAnswerBlocks = this.buildConceptBlankAnswerBlocks();
-        conceptAnswerBlocks.forEach((block) => {
-            const el = this.createBlock(block);
-            curCol.appendChild(el);
-            if (curCol.scrollHeight > curCol.clientHeight + 5) {
-                if (curCol.children.length === 1) {
-                    moveToNextColumn();
-                } else {
-                    curCol.removeChild(el);
-                    moveToNextColumn();
-                    curCol.appendChild(el);
-                }
-            }
-        });
-
         if (workspace) workspace.scrollTop = scrollTop;
         this.updatePreflightPanel();
         
@@ -160,7 +145,8 @@ export const Renderer = {
     },
 
     createBlock(block) {
-        if (block.derived) {
+        const isConceptDerived = block.derived === 'concept-answers';
+        if (block.derived && !isConceptDerived) {
             const wrap = document.createElement('div');
             wrap.className = 'block-wrapper derived-block';
             wrap.dataset.derived = block.derived;
@@ -189,19 +175,24 @@ export const Renderer = {
         }
 
         const wrap = document.createElement('div'); wrap.className = 'block-wrapper'; wrap.dataset.id = block.id;
+        if (isConceptDerived) wrap.dataset.derived = 'concept-answers';
         if(block.style && block.style.textAlign) wrap.style.textAlign = block.style.textAlign;
         if(block.bgGray) wrap.classList.add('bg-gray-block'); 
 
-        const actions = document.createElement('div'); actions.className = 'block-actions';
-        const btnBr = document.createElement('button'); btnBr.className = 'block-action-btn'; btnBr.innerText = '⤵'; btnBr.title = '단 나누기 추가'; btnBr.onclick=(e)=>{ e.stopPropagation(); this.performAndRender(() => Actions.addBlockBelow('break', block.id)); };
-        const btnSp = document.createElement('button'); btnSp.className = 'block-action-btn'; btnSp.innerText = '▱'; btnSp.title = '여백 블록 추가'; btnSp.onclick=(e)=>{ e.stopPropagation(); this.performAndRender(() => Actions.addBlockBelow('spacer', block.id)); };
-        actions.appendChild(btnBr); actions.appendChild(btnSp); wrap.appendChild(actions);
+        if (!isConceptDerived) {
+            const actions = document.createElement('div'); actions.className = 'block-actions';
+            const btnBr = document.createElement('button'); btnBr.className = 'block-action-btn'; btnBr.innerText = '⤵'; btnBr.title = '단 나누기 추가'; btnBr.onclick=(e)=>{ e.stopPropagation(); this.performAndRender(() => Actions.addBlockBelow('break', block.id)); };
+            const btnSp = document.createElement('button'); btnSp.className = 'block-action-btn'; btnSp.innerText = '▱'; btnSp.title = '여백 블록 추가'; btnSp.onclick=(e)=>{ e.stopPropagation(); this.performAndRender(() => Actions.addBlockBelow('spacer', block.id)); };
+            actions.appendChild(btnBr); actions.appendChild(btnSp); wrap.appendChild(actions);
+        }
 
-        wrap.addEventListener('click', (e) => {
-             if (!(e.ctrlKey || e.metaKey)) return;
-             if (e.altKey) { e.preventDefault(); e.stopPropagation(); this.performAndRender(() => Actions.addBlockBelow('break', block.id)); return; }
-             if (e.shiftKey) { e.preventDefault(); e.stopPropagation(); this.performAndRender(() => Actions.addBlockBelow('spacer', block.id)); return; }
-        });
+        if (!isConceptDerived) {
+            wrap.addEventListener('click', (e) => {
+                 if (!(e.ctrlKey || e.metaKey)) return;
+                 if (e.altKey) { e.preventDefault(); e.stopPropagation(); this.performAndRender(() => Actions.addBlockBelow('break', block.id)); return; }
+                 if (e.shiftKey) { e.preventDefault(); e.stopPropagation(); this.performAndRender(() => Actions.addBlockBelow('spacer', block.id)); return; }
+            });
+        }
 
         wrap.draggable = false; 
         const handle = document.createElement('div'); handle.className = 'block-handle'; handle.draggable = true; 
@@ -218,6 +209,7 @@ export const Renderer = {
         
         // [Fix] 메뉴 토글 로직 (display check)
         handle.onclick = (e) => {
+            if (isConceptDerived) return;
             e.stopPropagation();
             const m = document.getElementById('context-menu');
             if (m.style.display === 'block' && State.contextTargetId === block.id) {
@@ -264,13 +256,20 @@ export const Renderer = {
             if(block.type==='concept') box.classList.add('concept-box');
             if(block.bordered) box.classList.add('bordered-box');
             box.innerHTML=block.content;
-            box.contentEditable=true;
+            const isReadOnly = isConceptDerived;
+            box.contentEditable = !isReadOnly;
+            if (isReadOnly) {
+                box.classList.add('concept-answer-box');
+                box.tabIndex = 0;
+                if (block.conceptAnswerStart) box.dataset.answerStart = String(block.conceptAnswerStart);
+                if (block.conceptAnswerAssigned) box.dataset.answerCount = String(block.conceptAnswerAssigned);
+            }
             const placeholderMap = {
                 concept: "개념 내용 입력… (수식: $...$ / 줄바꿈: Shift+Enter)",
                 example: "내용 입력… (수식: $...$ / 줄바꿈: Shift+Enter)",
                 answer: "해설 입력… (수식: $...$ / 줄바꿈: Shift+Enter)"
             };
-            box.dataset.placeholder = placeholderMap[block.type] || placeholderMap.example;
+            if (!isReadOnly) box.dataset.placeholder = placeholderMap[block.type] || placeholderMap.example;
 
             const familyKey = block.fontFamily || State.docData.meta.fontFamily || 'serif';
             const sizePt = block.fontSizePt || State.docData.meta.fontSizePt || 10.5;
@@ -282,50 +281,97 @@ export const Renderer = {
             box.style.fontFamily = familyMap[familyKey] || familyMap.serif;
             box.style.fontSize = sizePt + 'pt';
             
-            box.addEventListener('blur', async () => {
-                if (!State.renderingEnabled) {
+            if (!isReadOnly) {
+                box.addEventListener('blur', async () => {
+                    if (!State.renderingEnabled) {
+                        Actions.updateBlockContent(block.id, Utils.cleanRichContentToTex(box.innerHTML), true);
+                        this.debouncedRebalance();
+                        this.updatePreflightPanel();
+                        return;
+                    }
+                    if(!window.isMathJaxReady) return;
+                    const hasConceptBlank = !!box.querySelector('.concept-blank-box')
+                        || /\[개념빈칸[:_]/.test(box.innerText);
+                    if (hasConceptBlank) {
+                        await ManualRenderer.renderAll();
+                    } else if(/\[빈칸[:_]/.test(box.innerText) || box.innerText.includes('$') || box.innerText.includes('[이미지') || box.innerText.includes('[블록박스') || box.innerText.includes('[블록사각형') || box.innerText.includes('[표_') || box.innerText.includes('[선지_') || box.innerText.includes('[BOLD') || box.innerText.includes('[굵게') || box.innerText.includes('[밑줄')) {
+                        await ManualRenderer.typesetElement(box);
+                    }
                     Actions.updateBlockContent(block.id, Utils.cleanRichContentToTex(box.innerHTML), true);
-                    this.debouncedRebalance();
+                    this.debouncedRebalance(); 
                     this.updatePreflightPanel();
-                    return;
-                }
-                if(!window.isMathJaxReady) return;
-                const hasConceptBlank = !!box.querySelector('.concept-blank-box')
-                    || /\[개념빈칸[:_]/.test(box.innerText);
-                if (hasConceptBlank) {
-                    await ManualRenderer.renderAll();
-                } else if(/\[빈칸[:_]/.test(box.innerText) || box.innerText.includes('$') || box.innerText.includes('[이미지') || box.innerText.includes('[블록박스') || box.innerText.includes('[블록사각형') || box.innerText.includes('[표_') || box.innerText.includes('[선지_') || box.innerText.includes('[BOLD') || box.innerText.includes('[굵게') || box.innerText.includes('[밑줄')) {
-                    await ManualRenderer.typesetElement(box);
-                }
-                Actions.updateBlockContent(block.id, Utils.cleanRichContentToTex(box.innerHTML), true);
-                this.debouncedRebalance(); 
-                this.updatePreflightPanel();
-            });
-            box.oninput=(e)=>{ 
-                const cleanHTML = Utils.cleanRichContentToTex(box.innerHTML); 
-                Actions.updateBlockContent(block.id, cleanHTML, false);
-                const inputType = e && e.inputType ? e.inputType : '';
-                const isDelete = typeof inputType === 'string' && inputType.startsWith('delete');
-                const delay = isDelete ? 0 : 1000;
-                const reason = isDelete ? 'edit' : 'typing';
-                State.saveHistory(delay, { reason, blockId: block.id, coalesceMs: 2000 });
-                this.debouncedRebalance(); // 입력 시 자동 레이아웃 조정
-                this.updatePreflightPanel();
-            };
-            // 렌더링 콜백을 Events로 전달
-            box.onkeydown = (e) => Events.handleBlockKeydown(e, block.id, box, () => { this.renderPages(); ManualRenderer.renderAll(); });
-            box.onmousedown = (e) => Events.handleBlockMousedown(e, block.id);
+                });
+                box.oninput=(e)=>{ 
+                    const cleanHTML = Utils.cleanRichContentToTex(box.innerHTML); 
+                    Actions.updateBlockContent(block.id, cleanHTML, false);
+                    const inputType = e && e.inputType ? e.inputType : '';
+                    const isDelete = typeof inputType === 'string' && inputType.startsWith('delete');
+                    const delay = isDelete ? 0 : 1000;
+                    const reason = isDelete ? 'edit' : 'typing';
+                    State.saveHistory(delay, { reason, blockId: block.id, coalesceMs: 2000 });
+                    this.debouncedRebalance(); // 입력 시 자동 레이아웃 조정
+                    this.updatePreflightPanel();
+                };
+                // 렌더링 콜백을 Events로 전달
+                box.onkeydown = (e) => Events.handleBlockKeydown(e, block.id, box, () => { this.renderPages(); ManualRenderer.renderAll(); });
+                box.onmousedown = (e) => Events.handleBlockMousedown(e, block.id);
+            } else {
+                box.onkeydown = (e) => Events.handleConceptAnswerKeydown(e, block.id, box);
+                box.onmousedown = () => { box.focus(); };
+            }
             wrap.appendChild(box);
         }
         return wrap;
     },
 
-    buildConceptBlankAnswerBlocks(answersInput) {
-        if (!State.renderingEnabled) return [];
+    createConceptAnswerBlock(capacity = 3) {
+        const suffix = Math.random().toString(16).slice(2, 6);
+        return {
+            id: `concept_${Date.now()}_${suffix}`,
+            type: 'answer',
+            content: '',
+            bgGray: true,
+            derived: 'concept-answers',
+            conceptAnswerCount: capacity
+        };
+    },
+
+    syncConceptAnswerBlocks(answersInput) {
         const answers = Array.isArray(answersInput)
             ? answersInput
             : (Array.isArray(State.conceptBlankAnswers) ? State.conceptBlankAnswers : []);
-        if (!answers.length) return [];
+        const answersIsMath = Array.isArray(State.conceptBlankAnswersIsMath)
+            ? State.conceptBlankAnswersIsMath
+            : [];
+        const defaultChunkSize = 3;
+        let structureChanged = false;
+        let contentChanged = false;
+
+        const blocks = State.docData.blocks;
+        let conceptBlocks = [];
+        let conceptIndices = [];
+        blocks.forEach((block, idx) => {
+            if (block.derived === 'concept-answers') {
+                conceptBlocks.push(block);
+                conceptIndices.push(idx);
+            }
+        });
+
+        if (!answers.length) {
+            if (conceptBlocks.length) {
+                State.docData.blocks = blocks.filter(block => block.derived !== 'concept-answers');
+                structureChanged = true;
+            }
+            return { structureChanged, contentChanged, blocks: [] };
+        }
+
+        if (!conceptBlocks.length) {
+            const created = this.createConceptAnswerBlock(defaultChunkSize);
+            blocks.push(created);
+            conceptBlocks = [created];
+            conceptIndices = [blocks.length - 1];
+            structureChanged = true;
+        }
 
         const escapeHtml = (value = '') => {
             return String(value)
@@ -338,69 +384,124 @@ export const Renderer = {
         const normalizeAnswer = (value = '') => {
             return String(value).replace(/\r\n/g, '\n').replace(/\n/g, ' ').trim();
         };
+        const wrapMathAnswer = (value = '', isMath = false) => {
+            const normalized = normalizeAnswer(value);
+            if (!isMath) return normalized;
+            if (!normalized) return normalized;
+            if (normalized.includes('$')) return normalized;
+            return `$${normalized}$`;
+        };
+        const buildContent = (slice, startIndex, includeLabel) => {
+            const items = slice.map((answer, idx) => {
+                const index = startIndex + idx + 1;
+                const isMath = !!answersIsMath[index - 1];
+                const displayAnswer = wrapMathAnswer(answer, isMath);
+                const cleaned = escapeHtml(displayAnswer);
+                return `<span class="concept-answer-item" data-answer-index="${index}">(${index}) ${cleaned}</span>`;
+            });
+            const labelHtml = includeLabel ? `<span class="q-label">개념 빈칸 정답</span> ` : '';
+            return labelHtml + items.join('&nbsp;&nbsp;');
+        };
 
-        const blocks = [];
-        const chunkSize = 3;
-        for (let i = 0; i < answers.length; i += chunkSize) {
-            const chunk = answers.slice(i, i + chunkSize);
-            const lines = chunk.map((answer, idx) => {
-                const index = i + idx + 1;
-                const cleaned = escapeHtml(normalizeAnswer(answer));
-                return cleaned ? `(${index}) ${cleaned}` : `(${index})`;
-            });
-            const labelHtml = i === 0 ? `<span class="q-label">개념 빈칸 정답</span> ` : '';
-            const content = labelHtml + lines.join('&nbsp;&nbsp;');
-            blocks.push({
-                type: 'answer',
-                content,
-                bgGray: true,
-                derived: 'concept-answers'
-            });
+        const capacities = conceptBlocks.map((block) => {
+            const count = parseInt(block.conceptAnswerCount, 10);
+            if (Number.isFinite(count) && count > 0) return count;
+            block.conceptAnswerCount = defaultChunkSize;
+            return defaultChunkSize;
+        });
+
+        const assignments = [];
+        let answerIndex = 0;
+        for (let i = 0; i < conceptBlocks.length; i++) {
+            const remaining = answers.length - answerIndex;
+            const capacity = capacities[i];
+            const count = remaining > 0 ? Math.min(capacity, remaining) : 0;
+            assignments.push({ block: conceptBlocks[i], startIndex: answerIndex, count });
+            answerIndex += count;
         }
-        return blocks;
+
+        let lastInsertIndex = conceptIndices.length ? conceptIndices[conceptIndices.length - 1] : blocks.length - 1;
+        while (answerIndex < answers.length) {
+            const remaining = answers.length - answerIndex;
+            const count = Math.min(defaultChunkSize, remaining);
+            const created = this.createConceptAnswerBlock(defaultChunkSize);
+            blocks.splice(lastInsertIndex + 1, 0, created);
+            structureChanged = true;
+            lastInsertIndex += 1;
+            conceptBlocks.push(created);
+            conceptIndices.push(lastInsertIndex);
+            assignments.push({ block: created, startIndex: answerIndex, count });
+            answerIndex += count;
+        }
+
+        let lastNonEmpty = -1;
+        assignments.forEach((assignment, idx) => {
+            if (assignment.count > 0) lastNonEmpty = idx;
+        });
+        for (let i = assignments.length - 1; i > lastNonEmpty; i--) {
+            const block = assignments[i].block;
+            const idx = blocks.indexOf(block);
+            if (idx !== -1) {
+                blocks.splice(idx, 1);
+                structureChanged = true;
+            }
+            assignments.pop();
+        }
+
+        assignments.forEach((assignment, idx) => {
+            const includeLabel = idx === 0;
+            const slice = answers.slice(assignment.startIndex, assignment.startIndex + assignment.count);
+            const nextContent = buildContent(slice, assignment.startIndex, includeLabel);
+            if (assignment.block.content !== nextContent) {
+                assignment.block.content = nextContent;
+                contentChanged = true;
+            }
+            assignment.block.type = 'answer';
+            assignment.block.bgGray = true;
+            assignment.block.derived = 'concept-answers';
+            assignment.block.conceptAnswerStart = assignment.count ? assignment.startIndex + 1 : null;
+            assignment.block.conceptAnswerAssigned = assignment.count;
+        });
+
+        return { structureChanged, contentChanged, blocks: assignments.map(a => a.block) };
     },
 
     async refreshConceptBlankAnswerBlocks(answersInput) {
         const container = document.getElementById('paper-container');
         if (!container) return;
 
-        container.querySelectorAll('.block-wrapper.derived-block[data-derived="concept-answers"]')
-            .forEach(block => block.remove());
+        const syncResult = this.syncConceptAnswerBlocks(answersInput);
 
         if (!State.renderingEnabled) {
+            if (syncResult.structureChanged) this.renderPages();
             this.debouncedRebalance();
             return;
         }
 
-        const blocks = this.buildConceptBlankAnswerBlocks(answersInput);
-        if (!blocks.length) {
+        const domBlocks = container.querySelectorAll('.block-wrapper[data-derived="concept-answers"]');
+        const expectedCount = syncResult.blocks.length;
+        const needsFullRender = syncResult.structureChanged || domBlocks.length !== expectedCount;
+        if (needsFullRender) {
+            this.renderPages();
+            await ManualRenderer.renderAll(null, { skipConceptBlankSync: true });
             this.debouncedRebalance();
             return;
+        } else if (syncResult.contentChanged) {
+            domBlocks.forEach((wrap) => {
+                const id = wrap.dataset.id;
+                const block = State.docData.blocks.find(item => item.id === id);
+                if (!block) return;
+                const box = wrap.querySelector('.editable-box');
+                if (!box) return;
+                if (box.innerHTML !== block.content) box.innerHTML = block.content;
+                if (block.conceptAnswerStart) box.dataset.answerStart = String(block.conceptAnswerStart);
+                if (block.conceptAnswerAssigned !== undefined) box.dataset.answerCount = String(block.conceptAnswerAssigned);
+            });
         }
 
-        const userBlocks = Array.from(container.querySelectorAll('.block-wrapper[data-id]'));
-        const anchor = userBlocks[userBlocks.length - 1] || null;
-        let targetColumn = anchor ? anchor.parentElement : null;
-        if (!targetColumn) {
-            const firstPage = container.querySelector('.page');
-            targetColumn = firstPage
-                ? (firstPage.querySelector('.column.single')
-                    || firstPage.querySelector('.column.left')
-                    || firstPage.querySelector('.column.right'))
-                : null;
-        }
-        if (!targetColumn) return;
-
-        const createdBoxes = [];
-        blocks.forEach((block) => {
-            const el = this.createBlock(block);
-            targetColumn.appendChild(el);
-            const box = el.querySelector('.editable-box');
-            if (box) createdBoxes.push(box);
-        });
-
-        if (window.isMathJaxReady && createdBoxes.length) {
-            await Promise.all(createdBoxes.map(box => ManualRenderer.typesetElement(box, { trackConceptBlanks: false })));
+        const conceptBoxes = Array.from(document.querySelectorAll('.block-wrapper[data-derived="concept-answers"] .editable-box'));
+        if (window.isMathJaxReady && conceptBoxes.length) {
+            await Promise.all(conceptBoxes.map(box => ManualRenderer.typesetElement(box, { trackConceptBlanks: false })));
         }
 
         this.debouncedRebalance();
