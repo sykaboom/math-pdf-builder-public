@@ -3,6 +3,7 @@ import { State } from './state.js';
 import { Utils } from './utils.js';
 import { ImportParser } from './services.js';
 import { buildNewBlockData, buildSplitBlockData, cloneBlockData } from './block-logic.js';
+import { expandImportedBlocks, parseJsonImport } from './import-logic.js';
 
 export const Actions = {
     // 렌더링을 직접 호출하지 않고 데이터만 조작
@@ -122,20 +123,21 @@ export const Actions = {
         if(!input) return false;
         let finalBlocks = [];
         try {
-            let isJson = false; let parsedJson = null;
-            if (input.startsWith('[') || input.startsWith('{')) { try { parsedJson = JSON.parse(input); if (typeof parsedJson === 'object' && parsedJson !== null) isJson = true; } catch (e) {} }
-            if (isJson) { const arr = Array.isArray(parsedJson) ? parsedJson : [parsedJson]; finalBlocks = arr.map(item => ({ id: 'imp_json_' + Date.now() + Math.random(), type: item.type || 'example', content: item.content || '', bordered: item.bordered || false, bgGray: item.bgGray || false })); } 
-            else if (input.includes('<div') && input.includes('data-item')) { alert('HTML 형식 데이터 입력은 지원하지 않습니다.'); return false; }
-            else {
+            const jsonBlocks = parseJsonImport(input);
+            if (jsonBlocks) {
+                finalBlocks = jsonBlocks;
+            } else if (input.includes('<div') && input.includes('data-item')) {
+                alert('HTML 형식 데이터 입력은 지원하지 않습니다.');
+                return false;
+            } else {
                 const normalized = normalizeLlm ? Utils.normalizeLlmOutput(input) : input;
                 finalBlocks = ImportParser.parse(normalized);
             }
             finalBlocks = State.normalizeBlocks(finalBlocks, { sanitize: true });
-            
-            let processedBlocks = []; let countInColumn = 0;
-            finalBlocks.forEach((b, idx) => { processedBlocks.push(b); if(b.type !== 'answer') { countInColumn++; if(addSpacer) processedBlocks.push({id:'sp_'+Math.random(), type:'spacer', height:50}); } if (limit > 0 && countInColumn >= limit && idx < finalBlocks.length - 1) { processedBlocks.push({id:'br_'+Math.random(), type:'break'}); countInColumn = 0; } });
-            
-            if(overwrite) State.docData.blocks = processedBlocks; else State.docData.blocks = State.docData.blocks.concat(processedBlocks);
+            const processedBlocks = expandImportedBlocks(finalBlocks, { limit, addSpacer });
+
+            if (overwrite) State.docData.blocks = processedBlocks;
+            else State.docData.blocks = State.docData.blocks.concat(processedBlocks);
             State.saveHistory();
             Utils.closeModal('import-modal');
             return true;
