@@ -583,7 +583,7 @@ export const createTableEditor = () => {
     const handleMouseMove = (e) => {
         if (tableResizeState) {
             hideChoiceHandle();
-            const zoom = State.docData.meta.zoom || 1;
+            const zoom = State.settings.zoom || 1;
             if (tableResizeState.type === 'col') {
                 const delta = (e.clientX - tableResizeState.startX) / zoom;
                 if (Number.isFinite(tableResizeState.startNeighborWidth) && tableResizeState.neighborIndex !== null) {

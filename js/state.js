@@ -1,10 +1,13 @@
 // Filename: js/state.js
 import { Utils } from './utils.js';
 
-const DEFAULT_META = {
+const DEFAULT_DOC_META = {
     title: "시험지 제목",
     subtitle: "단원명",
-    footerText: "학원명",
+    footerText: "학원명"
+};
+
+const DEFAULT_SETTINGS = {
     zoom: 1.0,
     columns: 2,
     marginTopMm: 15,
@@ -25,15 +28,17 @@ const DEFAULT_BLOCK = {
     content: '<span class="q-label">안내</span> 내용 입력...'
 };
 
-const buildDefaultMeta = () => ({
-    ...DEFAULT_META,
+const buildDefaultDocMeta = () => ({ ...DEFAULT_DOC_META });
+
+const buildDefaultSettings = () => ({
+    ...DEFAULT_SETTINGS,
     pageLayouts: {}
 });
 
 const buildDefaultBlock = () => ({ ...DEFAULT_BLOCK });
 
 const buildDefaultDocData = () => ({
-    meta: buildDefaultMeta(),
+    meta: buildDefaultDocMeta(),
     blocks: [buildDefaultBlock()]
 });
 
@@ -44,62 +49,69 @@ const toNumber = (value) => {
     return Number.isFinite(num) ? num : null;
 };
 
-const normalizeMeta = (rawMeta) => {
+const normalizeDocMeta = (rawMeta) => {
     const meta = isPlainObject(rawMeta) ? { ...rawMeta } : {};
-    const defaults = buildDefaultMeta();
+    const defaults = buildDefaultDocMeta();
 
     meta.title = typeof meta.title === 'string' ? meta.title : defaults.title;
     meta.subtitle = typeof meta.subtitle === 'string' ? meta.subtitle : defaults.subtitle;
     meta.footerText = typeof meta.footerText === 'string' ? meta.footerText : defaults.footerText;
 
-    const zoom = toNumber(meta.zoom);
-    meta.zoom = zoom && zoom > 0 ? zoom : defaults.zoom;
+    return meta;
+};
 
-    const columns = toNumber(meta.columns);
-    meta.columns = columns === 1 ? 1 : 2;
+const normalizeSettings = (rawSettings) => {
+    const settings = isPlainObject(rawSettings) ? { ...rawSettings } : {};
+    const defaults = buildDefaultSettings();
 
-    const marginTop = toNumber(meta.marginTopMm);
-    meta.marginTopMm = marginTop !== null && marginTop >= 0 ? marginTop : defaults.marginTopMm;
+    const zoom = toNumber(settings.zoom);
+    settings.zoom = zoom && zoom > 0 ? zoom : defaults.zoom;
 
-    const marginSide = toNumber(meta.marginSideMm);
-    meta.marginSideMm = marginSide !== null && marginSide >= 0 ? marginSide : defaults.marginSideMm;
+    const columns = toNumber(settings.columns);
+    settings.columns = columns === 1 ? 1 : 2;
 
-    const columnGap = toNumber(meta.columnGapMm);
-    meta.columnGapMm = columnGap !== null && columnGap >= 0 ? columnGap : defaults.columnGapMm;
+    const marginTop = toNumber(settings.marginTopMm);
+    settings.marginTopMm = marginTop !== null && marginTop >= 0 ? marginTop : defaults.marginTopMm;
 
-    meta.fontFamily = typeof meta.fontFamily === 'string' && meta.fontFamily.trim()
-        ? meta.fontFamily
+    const marginSide = toNumber(settings.marginSideMm);
+    settings.marginSideMm = marginSide !== null && marginSide >= 0 ? marginSide : defaults.marginSideMm;
+
+    const columnGap = toNumber(settings.columnGapMm);
+    settings.columnGapMm = columnGap !== null && columnGap >= 0 ? columnGap : defaults.columnGapMm;
+
+    settings.fontFamily = typeof settings.fontFamily === 'string' && settings.fontFamily.trim()
+        ? settings.fontFamily
         : defaults.fontFamily;
 
-    const fontSize = toNumber(meta.fontSizePt);
-    meta.fontSizePt = fontSize && fontSize > 0 ? fontSize : defaults.fontSizePt;
+    const fontSize = toNumber(settings.fontSizePt);
+    settings.fontSizePt = fontSize && fontSize > 0 ? fontSize : defaults.fontSizePt;
 
-    meta.labelFontFamily = typeof meta.labelFontFamily === 'string' && meta.labelFontFamily.trim()
-        ? meta.labelFontFamily
+    settings.labelFontFamily = typeof settings.labelFontFamily === 'string' && settings.labelFontFamily.trim()
+        ? settings.labelFontFamily
         : defaults.labelFontFamily;
 
-    if (meta.labelFontSizePt === null || meta.labelFontSizePt === '') {
-        meta.labelFontSizePt = null;
+    if (settings.labelFontSizePt === null || settings.labelFontSizePt === '') {
+        settings.labelFontSizePt = null;
     } else {
-        const labelSize = toNumber(meta.labelFontSizePt);
-        meta.labelFontSizePt = labelSize && labelSize > 0 ? labelSize : null;
+        const labelSize = toNumber(settings.labelFontSizePt);
+        settings.labelFontSizePt = labelSize && labelSize > 0 ? labelSize : null;
     }
 
-    meta.labelBold = typeof meta.labelBold === 'boolean' ? meta.labelBold : defaults.labelBold;
-    meta.labelUnderline = typeof meta.labelUnderline === 'boolean' ? meta.labelUnderline : defaults.labelUnderline;
+    settings.labelBold = typeof settings.labelBold === 'boolean' ? settings.labelBold : defaults.labelBold;
+    settings.labelUnderline = typeof settings.labelUnderline === 'boolean' ? settings.labelUnderline : defaults.labelUnderline;
 
-    if (isPlainObject(meta.pageLayouts)) {
+    if (isPlainObject(settings.pageLayouts)) {
         const normalizedLayouts = {};
-        Object.entries(meta.pageLayouts).forEach(([key, value]) => {
+        Object.entries(settings.pageLayouts).forEach(([key, value]) => {
             const layout = toNumber(value);
             if (layout === 1 || layout === 2) normalizedLayouts[key] = layout;
         });
-        meta.pageLayouts = normalizedLayouts;
+        settings.pageLayouts = normalizedLayouts;
     } else {
-        meta.pageLayouts = {};
+        settings.pageLayouts = {};
     }
 
-    return meta;
+    return settings;
 };
 
 const normalizeBlock = (rawBlock, index, usedIds, options) => {
@@ -170,13 +182,23 @@ const normalizeDocData = (raw, options = {}) => {
     const opts = { sanitize: false, ensureAtLeastOne: true, ...options };
     const base = isPlainObject(raw) ? raw : {};
     const normalized = { ...base };
-    normalized.meta = normalizeMeta(base.meta);
+    normalized.meta = normalizeDocMeta(base.meta);
     normalized.blocks = normalizeBlocks(base.blocks, opts);
+    return normalized;
+};
+
+const normalizeProjectData = (raw, options = {}) => {
+    const opts = { sanitize: false, ensureAtLeastOne: true, ...options };
+    const base = isPlainObject(raw) ? raw : {};
+    const normalized = { ...base };
+    normalized.data = normalizeDocData(base.data, opts);
+    normalized.settings = normalizeSettings(base.settings);
     return normalized;
 };
 
 export const State = {
     docData: buildDefaultDocData(),
+    settings: buildDefaultSettings(),
     historyStack: [],
     historyIndex: -1,
     renderTimer: null,
@@ -200,6 +222,22 @@ export const State = {
 
     normalizeDocData,
     normalizeBlocks,
+    normalizeSettings,
+    normalizeProjectData,
+
+    applyProjectData(raw, options = {}) {
+        const normalized = normalizeProjectData(raw, options);
+        this.docData = normalized.data;
+        this.settings = normalized.settings;
+        return normalized;
+    },
+
+    applyProjectSnapshot(snapshot) {
+        if (!snapshot || typeof snapshot !== 'object') return false;
+        this.docData = snapshot.data || buildDefaultDocData();
+        this.settings = snapshot.settings || buildDefaultSettings();
+        return true;
+    },
 
     saveHistory(debounceTime = 0, options = null) {
         let delay = debounceTime;
@@ -211,7 +249,11 @@ export const State = {
         const doSave = () => {
             const cleanData = JSON.parse(JSON.stringify(this.docData));
             cleanData.blocks.forEach(b => b.content = Utils.cleanRichContentToTex(b.content));
-            const str = JSON.stringify(cleanData);
+            const snapshot = {
+                data: cleanData,
+                settings: JSON.parse(JSON.stringify(this.settings))
+            };
+            const str = JSON.stringify(snapshot);
 
             const now = Date.now();
             const metaInfo = meta && typeof meta === 'object' ? {
@@ -262,7 +304,11 @@ export const State = {
         const doSave = () => {
             const cleanData = JSON.parse(JSON.stringify(this.docData));
             cleanData.blocks.forEach(b => b.content = Utils.cleanRichContentToTex(b.content));
-            const str = JSON.stringify(cleanData);
+            const snapshot = {
+                data: cleanData,
+                settings: JSON.parse(JSON.stringify(this.settings))
+            };
+            const str = JSON.stringify(snapshot);
             localStorage.setItem('editorAutoSave', str);
         };
 
@@ -278,7 +324,7 @@ export const State = {
         if (!str) return false;
         try {
             const parsed = JSON.parse(str);
-            this.docData = normalizeDocData(parsed);
+            this.applyProjectData(parsed);
             return true;
         } catch(e) { console.error(e); return false; }
     },
@@ -286,7 +332,7 @@ export const State = {
     undo() {
         if (this.historyIndex > 0) {
             this.historyIndex--;
-            this.docData = JSON.parse(this.historyStack[this.historyIndex]);
+            this.applyProjectSnapshot(JSON.parse(this.historyStack[this.historyIndex]));
             this.historyMeta = null;
             return true;
         }
@@ -296,7 +342,7 @@ export const State = {
     redo() {
         if (this.historyIndex < this.historyStack.length - 1) {
             this.historyIndex++;
-            this.docData = JSON.parse(this.historyStack[this.historyIndex]);
+            this.applyProjectSnapshot(JSON.parse(this.historyStack[this.historyIndex]));
             this.historyMeta = null;
             return true;
         }

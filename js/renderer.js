@@ -8,11 +8,11 @@ import { Events } from './events.js';
 export const Renderer = {
     conceptBlankSyncing: false,
     getPageColumnsCount(pageNum) {
-        const meta = State.docData.meta || {};
-        const layouts = meta.pageLayouts || {};
+        const settings = State.settings || {};
+        const layouts = settings.pageLayouts || {};
         const override = layouts[pageNum];
         if (override === 1 || override === 2) return override;
-        return parseInt(meta.columns) === 1 ? 1 : 2;
+        return parseInt(settings.columns) === 1 ? 1 : 2;
     },
 
     getPageColumns(pageNum, pageEl) {
@@ -24,6 +24,7 @@ export const Renderer = {
     createPage(num) {
         const div = document.createElement('div'); div.className = 'page'; if(num === 1) div.classList.add('page-first');
         const meta = State.docData.meta;
+        const settings = State.settings;
         const headerHTML = num === 1 ? 
             `<table class="header-table"><colgroup><col class="col-title"><col class="col-label"><col class="col-input-wide"><col class="col-label"><col class="col-input-narrow"></colgroup><tr><td rowspan="2" class="col-title">TEST</td><td class="col-label">과정</td><td><input class="header-input meta-title" value="${meta.title}"></td><td class="col-label">성명</td><td><input class="header-input"></td></tr><tr><td class="col-label">단원</td><td><input class="header-input meta-subtitle" value="${meta.subtitle}"></td><td class="col-label">점수</td><td></td></tr></table>` : `<div class="header-line"></div>`;
         const footerText = meta.footerText ? `<div class="footer-text">${meta.footerText}</div>` : '';
@@ -32,9 +33,9 @@ export const Renderer = {
         const columnsHTML = columnsCount === 1 ? `<div class="column single"></div>` : `<div class="column left"></div><div class="column right"></div>`;
         const bodyClass = columnsCount === 1 ? 'body-container single-column' : 'body-container';
         div.innerHTML=`<div class="header-area">${headerHTML}</div><div class="${bodyClass}">${columnsHTML}</div><div class="page-footer">${footerHTML}</div><div class="page-layout-control"><span class="page-layout-label">단 구성</span><select class="page-layout-select"><option value="1">1단</option><option value="2">2단</option></select></div>`;
-        div.style.padding = `${meta.marginTopMm || 15}mm ${meta.marginSideMm || 10}mm`;
+        div.style.padding = `${settings.marginTopMm || 15}mm ${settings.marginSideMm || 10}mm`;
         if (columnsCount === 2) {
-            const gap = meta.columnGapMm || 5;
+            const gap = settings.columnGapMm || 5;
             const leftCol = div.querySelector('.column.left');
             const rightCol = div.querySelector('.column.right');
             if (leftCol) leftCol.style.paddingRight = gap + 'mm';
@@ -46,10 +47,10 @@ export const Renderer = {
             layoutSelect.value = String(columnsCount);
             layoutSelect.addEventListener('change', async (e) => {
                 const next = parseInt(e.target.value, 10) === 1 ? 1 : 2;
-                if (!meta.pageLayouts) meta.pageLayouts = {};
-                const defaultColumns = parseInt(meta.columns) === 1 ? 1 : 2;
-                if (next === defaultColumns) delete meta.pageLayouts[num];
-                else meta.pageLayouts[num] = next;
+                if (!settings.pageLayouts) settings.pageLayouts = {};
+                const defaultColumns = parseInt(settings.columns) === 1 ? 1 : 2;
+                if (next === defaultColumns) delete settings.pageLayouts[num];
+                else settings.pageLayouts[num] = next;
                 State.saveHistory();
                 this.renderPages();
                 await ManualRenderer.renderAll();
@@ -72,10 +73,10 @@ export const Renderer = {
             gothic: "'Nanum Gothic', 'Noto Sans KR', sans-serif",
             gulim: "Gulim, 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif"
         };
-        const labelKey = State.docData.meta.labelFontFamily || 'gothic';
-        const labelBold = State.docData.meta.labelBold !== false;
-        const labelUnderline = State.docData.meta.labelUnderline === true;
-        const labelSize = State.docData.meta.labelFontSizePt;
+        const labelKey = State.settings.labelFontFamily || 'gothic';
+        const labelBold = State.settings.labelBold !== false;
+        const labelUnderline = State.settings.labelUnderline === true;
+        const labelSize = State.settings.labelFontSizePt;
         document.documentElement.style.setProperty('--label-font-family', labelFamilyMap[labelKey] || labelFamilyMap.gothic);
         document.documentElement.style.setProperty('--label-font-weight', labelBold ? '800' : '400');
         document.documentElement.style.setProperty('--label-text-decoration', labelUnderline ? 'underline' : 'none');
@@ -93,7 +94,7 @@ export const Renderer = {
 
         const container = document.getElementById('paper-container'); 
         container.innerHTML = ''; 
-        if(State.docData.meta.zoom) { container.style.transform = `scale(${State.docData.meta.zoom})`; container.style.transformOrigin = 'top center'; document.getElementById('zoomRange').value = State.docData.meta.zoom; }
+        if(State.settings.zoom) { container.style.transform = `scale(${State.settings.zoom})`; container.style.transformOrigin = 'top center'; document.getElementById('zoomRange').value = State.settings.zoom; }
 
         let pageNum = 1; let currentPage = this.createPage(pageNum); container.appendChild(currentPage);
         let columns = this.getPageColumns(pageNum, currentPage);
@@ -160,8 +161,8 @@ export const Renderer = {
             if (block.type === 'concept') box.classList.add('concept-box');
             if (block.bordered) box.classList.add('bordered-box');
 
-            const familyKey = block.fontFamily || State.docData.meta.fontFamily || 'serif';
-            const sizePt = block.fontSizePt || State.docData.meta.fontSizePt || 10.5;
+            const familyKey = block.fontFamily || State.settings.fontFamily || 'serif';
+            const sizePt = block.fontSizePt || State.settings.fontSizePt || 10.5;
             const familyMap = {
                 serif: "'Noto Serif KR', serif",
                 gothic: "'Nanum Gothic', 'Noto Sans KR', sans-serif",
@@ -181,13 +182,14 @@ export const Renderer = {
 
         if (!isConceptDerived) {
             const actions = document.createElement('div'); actions.className = 'block-actions';
-            const btnBr = document.createElement('button'); btnBr.className = 'block-action-btn'; btnBr.innerText = '⤵'; btnBr.title = '단 나누기 추가'; btnBr.onclick=(e)=>{ e.stopPropagation(); this.performAndRender(() => Actions.addBlockBelow('break', block.id)); };
-            const btnSp = document.createElement('button'); btnSp.className = 'block-action-btn'; btnSp.innerText = '▱'; btnSp.title = '여백 블록 추가'; btnSp.onclick=(e)=>{ e.stopPropagation(); this.performAndRender(() => Actions.addBlockBelow('spacer', block.id)); };
+            const btnBr = document.createElement('button'); btnBr.className = 'block-action-btn'; btnBr.innerText = '⤵'; btnBr.title = '단 나누기 추가'; btnBr.dataset.action = 'add-break';
+            const btnSp = document.createElement('button'); btnSp.className = 'block-action-btn'; btnSp.innerText = '▱'; btnSp.title = '여백 블록 추가'; btnSp.dataset.action = 'add-spacer';
             actions.appendChild(btnBr); actions.appendChild(btnSp); wrap.appendChild(actions);
         }
 
         if (!isConceptDerived) {
             wrap.addEventListener('click', (e) => {
+                 if (e.target.closest('.block-actions')) return;
                  if (!(e.ctrlKey || e.metaKey)) return;
                  if (e.altKey) { e.preventDefault(); e.stopPropagation(); this.performAndRender(() => Actions.addBlockBelow('break', block.id)); return; }
                  if (e.shiftKey) { e.preventDefault(); e.stopPropagation(); this.performAndRender(() => Actions.addBlockBelow('spacer', block.id)); return; }
@@ -271,8 +273,8 @@ export const Renderer = {
             };
             if (!isReadOnly) box.dataset.placeholder = placeholderMap[block.type] || placeholderMap.example;
 
-            const familyKey = block.fontFamily || State.docData.meta.fontFamily || 'serif';
-            const sizePt = block.fontSizePt || State.docData.meta.fontSizePt || 10.5;
+            const familyKey = block.fontFamily || State.settings.fontFamily || 'serif';
+            const sizePt = block.fontSizePt || State.settings.fontSizePt || 10.5;
             const familyMap = {
                 serif: "'Noto Serif KR', serif",
                 gothic: "'Nanum Gothic', 'Noto Sans KR', sans-serif",

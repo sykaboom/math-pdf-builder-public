@@ -1,268 +1,9 @@
 // Filename: js/main.js
 import { State } from './state.js';
-import { Utils } from './utils.js';
 import { ManualRenderer, FileSystem } from './services.js';
 import { Renderer } from './renderer.js';
 import { Actions } from './actions.js';
 import { Events } from './events.js';
-
-const getFileHandleByPath = async (root, relPath) => {
-    const parts = relPath.split('/').filter(Boolean);
-    let dir = root;
-    for (let i = 0; i < parts.length - 1; i++) {
-        dir = await dir.getDirectoryHandle(parts[i]);
-    }
-    return dir.getFileHandle(parts[parts.length - 1]);
-};
-
-const PATCH_NOTES_PATH = 'PATCH_NOTES.txt';
-
-const renderPatchNotes = (container, text) => {
-    if (!container) return;
-    container.innerHTML = '';
-    const lines = String(text || '').split(/\r?\n/);
-    const frag = document.createDocumentFragment();
-    let list = null;
-    const flushList = () => {
-        if (list) {
-            frag.appendChild(list);
-            list = null;
-        }
-    };
-    lines.forEach((line) => {
-        const trimmed = line.trim();
-        if (!trimmed) {
-            flushList();
-            const spacer = document.createElement('div');
-            spacer.className = 'patch-notes-spacer';
-            frag.appendChild(spacer);
-            return;
-        }
-        if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) {
-            flushList();
-            const dateEl = document.createElement('div');
-            dateEl.className = 'patch-notes-date';
-            dateEl.textContent = trimmed;
-            frag.appendChild(dateEl);
-            return;
-        }
-        if (trimmed.startsWith('- ')) {
-            if (!list) {
-                list = document.createElement('ul');
-                list.className = 'patch-notes-list';
-            }
-            const li = document.createElement('li');
-            li.textContent = trimmed.slice(2);
-            list.appendChild(li);
-            return;
-        }
-        flushList();
-        const textEl = document.createElement('div');
-        textEl.className = 'patch-notes-text';
-        textEl.textContent = trimmed;
-        frag.appendChild(textEl);
-    });
-    flushList();
-    if (!frag.childNodes.length) {
-        container.textContent = '패치노트가 없습니다.';
-        return;
-    }
-    container.appendChild(frag);
-};
-
-window.FileSystem = FileSystem;
-window.ManualRenderer = ManualRenderer;
-window.saveProjectJSON = () => FileSystem.saveProjectJSON(() => Renderer.syncAllBlocks());
-window.loadProjectJSONFromInput = (input) => {
-    const file = input.files[0]; if(!file) return;
-    const r = new FileReader();
-    r.onload = async (e) => {
-        try {
-            const parsed = JSON.parse(e.target.result);
-            State.docData = State.normalizeDocData(parsed, { sanitize: true });
-            await FileSystem.loadImagesForDisplay(State.docData.blocks);
-            Renderer.renderPages();
-            ManualRenderer.renderAll();
-            State.saveHistory();
-        } catch(err) { alert("파일 로드 실패: "+err.message); }
-    };
-    r.readAsText(file);
-};
-window.confirmImport = (overwrite) => {
-    const normalizeLlm = document.getElementById('setting-normalize-llm');
-    if(Actions.confirmImport(document.getElementById('import-textarea').value.trim(), overwrite, parseInt(document.getElementById('setting-limit').value)||0, document.getElementById('setting-spacer').checked, normalizeLlm ? normalizeLlm.checked : false)) {
-        Renderer.renderPages(); ManualRenderer.renderAll();
-    }
-};
-window.executeFindReplace = () => {
-    const f = document.getElementById('fr-find-input').value; const r = document.getElementById('fr-replace-input').value;
-    if(!f) return;
-    let replaceCount = 0;
-    State.docData.blocks.forEach(b => {
-        if (!b.content) return;
-        let idx = b.content.indexOf(f);
-        if (idx === -1) return;
-        while (idx !== -1) { replaceCount++; idx = b.content.indexOf(f, idx + f.length); }
-        b.content = b.content.replaceAll(f, r);
-    });
-    Renderer.renderPages(); ManualRenderer.renderAll(); State.saveHistory(); Utils.closeModal('find-replace-modal');
-    Utils.showToast(`"${f}" → "${r}" ${replaceCount}건 바꿈`, replaceCount ? "success" : "info");
-};
-window.performUndo = () => { if(State.undo()) { Renderer.renderPages(); ManualRenderer.renderAll(); } };
-window.performRedo = () => { if(State.redo()) { Renderer.renderPages(); ManualRenderer.renderAll(); } };
-window.resetProject = () => { if(confirm('초기화하시겠습니까? (저장되지 않은 내용은 삭제됩니다)')) { State.docData.blocks=[{ id: 'b0', type: 'concept', content: '<span class="q-label">안내</span> 내용 입력...' }]; Renderer.renderPages(); State.saveHistory(); } };
-let printPreflightData = null;
-const doPrint = () => { Utils.showLoading("🖨️ 인쇄 준비 중..."); window.print(); Utils.hideLoading(); };
-
-window.printWithMath = () => {
-    const placeholderCount = document.querySelectorAll('.image-placeholder').length;
-    const unrenderedMathCount = Array.from(document.querySelectorAll('.editable-box'))
-        .filter(b => (b.textContent || '').includes('$')).length;
-
-    if (placeholderCount > 0 || unrenderedMathCount > 0) {
-        printPreflightData = { placeholderCount, unrenderedMathCount };
-        const body = document.getElementById('print-preflight-body');
-        if (body) {
-            const lines = [];
-            if (placeholderCount > 0) lines.push(`• 미삽입 이미지 박스: ${placeholderCount}개`);
-            if (unrenderedMathCount > 0) lines.push(`• 미렌더 수식($ 포함): ${unrenderedMathCount}개`);
-            body.innerHTML = lines.join('<br>');
-        }
-        Utils.openModal('print-preflight-modal');
-        return;
-    }
-    doPrint();
-};
-
-window.printPreflightAction = async (mode) => {
-    Utils.closeModal('print-preflight-modal');
-    if (mode === 'cancel') { printPreflightData = null; return; }
-    if (mode === 'render') await ManualRenderer.renderAll(null, { force: true });
-    doPrint();
-    printPreflightData = null;
-};
-
-const updateRenderingToggleUI = () => {
-    const btn = document.getElementById('toggle-rendering-btn');
-    if (!btn) return;
-    btn.textContent = State.renderingEnabled ? '🔓 렌더링 해제 (편집 모드)' : '🔒 렌더링 적용 (렌더 모드)';
-};
-
-window.toggleRenderingMode = async (forceState) => {
-    const next = (typeof forceState === 'boolean') ? forceState : !State.renderingEnabled;
-    State.renderingEnabled = next;
-    Renderer.renderPages();
-    if (next) {
-        await ManualRenderer.renderAll();
-    } else {
-        const container = document.getElementById('paper-container');
-        if (container) {
-            const boxes = container.querySelectorAll('.editable-box');
-            boxes.forEach(box => {
-                Utils.replaceTablesWithTokensInDom(box);
-                Utils.replaceBlockBoxesWithTokensInDom(box);
-                const cleaned = Utils.cleanRichContentToTex(box.innerHTML);
-                box.innerHTML = cleaned;
-                const wrap = box.closest('.block-wrapper');
-                if (wrap) Actions.updateBlockContent(wrap.dataset.id, cleaned, false);
-            });
-            State.saveHistory();
-        }
-    }
-    updateRenderingToggleUI();
-};
-
-window.renderAllSafe = async () => {
-    if (!State.renderingEnabled) { await window.toggleRenderingMode(true); return; }
-    await ManualRenderer.renderAll();
-};
-window.insertImageBoxSafe = () => Events.insertImageBoxSafe();
-window.addImageBlockBelow = (id) => Events.addImageBlockBelow(id);
-window.insertImagePlaceholderAtEnd = (id) => Events.insertImagePlaceholderAtEnd(id);
-window.splitBlockAtCursor = (id) => Renderer.performAndRender(() => Events.splitBlockAtCursor(id));
-window.applyBlockFont = () => Events.applyBlockFontFromMenu();
-window.applyInlineFontFamily = (value) => Events.applyInlineFontFamily(value);
-window.applyInlineFontSize = (value) => Events.applyInlineFontSize(value);
-window.applyConceptBlank = () => Events.applyConceptBlankToSelection();
-window.openModal = Utils.openModal;
-window.closeModal = Utils.closeModal;
-window.resolveConfirm = (result) => Utils.resolveConfirm(result);
-window.execStyle = (cmd, val) => document.execCommand(cmd, false, val);
-window.downloadPromptFile = async (target) => {
-    const btn = typeof target === 'string'
-        ? document.querySelector(`.prompt-download[data-prompt-path="${target}"]`)
-        : target;
-    const path = typeof target === 'string' ? target : (btn && btn.dataset ? btn.dataset.promptPath : '');
-    if (!path) return;
-    const promptName = (btn && btn.dataset ? btn.dataset.promptName : '') || '';
-    const promptDate = (btn && btn.dataset ? btn.dataset.promptDate : '') || '';
-    const fallbackName = path.split('/').pop() || 'prompt.txt';
-    const baseName = promptName || fallbackName.replace(/\.txt$/i, '');
-    const cleanedBaseName = baseName.replace(/\s*다운로드\s*/g, ' ').replace(/\s+/g, ' ').trim();
-    const safeBaseName = cleanedBaseName || baseName;
-    const filename = promptDate ? `${safeBaseName} (${promptDate}).txt` : `${safeBaseName}.txt`;
-    const triggerDownload = (url, useNewTab = false) => {
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = filename;
-        if (useNewTab) link.target = '_blank';
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-    };
-
-    try {
-        let blob = null;
-        if (FileSystem.dirHandle) {
-            const fileHandle = await getFileHandleByPath(FileSystem.dirHandle, path);
-            const file = await fileHandle.getFile();
-            blob = file;
-        } else if (window.location.protocol !== 'file:') {
-            const response = await fetch(encodeURI(path), { cache: 'no-store' });
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            blob = await response.blob();
-        } else {
-            throw new Error('file-protocol');
-        }
-        const url = URL.createObjectURL(blob);
-        triggerDownload(url);
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
-    } catch (err) {
-        // 최후 수단: 브라우저 기본 다운로드 동작에 맡김
-        triggerDownload(encodeURI(path), true);
-    }
-};
-window.openPatchNotes = async () => {
-    const body = document.getElementById('patch-notes-body');
-    if (body) body.textContent = '불러오는 중...';
-    Utils.openModal('patch-notes-modal');
-    try {
-        let text = '';
-        if (FileSystem.dirHandle) {
-            const fileHandle = await getFileHandleByPath(FileSystem.dirHandle, PATCH_NOTES_PATH);
-            const file = await fileHandle.getFile();
-            text = await file.text();
-        } else if (window.location.protocol !== 'file:') {
-            const response = await fetch(encodeURI(PATCH_NOTES_PATH), { cache: 'no-store' });
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            text = await response.text();
-        } else {
-            throw new Error('file-protocol');
-        }
-        renderPatchNotes(body, text);
-    } catch (err) {
-        if (body) body.textContent = '패치노트를 불러오지 못했습니다.';
-    }
-};
-
-// [Fix] Actions 호출 후 렌더링 파이프라인 연결
-window.toggleGrayBg = () => { if(Actions.toggleStyle('bgGray')) { Renderer.renderPages(); ManualRenderer.renderAll(); } };
-window.toggleBorder = () => { if(Actions.toggleStyle('bordered')) { Renderer.renderPages(); ManualRenderer.renderAll(); } };
-window.applyAlign = (a) => { if(Actions.applyAlign(a)) { Renderer.renderPages(); ManualRenderer.renderAll(); } };
-window.duplicateTargetBlock = () => { if(Actions.duplicateTargetBlock()) { Renderer.renderPages(); ManualRenderer.renderAll(); } };
-window.addBlockAbove = (t) => { if(Actions.addBlockAbove(t)) { Renderer.renderPages(); ManualRenderer.renderAll(); } };
-window.addBlockBelow = (t) => { if(Actions.addBlockBelow(t)) { Renderer.renderPages(); ManualRenderer.renderAll(); } };
-window.deleteTargetBlock = () => { if(State.contextTargetId && Actions.deleteBlockById(State.contextTargetId)) { Renderer.renderPages(); ManualRenderer.renderAll(); } Utils.closeModal('context-menu'); };
 
 window.addEventListener('DOMContentLoaded', () => {
     const saved = localStorage.getItem('editorAutoSave');
@@ -271,16 +12,16 @@ window.addEventListener('DOMContentLoaded', () => {
     Renderer.renderPages(); 
     State.saveHistory(); 
     Events.initGlobalListeners();
-    updateRenderingToggleUI();
+    Events.updateRenderingToggleUI();
 
     // [Fix] 줌 최적화 로직 복구 (입력시 CSS Transform, 놓으면 렌더링)
     const zoomRange = document.getElementById('zoomRange');
     zoomRange.addEventListener('input', (e) => { 
         const z = parseFloat(e.target.value);
-        State.docData.meta.zoom = z;
+        State.settings.zoom = z;
         const container = document.getElementById('paper-container');
         if(container) {
-            container.style.transform = `scale(${State.docData.meta.zoom})`;
+            container.style.transform = `scale(${State.settings.zoom})`;
             container.style.transformOrigin = 'top center';
         }
     });
@@ -295,15 +36,16 @@ window.addEventListener('DOMContentLoaded', () => {
     const columnGapInp = document.getElementById('setting-column-gap');
     const footerTextInp = document.getElementById('setting-footer-text');
     const meta = State.docData.meta;
+    const settings = State.settings;
 
-    if (columnsSel) columnsSel.value = meta.columns || 2;
-    if (marginTopInp) marginTopInp.value = meta.marginTopMm || 15;
-    if (marginSideInp) marginSideInp.value = meta.marginSideMm || 10;
-    if (columnGapInp) columnGapInp.value = meta.columnGapMm || 5;
+    if (columnsSel) columnsSel.value = settings.columns || 2;
+    if (marginTopInp) marginTopInp.value = settings.marginTopMm || 15;
+    if (marginSideInp) marginSideInp.value = settings.marginSideMm || 10;
+    if (columnGapInp) columnGapInp.value = settings.columnGapMm || 5;
     if (footerTextInp) footerTextInp.value = meta.footerText || '';
 
     if (columnsSel) columnsSel.addEventListener('change', async (e) => {
-        State.docData.meta.columns = parseInt(e.target.value) === 1 ? 1 : 2;
+        State.settings.columns = parseInt(e.target.value) === 1 ? 1 : 2;
         Renderer.renderPages();
         await ManualRenderer.renderAll();
         State.saveHistory();
@@ -312,7 +54,7 @@ window.addEventListener('DOMContentLoaded', () => {
         if (!inp) return;
         inp.addEventListener('change', async (e) => {
             const v = parseInt(e.target.value) || def;
-            State.docData.meta[key] = v;
+            State.settings[key] = v;
             Renderer.renderPages();
             await ManualRenderer.renderAll();
             State.saveHistory();
@@ -333,26 +75,26 @@ window.addEventListener('DOMContentLoaded', () => {
     const labelFontSizeInp = document.getElementById('setting-label-font-size');
     const labelBoldChk = document.getElementById('setting-label-bold');
     const labelUnderlineChk = document.getElementById('setting-label-underline');
-    if (fontFamilySel) fontFamilySel.value = meta.fontFamily || 'serif';
-    if (fontSizeInp) fontSizeInp.value = meta.fontSizePt || 10.5;
-    if (labelFontFamilySel) labelFontFamilySel.value = meta.labelFontFamily || 'gothic';
-    if (labelFontSizeInp) labelFontSizeInp.value = Number.isFinite(meta.labelFontSizePt) ? meta.labelFontSizePt : '';
-    if (labelBoldChk) labelBoldChk.checked = meta.labelBold !== false;
-    if (labelUnderlineChk) labelUnderlineChk.checked = meta.labelUnderline === true;
+    if (fontFamilySel) fontFamilySel.value = settings.fontFamily || 'serif';
+    if (fontSizeInp) fontSizeInp.value = settings.fontSizePt || 10.5;
+    if (labelFontFamilySel) labelFontFamilySel.value = settings.labelFontFamily || 'gothic';
+    if (labelFontSizeInp) labelFontSizeInp.value = Number.isFinite(settings.labelFontSizePt) ? settings.labelFontSizePt : '';
+    if (labelBoldChk) labelBoldChk.checked = settings.labelBold !== false;
+    if (labelUnderlineChk) labelUnderlineChk.checked = settings.labelUnderline === true;
     if (fontFamilySel) fontFamilySel.addEventListener('change', async (e) => {
-        State.docData.meta.fontFamily = e.target.value;
+        State.settings.fontFamily = e.target.value;
         Renderer.renderPages();
         await ManualRenderer.renderAll();
         State.saveHistory();
     });
     if (fontSizeInp) fontSizeInp.addEventListener('change', async (e) => {
-        State.docData.meta.fontSizePt = parseFloat(e.target.value) || 10.5;
+        State.settings.fontSizePt = parseFloat(e.target.value) || 10.5;
         Renderer.renderPages();
         await ManualRenderer.renderAll();
         State.saveHistory();
     });
     if (labelFontFamilySel) labelFontFamilySel.addEventListener('change', async (e) => {
-        State.docData.meta.labelFontFamily = e.target.value;
+        State.settings.labelFontFamily = e.target.value;
         Renderer.renderPages();
         await ManualRenderer.renderAll();
         State.saveHistory();
@@ -360,19 +102,19 @@ window.addEventListener('DOMContentLoaded', () => {
     if (labelFontSizeInp) labelFontSizeInp.addEventListener('change', async (e) => {
         const raw = e.target.value;
         const value = raw === '' ? null : parseFloat(raw);
-        State.docData.meta.labelFontSizePt = Number.isFinite(value) ? value : null;
+        State.settings.labelFontSizePt = Number.isFinite(value) ? value : null;
         Renderer.renderPages();
         await ManualRenderer.renderAll();
         State.saveHistory();
     });
     if (labelBoldChk) labelBoldChk.addEventListener('change', async (e) => {
-        State.docData.meta.labelBold = !!e.target.checked;
+        State.settings.labelBold = !!e.target.checked;
         Renderer.renderPages();
         await ManualRenderer.renderAll();
         State.saveHistory();
     });
     if (labelUnderlineChk) labelUnderlineChk.addEventListener('change', async (e) => {
-        State.docData.meta.labelUnderline = !!e.target.checked;
+        State.settings.labelUnderline = !!e.target.checked;
         Renderer.renderPages();
         await ManualRenderer.renderAll();
         State.saveHistory();

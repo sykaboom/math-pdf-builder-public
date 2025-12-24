@@ -21,7 +21,7 @@
     <div class="modal-content">
         <div style="font-weight:bold; display:flex; justify-content:space-between;">
             <span>📥 AI 데이터 입력 (호환 모드)</span>
-            <span style="cursor:pointer;" onclick="closeModal('import-modal')">×</span>
+            <span class="modal-close" data-modal="import-modal" style="cursor:pointer;">×</span>
 	        </div>
 	        <textarea id="import-textarea" class="modal-textarea" placeholder="데이터를 여기에 붙여넣으세요..."></textarea>
 	        <div style="font-size:11px; color:#666; line-height:1.4;">
@@ -34,9 +34,9 @@
                 </label>
             </div>
 	        <div style="display:flex; justify-content:flex-end; gap:10px;">
-	            <button class="btn btn-warning" onclick="confirmImport(true)" style="width:auto;">덮어쓰기</button>
-	            <button class="btn btn-primary" onclick="confirmImport(false)" style="width:auto;">이어쓰기</button>
-	            <button class="btn" onclick="closeModal('import-modal')" style="width:auto;">취소</button>
+	            <button class="btn btn-warning" data-action="confirm-import" data-overwrite="true" style="width:auto;">덮어쓰기</button>
+	            <button class="btn btn-primary" data-action="confirm-import" data-overwrite="false" style="width:auto;">이어쓰기</button>
+	            <button class="btn" data-action="close-modal" data-modal="import-modal" style="width:auto;">취소</button>
         </div>
     </div>
 </div>
@@ -47,8 +47,8 @@
         <div class="fr-row"><span class="fr-label">찾을 내용</span><input type="text" id="fr-find-input" class="fr-input"></div>
         <div class="fr-row"><span class="fr-label">바꿀 내용</span><input type="text" id="fr-replace-input" class="fr-input"></div>
         <div class="fr-actions">
-            <button class="btn btn-primary btn-sm" onclick="executeFindReplace()">모두 바꾸기</button>
-            <button class="btn btn-sm" onclick="closeModal('find-replace-modal')">닫기</button>
+            <button class="btn btn-primary btn-sm" data-action="execute-find-replace">모두 바꾸기</button>
+            <button class="btn btn-sm" data-action="close-modal" data-modal="find-replace-modal">닫기</button>
         </div>
     </div>
 </div>
@@ -57,13 +57,13 @@
     <div class="modal-content" style="width:420px; gap:12px;">
         <div style="font-weight:bold; display:flex; justify-content:space-between;">
             <span>🖨️ 인쇄 전 점검</span>
-            <span style="cursor:pointer;" onclick="closeModal('print-preflight-modal')">×</span>
+            <span class="modal-close" data-modal="print-preflight-modal" style="cursor:pointer;">×</span>
         </div>
         <div id="print-preflight-body" style="font-size:13px; line-height:1.6; color:#333;"></div>
         <div style="display:flex; justify-content:flex-end; gap:8px;">
-            <button class="btn btn-purple btn-sm" onclick="printPreflightAction('render')">수식 변환 후 인쇄</button>
-            <button class="btn btn-danger btn-sm" onclick="printPreflightAction('print')">그대로 인쇄</button>
-            <button class="btn btn-sm" onclick="printPreflightAction('cancel')">취소</button>
+            <button class="btn btn-purple btn-sm" data-action="print-preflight" data-mode="render">수식 변환 후 인쇄</button>
+            <button class="btn btn-danger btn-sm" data-action="print-preflight" data-mode="print">그대로 인쇄</button>
+            <button class="btn btn-sm" data-action="print-preflight" data-mode="cancel">취소</button>
         </div>
     </div>
 </div>
@@ -72,12 +72,12 @@
     <div class="modal-content" style="width:360px; gap:12px;">
         <div style="font-weight:bold; display:flex; justify-content:space-between;">
             <span>확인</span>
-            <span style="cursor:pointer;" onclick="resolveConfirm(false)">×</span>
+            <span class="modal-close" data-action="resolve-confirm" data-result="false" style="cursor:pointer;">×</span>
         </div>
         <div id="confirm-modal-message" style="font-size:13px; line-height:1.6; color:#333;"></div>
         <div style="display:flex; justify-content:flex-end; gap:8px;">
-            <button class="btn btn-primary btn-sm" onclick="resolveConfirm(true)">예</button>
-            <button class="btn btn-sm" onclick="resolveConfirm(false)">아니오</button>
+            <button class="btn btn-primary btn-sm" data-action="resolve-confirm" data-result="true">예</button>
+            <button class="btn btn-sm" data-action="resolve-confirm" data-result="false">아니오</button>
         </div>
     </div>
 </div>
@@ -86,37 +86,37 @@
     <div class="modal-content" style="width:520px; gap:12px;">
         <div style="font-weight:bold; display:flex; justify-content:space-between;">
             <span>패치노트</span>
-            <span style="cursor:pointer;" onclick="closeModal('patch-notes-modal')">×</span>
+            <span class="modal-close" data-modal="patch-notes-modal" style="cursor:pointer;">×</span>
         </div>
         <div id="patch-notes-body" class="patch-notes-body">불러오는 중...</div>
         <div style="display:flex; justify-content:flex-end; gap:8px;">
-            <button class="btn btn-sm" onclick="closeModal('patch-notes-modal')">닫기</button>
+            <button class="btn btn-sm" data-action="close-modal" data-modal="patch-notes-modal">닫기</button>
         </div>
     </div>
 </div>
 
 <div id="floating-toolbar">
-    <button class="ft-btn" onmousedown="execStyle('bold')" title="굵게">B</button>
-    <button class="ft-btn" onmousedown="execStyle('italic')" title="기울임">I</button>
-    <button class="ft-btn" onmousedown="execStyle('underline')" title="밑줄">U</button>
-    <button class="ft-btn" onmousedown="applyConceptBlank()" title="개념 빈칸">빈칸</button>
+    <button class="ft-btn" data-cmd="bold" title="굵게">B</button>
+    <button class="ft-btn" data-cmd="italic" title="기울임">I</button>
+    <button class="ft-btn" data-cmd="underline" title="밑줄">U</button>
+    <button class="ft-btn" data-action="concept-blank" title="개념 빈칸">빈칸</button>
     <div class="ft-sep"></div>
-    <button class="ft-btn" onmousedown="execStyle('justifyLeft')">⇤</button>
-    <button class="ft-btn" onmousedown="execStyle('justifyCenter')">↔</button>
-    <button class="ft-btn" onmousedown="execStyle('justifyRight')">⇥</button>
+    <button class="ft-btn" data-cmd="justifyLeft">⇤</button>
+    <button class="ft-btn" data-cmd="justifyCenter">↔</button>
+    <button class="ft-btn" data-cmd="justifyRight">⇥</button>
     <div class="ft-sep"></div>
-    <button class="ft-btn" onmousedown="execStyle('foreColor', '#dc3545')" style="color:#dc3545">●</button>
-    <button class="ft-btn" onmousedown="execStyle('foreColor', '#007bff')" style="color:#007bff">●</button>
-    <button class="ft-btn" onmousedown="execStyle('foreColor', '#000000')">●</button>
+    <button class="ft-btn" data-cmd="foreColor" data-value="#dc3545" style="color:#dc3545">●</button>
+    <button class="ft-btn" data-cmd="foreColor" data-value="#007bff" style="color:#007bff">●</button>
+    <button class="ft-btn" data-cmd="foreColor" data-value="#000000">●</button>
     <div class="ft-sep"></div>
-    <select id="ft-font-family" class="ft-select" onchange="applyInlineFontFamily(this.value)">
+    <select id="ft-font-family" class="ft-select">
         <option value="">폰트</option>
         <option value="serif">명조</option>
         <option value="gothic">나눔고딕</option>
         <option value="gulim">굴림</option>
         <option value="default">기본</option>
     </select>
-    <input id="ft-font-size" class="ft-input" type="number" min="8" max="20" step="0.5" placeholder="pt" onchange="applyInlineFontSize(this.value)">
+    <input id="ft-font-size" class="ft-input" type="number" min="8" max="20" step="0.5" placeholder="pt">
 </div>
 
 <div id="image-resizer"><div class="resizer-handle rh-se"></div></div>
@@ -184,21 +184,21 @@
 
 <div id="context-menu">
     <div class="menu-title">블록 편집</div>
-    <div class="menu-item" onclick="toggleGrayBg()"><span>🎨 회색 배경</span><span class="shortcut-badge">Ctrl+Alt+G</span></div>
-    <div class="menu-item" onclick="toggleBorder()"><span>🔲 테두리 박스</span><span class="shortcut-badge">Ctrl+Alt+B</span></div>
+    <div class="menu-item" data-action="toggle-gray-bg"><span>🎨 회색 배경</span><span class="shortcut-badge">Ctrl+Alt+G</span></div>
+    <div class="menu-item" data-action="toggle-border"><span>🔲 테두리 박스</span><span class="shortcut-badge">Ctrl+Alt+B</span></div>
     <div class="menu-sep"></div>
-    <div class="menu-item" onclick="applyAlign('left')"><span>⇤ 왼쪽 정렬</span><span class="shortcut-badge">Ctrl+Sh+L</span></div>
-    <div class="menu-item" onclick="applyAlign('center')"><span>↔ 가운데 정렬</span><span class="shortcut-badge">Ctrl+Sh+M</span></div>
-    <div class="menu-item" onclick="applyAlign('right')"><span>⇥ 오른쪽 정렬</span><span class="shortcut-badge">Ctrl+Sh+R</span></div>
+    <div class="menu-item" data-action="apply-align" data-align="left"><span>⇤ 왼쪽 정렬</span><span class="shortcut-badge">Ctrl+Sh+L</span></div>
+    <div class="menu-item" data-action="apply-align" data-align="center"><span>↔ 가운데 정렬</span><span class="shortcut-badge">Ctrl+Sh+M</span></div>
+    <div class="menu-item" data-action="apply-align" data-align="right"><span>⇥ 오른쪽 정렬</span><span class="shortcut-badge">Ctrl+Sh+R</span></div>
     <div class="menu-sep"></div>
-    <div class="menu-item" onclick="duplicateTargetBlock()"><span>📋 복제하기</span><span class="shortcut-badge">Ctrl+D</span></div>
-    <div class="menu-item" onclick="addBlockAbove('example')"><span>➕ 위에 추가</span><span class="shortcut-badge">Alt+Enter</span></div>
-    <div class="menu-item" onclick="addBlockBelow('example')"><span>➕ 아래에 추가</span><span class="shortcut-badge">Enter</span></div>
+    <div class="menu-item" data-action="duplicate-block"><span>📋 복제하기</span><span class="shortcut-badge">Ctrl+D</span></div>
+    <div class="menu-item" data-action="add-block-above" data-type="example"><span>➕ 위에 추가</span><span class="shortcut-badge">Alt+Enter</span></div>
+    <div class="menu-item" data-action="add-block-below" data-type="example"><span>➕ 아래에 추가</span><span class="shortcut-badge">Enter</span></div>
     <div class="menu-sep"></div>
-    <div class="menu-item" onclick="insertImageBoxSafe()"><span>🖼️ 이미지 삽입</span><span class="shortcut-badge">Ctrl+Alt+I</span></div>
-    <div class="menu-item" onclick="insertImagePlaceholderAtEnd()"><span>🖼️ 블록 안에 이미지 추가</span><span class="shortcut-badge">-</span></div>
-	    <div class="menu-item" onclick="addBlockBelow('spacer')"><span>↕ 여백 블록 추가</span><span class="shortcut-badge">Ctrl+Sh+Click</span></div>
-	    <div class="menu-item" onclick="addBlockBelow('break')"><span>⚡ 단 나누기 추가</span><span class="shortcut-badge">Ctrl+Alt+Click</span></div>
+    <div class="menu-item" data-action="insert-image-box"><span>🖼️ 이미지 삽입</span><span class="shortcut-badge">Ctrl+Alt+I</span></div>
+    <div class="menu-item" data-action="insert-image-placeholder"><span>🖼️ 블록 안에 이미지 추가</span><span class="shortcut-badge">-</span></div>
+	    <div class="menu-item" data-action="add-spacer"><span>↕ 여백 블록 추가</span><span class="shortcut-badge">Ctrl+Sh+Click</span></div>
+	    <div class="menu-item" data-action="add-break"><span>⚡ 단 나누기 추가</span><span class="shortcut-badge">Ctrl+Alt+Click</span></div>
 	    <div class="menu-sep"></div>
 	    <div class="menu-title">폰트</div>
 	    <div class="menu-item menu-font-row">
@@ -209,10 +209,10 @@
 	            <option value="gothic">나눔고딕</option>
 	        </select>
 	        <input type="number" id="block-font-size-input" min="8" max="20" step="0.5" style="width:60px;">
-	        <button class="btn btn-sm" onclick="applyBlockFont()">적용</button>
+	        <button class="btn btn-sm" data-action="apply-block-font">적용</button>
 	    </div>
 	    <div class="menu-sep"></div>
-	    <div class="menu-item" onclick="deleteTargetBlock()" style="color:#dc3545;"><span>🗑️ 삭제하기</span><span class="shortcut-badge">Delete</span></div>
+	    <div class="menu-item" data-action="delete-block" style="color:#dc3545;"><span>🗑️ 삭제하기</span><span class="shortcut-badge">Delete</span></div>
 </div>
 
 <nav class="sidebar">
@@ -222,23 +222,23 @@
     </div>
 
     <div class="sidebar-tree">
-        <button class="btn btn-danger" onclick="printWithMath()" style="margin-bottom:8px;">🖨️ 인쇄하기</button>
-        <button class="btn" onclick="openPatchNotes()" style="margin-bottom:8px;">📝 패치노트</button>
+        <button class="btn btn-danger" data-action="print-with-math" style="margin-bottom:8px;">🖨️ 인쇄하기</button>
+        <button class="btn" data-action="open-patch-notes" style="margin-bottom:8px;">📝 패치노트</button>
 
         <details class="sidebar-folder">
             <summary>파일</summary>
             <div class="sidebar-folder-body">
-                <button class="btn" onclick="openModal('import-modal')" style="border-left: 3px solid #6f42c1; color: #6f42c1; font-weight:bold;">📥 AI 데이터 입력 (Alt+I)</button>
-                <button class="btn btn-warning" onclick="resetProject()">🗑️ 새로 만들기 (Alt+N)</button>
-                <button class="btn btn-primary" onclick="saveProjectJSON()">💾 저장 (Ctrl+S)</button>
-                <button class="btn" onclick="document.getElementById('fileInput').click()">📂 열기 (Ctrl+O)</button>
-                <input type="file" id="fileInput" accept=".json" style="display:none" onchange="loadProjectJSONFromInput(this)">
+                <button class="btn" data-action="open-modal" data-modal="import-modal" style="border-left: 3px solid #6f42c1; color: #6f42c1; font-weight:bold;">📥 AI 데이터 입력 (Alt+I)</button>
+                <button class="btn btn-warning" data-action="reset-project">🗑️ 새로 만들기 (Alt+N)</button>
+                <button class="btn btn-primary" data-action="save-project">💾 저장 (Ctrl+S)</button>
+                <button class="btn" data-action="open-file-dialog">📂 열기 (Ctrl+O)</button>
+                <input type="file" id="fileInput" accept=".json" style="display:none">
 
                 <div class="settings-panel" style="background:#e8f5e9; border:1px solid #c8e6c9; margin-top:10px;">
                     <div style="font-size:11px; font-weight:bold; margin-bottom:5px;">📂 로컬 작업 폴더</div>
                     <div id="folder-status">⬇️ 저장: 다운로드</div>
                     <div class="settings-row"><label>이미지 폴더명</label><input type="text" id="setting-img-folder" value="images" style="width:80px;"></div>
-                    <button class="btn btn-success" onclick="FileSystem.openProjectFolder()">📂 작업 폴더 열기</button>
+                    <button class="btn btn-success" data-action="open-project-folder">📂 작업 폴더 열기</button>
                 </div>
             </div>
         </details>
@@ -251,16 +251,16 @@
                     <div class="workflow-step"><span class="workflow-badge">1단계</span><span>1번, 3번, 원본 PDF</span></div>
                     <div class="workflow-step"><span class="workflow-badge">2단계</span><span>2번, 3번, 4번, 1단계 추출 데이터</span></div>
                 </div>
-                <button class="btn prompt-download" data-prompt-path="LLMprompt/4.0 프롬프트 - 1단계 추출.txt" data-prompt-name="4.0 프롬프트 (1단계 추출) 다운로드" data-prompt-date="2025-12-24" onclick="downloadPromptFile(this)">
+                <button class="btn prompt-download" data-action="download-prompt" data-prompt-path="LLMprompt/4.0 프롬프트 - 1단계 추출.txt" data-prompt-name="4.0 프롬프트 (1단계 추출) 다운로드" data-prompt-date="2025-12-24">
                     1. ⬇️ 4.0 프롬프트 (1단계 추출) 다운로드 <span class="prompt-date">(2025-12-24)</span>
                 </button>
-                <button class="btn prompt-download" data-prompt-path="LLMprompt/4.0 프롬프트.txt" data-prompt-name="4.0 프롬프트 (2단계 변환) 다운로드" data-prompt-date="2025-12-24" onclick="downloadPromptFile(this)">
+                <button class="btn prompt-download" data-action="download-prompt" data-prompt-path="LLMprompt/4.0 프롬프트.txt" data-prompt-name="4.0 프롬프트 (2단계 변환) 다운로드" data-prompt-date="2025-12-24">
                     2. ⬇️ 4.0 프롬프트 (2단계 변환) 다운로드 <span class="prompt-date">(2025-12-24)</span>
                 </button>
-                <button class="btn prompt-download" data-prompt-path="LLMprompt/4.0 수악중독 프롬프트.txt" data-prompt-name="4.0 수악중독 프롬프트 다운로드" data-prompt-date="2025-12-24" onclick="downloadPromptFile(this)">
+                <button class="btn prompt-download" data-action="download-prompt" data-prompt-path="LLMprompt/4.0 수악중독 프롬프트.txt" data-prompt-name="4.0 수악중독 프롬프트 다운로드" data-prompt-date="2025-12-24">
                     3. ⬇️ 4.0 수악중독 프롬프트 다운로드 <span class="prompt-date">(2025-12-24)</span>
                 </button>
-                <button class="btn prompt-download" data-prompt-path="LLMprompt/4.0 수악중독 골든 샘플 (경량).txt" data-prompt-name="4.0 수악중독 골든 샘플 다운로드" data-prompt-date="2025-12-24" onclick="downloadPromptFile(this)">
+                <button class="btn prompt-download" data-action="download-prompt" data-prompt-path="LLMprompt/4.0 수악중독 골든 샘플 (경량).txt" data-prompt-name="4.0 수악중독 골든 샘플 다운로드" data-prompt-date="2025-12-24">
                     4. ⬇️ 4.0 수악중독 골든 샘플 다운로드 <span class="prompt-date">(2025-12-24)</span>
                 </button>
             </div>
@@ -270,10 +270,10 @@
             <summary>편집</summary>
             <div class="sidebar-folder-body">
                 <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
-                    <button class="btn" style="width:48%" onclick="performUndo()" title="실행 취소">↶ Undo<br><span style="font-size:9px;">(Ctrl+Z)</span></button>
-                    <button class="btn" style="width:48%" onclick="performRedo()" title="다시 실행">↷ Redo<br><span style="font-size:9px;">(Ctrl+Shift+Z)</span></button>
+                    <button class="btn" style="width:48%" data-action="undo" title="실행 취소">↶ Undo<br><span style="font-size:9px;">(Ctrl+Z)</span></button>
+                    <button class="btn" style="width:48%" data-action="redo" title="다시 실행">↷ Redo<br><span style="font-size:9px;">(Ctrl+Shift+Z)</span></button>
                 </div>
-                <button class="btn" onclick="openModal('find-replace-modal'); document.getElementById('fr-find-input').focus()">🔍 찾기/바꾸기 (Ctrl+Shift+F)</button>
+                <button class="btn" data-action="open-modal" data-modal="find-replace-modal" data-focus="fr-find-input">🔍 찾기/바꾸기 (Ctrl+Shift+F)</button>
             </div>
         </details>
 
@@ -333,10 +333,10 @@
         <details class="sidebar-folder">
             <summary>삽입</summary>
             <div class="sidebar-folder-body">
-                <button class="btn btn-success" onclick="insertImageBoxSafe()">🖼️ 이미지 삽입 (Ctrl+Alt+I)</button>
-                <button class="btn" onclick="splitBlockAtCursor()">✂️ 블록 나누기 (Alt+Shift+Enter)</button>
-                <button class="btn" onclick="addBlockBelow('spacer')">↕ 여백 삽입 (Ctrl+Shift+Click)</button>
-                <button class="btn" onclick="addBlockBelow('break')">⚡ 단 나누기 삽입 (Ctrl+Alt+Click)</button>
+                <button class="btn btn-success" data-action="insert-image-box">🖼️ 이미지 삽입 (Ctrl+Alt+I)</button>
+                <button class="btn" data-action="split-block">✂️ 블록 나누기 (Alt+Shift+Enter)</button>
+                <button class="btn" data-action="add-spacer">↕ 여백 삽입 (Ctrl+Shift+Click)</button>
+                <button class="btn" data-action="add-break">⚡ 단 나누기 삽입 (Ctrl+Alt+Click)</button>
             </div>
         </details>
 
@@ -354,8 +354,8 @@
                     <div class="settings-row"><label>단 간격(mm)</label><input type="number" id="setting-column-gap" min="0" max="20" step="1"></div>
                     <div class="settings-row"><label>푸터 텍스트</label><input type="text" id="setting-footer-text"></div>
                 </div>
-                <button id="toggle-rendering-btn" class="btn" onclick="toggleRenderingMode()" style="margin-bottom:6px;">🔓 렌더링 해제 (편집 모드)</button>
-                <button class="btn btn-purple" onclick="renderAllSafe()" style="margin-bottom:0; padding: 12px;">
+                <button id="toggle-rendering-btn" class="btn" data-action="toggle-rendering" style="margin-bottom:6px;">🔓 렌더링 해제 (편집 모드)</button>
+                <button class="btn btn-purple" data-action="render-all" style="margin-bottom:0; padding: 12px;">
                     ⚡ 수식 변환 (Render)<br>
                     <span style="font-size:10px; opacity:0.8;">Click: $..$ → SVG / DblClick: Edit</span>
                 </button>

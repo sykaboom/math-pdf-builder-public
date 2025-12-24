@@ -616,8 +616,11 @@ export const FileSystem = {
 
         Utils.showLoading("💾 저장 중...");
         
-        const rawData = JSON.parse(JSON.stringify(State.docData)); 
-        rawData.blocks.forEach(block => {
+        const rawData = {
+            data: JSON.parse(JSON.stringify(State.docData)),
+            settings: JSON.parse(JSON.stringify(State.settings))
+        };
+        rawData.data.blocks.forEach(block => {
             block.content = Utils.cleanRichContentToTex(block.content);
             if (block.content.includes('<img')) {
                 const div = document.createElement('div'); div.innerHTML = block.content;

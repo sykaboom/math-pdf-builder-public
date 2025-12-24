@@ -5,6 +5,77 @@ import { Renderer } from './renderer.js'; // 순환 참조 아님 (내부 호출
 import { ManualRenderer, FileSystem } from './services.js';
 import { Utils } from './utils.js';
 import { createTableEditor } from './table-editor.js';
+import { getMathSplitCandidates as buildMathSplitCandidates } from './math-logic.js';
+
+const PATCH_NOTES_PATH = 'PATCH_NOTES.txt';
+
+const getFileHandleByPath = async (root, relPath) => {
+    const parts = relPath.split('/').filter(Boolean);
+    let dir = root;
+    for (let i = 0; i < parts.length - 1; i++) {
+        dir = await dir.getDirectoryHandle(parts[i]);
+    }
+    return dir.getFileHandle(parts[parts.length - 1]);
+};
+
+const renderPatchNotes = (container, text) => {
+    if (!container) return;
+    container.innerHTML = '';
+    const lines = String(text || '').split(/\r?\n/);
+    const frag = document.createDocumentFragment();
+    let list = null;
+    const flushList = () => {
+        if (list) {
+            frag.appendChild(list);
+            list = null;
+        }
+    };
+    lines.forEach((line) => {
+        const trimmed = line.trim();
+        if (!trimmed) {
+            flushList();
+            const spacer = document.createElement('div');
+            spacer.className = 'patch-notes-spacer';
+            frag.appendChild(spacer);
+            return;
+        }
+        if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) {
+            flushList();
+            const dateEl = document.createElement('div');
+            dateEl.className = 'patch-notes-date';
+            dateEl.textContent = trimmed;
+            frag.appendChild(dateEl);
+            return;
+        }
+        if (trimmed.startsWith('- ')) {
+            if (!list) {
+                list = document.createElement('ul');
+                list.className = 'patch-notes-list';
+            }
+            const li = document.createElement('li');
+            li.textContent = trimmed.slice(2);
+            list.appendChild(li);
+            return;
+        }
+        flushList();
+        const textEl = document.createElement('div');
+        textEl.className = 'patch-notes-text';
+        textEl.textContent = trimmed;
+        frag.appendChild(textEl);
+    });
+    flushList();
+    if (!frag.childNodes.length) {
+        container.textContent = '패치노트가 없습니다.';
+        return;
+    }
+    container.appendChild(frag);
+};
+
+const doPrint = () => {
+    Utils.showLoading("🖨️ 인쇄 준비 중...");
+    window.print();
+    Utils.hideLoading();
+};
 
 export const Events = {
     showResizer(img) {
@@ -14,6 +85,167 @@ export const Events = {
         resizer.style.display = 'block'; resizer.style.top = (rect.top + window.scrollY) + 'px'; resizer.style.left = (rect.left + window.scrollX) + 'px'; resizer.style.width = rect.width + 'px'; resizer.style.height = rect.height + 'px';
     },
     hideResizer() { document.getElementById('image-resizer').style.display = 'none'; State.selectedImage = null; },
+
+    printPreflightData: null,
+
+    printWithMath() {
+        const placeholderCount = document.querySelectorAll('.image-placeholder').length;
+        const unrenderedMathCount = Array.from(document.querySelectorAll('.editable-box'))
+            .filter(b => (b.textContent || '').includes('$')).length;
+
+        if (placeholderCount > 0 || unrenderedMathCount > 0) {
+            this.printPreflightData = { placeholderCount, unrenderedMathCount };
+            const body = document.getElementById('print-preflight-body');
+            if (body) {
+                const lines = [];
+                if (placeholderCount > 0) lines.push(`• 미삽입 이미지 박스: ${placeholderCount}개`);
+                if (unrenderedMathCount > 0) lines.push(`• 미렌더 수식($ 포함): ${unrenderedMathCount}개`);
+                body.innerHTML = lines.join('<br>');
+            }
+            Utils.openModal('print-preflight-modal');
+            return;
+        }
+        doPrint();
+    },
+
+    async printPreflightAction(mode) {
+        Utils.closeModal('print-preflight-modal');
+        if (mode === 'cancel') { this.printPreflightData = null; return; }
+        if (mode === 'render') await ManualRenderer.renderAll(null, { force: true });
+        doPrint();
+        this.printPreflightData = null;
+    },
+
+    updateRenderingToggleUI() {
+        const btn = document.getElementById('toggle-rendering-btn');
+        if (!btn) return;
+        btn.textContent = State.renderingEnabled ? '🔓 렌더링 해제 (편집 모드)' : '🔒 렌더링 적용 (렌더 모드)';
+    },
+
+    async toggleRenderingMode(forceState) {
+        const next = (typeof forceState === 'boolean') ? forceState : !State.renderingEnabled;
+        State.renderingEnabled = next;
+        Renderer.renderPages();
+        if (next) {
+            await ManualRenderer.renderAll();
+        } else {
+            const container = document.getElementById('paper-container');
+            if (container) {
+                const boxes = container.querySelectorAll('.editable-box');
+                boxes.forEach(box => {
+                    Utils.replaceTablesWithTokensInDom(box);
+                    Utils.replaceBlockBoxesWithTokensInDom(box);
+                    const cleaned = Utils.cleanRichContentToTex(box.innerHTML);
+                    box.innerHTML = cleaned;
+                    const wrap = box.closest('.block-wrapper');
+                    if (wrap) Actions.updateBlockContent(wrap.dataset.id, cleaned, false);
+                });
+                State.saveHistory();
+            }
+        }
+        this.updateRenderingToggleUI();
+    },
+
+    async renderAllSafe() {
+        if (!State.renderingEnabled) { await this.toggleRenderingMode(true); return; }
+        await ManualRenderer.renderAll();
+    },
+
+    resetProject() {
+        if (!confirm('초기화하시겠습니까? (저장되지 않은 내용은 삭제됩니다)')) return;
+        State.docData.blocks = [{ id: 'b0', type: 'concept', content: '<span class="q-label">안내</span> 내용 입력...' }];
+        Renderer.renderPages();
+        State.saveHistory();
+    },
+
+    loadProjectJSONFromInput(input) {
+        if (!input || !input.files || !input.files[0]) return;
+        const file = input.files[0];
+        const r = new FileReader();
+        r.onload = async (e) => {
+            try {
+                const parsed = JSON.parse(e.target.result);
+                if (!parsed || typeof parsed !== 'object' || !parsed.data || !parsed.settings) {
+                    throw new Error('지원하지 않는 파일 형식입니다.');
+                }
+                State.applyProjectData(parsed, { sanitize: true });
+                await FileSystem.loadImagesForDisplay(State.docData.blocks);
+                Renderer.renderPages();
+                ManualRenderer.renderAll();
+                State.saveHistory();
+            } catch (err) {
+                alert('파일 로드 실패: ' + err.message);
+            }
+        };
+        r.readAsText(file);
+    },
+
+    async openPatchNotes() {
+        const body = document.getElementById('patch-notes-body');
+        if (body) body.textContent = '불러오는 중...';
+        Utils.openModal('patch-notes-modal');
+        try {
+            let text = '';
+            if (FileSystem.dirHandle) {
+                const fileHandle = await getFileHandleByPath(FileSystem.dirHandle, PATCH_NOTES_PATH);
+                const file = await fileHandle.getFile();
+                text = await file.text();
+            } else if (window.location.protocol !== 'file:') {
+                const response = await fetch(encodeURI(PATCH_NOTES_PATH), { cache: 'no-store' });
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                text = await response.text();
+            } else {
+                throw new Error('file-protocol');
+            }
+            renderPatchNotes(body, text);
+        } catch (err) {
+            if (body) body.textContent = '패치노트를 불러오지 못했습니다.';
+        }
+    },
+
+    async downloadPromptFile(target) {
+        const btn = typeof target === 'string'
+            ? document.querySelector(`.prompt-download[data-prompt-path="${target}"]`)
+            : target;
+        const path = typeof target === 'string' ? target : (btn && btn.dataset ? btn.dataset.promptPath : '');
+        if (!path) return;
+        const promptName = (btn && btn.dataset ? btn.dataset.promptName : '') || '';
+        const promptDate = (btn && btn.dataset ? btn.dataset.promptDate : '') || '';
+        const fallbackName = path.split('/').pop() || 'prompt.txt';
+        const baseName = promptName || fallbackName.replace(/\.txt$/i, '');
+        const cleanedBaseName = baseName.replace(/\s*다운로드\s*/g, ' ').replace(/\s+/g, ' ').trim();
+        const safeBaseName = cleanedBaseName || baseName;
+        const filename = promptDate ? `${safeBaseName} (${promptDate}).txt` : `${safeBaseName}.txt`;
+        const triggerDownload = (url, useNewTab = false) => {
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = filename;
+            if (useNewTab) link.target = '_blank';
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+        };
+
+        try {
+            let blob = null;
+            if (FileSystem.dirHandle) {
+                const fileHandle = await getFileHandleByPath(FileSystem.dirHandle, path);
+                const file = await fileHandle.getFile();
+                blob = file;
+            } else if (window.location.protocol !== 'file:') {
+                const response = await fetch(encodeURI(path), { cache: 'no-store' });
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                blob = await response.blob();
+            } else {
+                throw new Error('file-protocol');
+            }
+            const url = URL.createObjectURL(blob);
+            triggerDownload(url);
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+        } catch (err) {
+            triggerDownload(encodeURI(path), true);
+        }
+    },
 
     focusNextBlock(currentId, direction) { 
         const idx = State.docData.blocks.findIndex(b => b.id === currentId); 
@@ -147,114 +379,7 @@ export const Events = {
     },
 
     getMathSplitCandidates(tex) {
-        const envRegex = /\\begin\{(matrix|pmatrix|bmatrix|vmatrix|Vmatrix|array|aligned|align|cases)\}/;
-        if (!tex) return { candidates: [], reason: '나눌 연산자가 없습니다.' };
-        if (envRegex.test(tex)) return { candidates: [], reason: '정렬/행렬 수식은 나누기를 지원하지 않습니다.' };
-
-        const operatorCommands = new Set(['le', 'leq', 'leqslant', 'ge', 'geq', 'geqslant', 'ne', 'neq']);
-        const cdotsOperatorCommands = new Set(['times', 'cdot', 'ast']);
-        const rawCandidates = [];
-        let braceDepth = 0;
-        let bracketDepth = 0;
-        let parenDepth = 0;
-        let awaitingCdotsOperator = false;
-        const cdotTripletEnd = (startIndex) => {
-            let idx = startIndex;
-            let count = 0;
-            while (count < 3) {
-                if (tex[idx] !== '\\') return null;
-                const rest = tex.slice(idx + 1);
-                const match = rest.match(/^([a-zA-Z]+|.)/);
-                if (!match || match[1] !== 'cdot') return null;
-                idx += match[1].length + 1;
-                while (idx < tex.length && /\s/.test(tex[idx])) idx++;
-                count++;
-            }
-            return idx;
-        };
-
-        for (let i = 0; i < tex.length; i++) {
-            const ch = tex[i];
-            if (ch === '\\') {
-                const rest = tex.slice(i + 1);
-                const match = rest.match(/^([a-zA-Z]+|.)/);
-                if (match) {
-                    const cmd = match[1];
-                    const atTopLevel = braceDepth === 0 && bracketDepth === 0 && parenDepth === 0;
-                    if (atTopLevel && cmd === 'cdots') {
-                        awaitingCdotsOperator = true;
-                        i += cmd.length;
-                        continue;
-                    }
-                    if (atTopLevel && cmd === 'cdot') {
-                        const tripletEnd = cdotTripletEnd(i);
-                        if (tripletEnd !== null) {
-                            awaitingCdotsOperator = true;
-                            i = tripletEnd - 1;
-                            continue;
-                        }
-                    }
-                    if (atTopLevel && awaitingCdotsOperator && cdotsOperatorCommands.has(cmd)) {
-                        rawCandidates.push({ index: i, token: `\\${cmd}` });
-                        awaitingCdotsOperator = false;
-                        i += cmd.length;
-                        continue;
-                    }
-                    if (atTopLevel && operatorCommands.has(cmd)) {
-                        rawCandidates.push({ index: i, token: `\\${cmd}` });
-                    }
-                    i += cmd.length;
-                    continue;
-                }
-            }
-            if (ch === '{') { braceDepth++; continue; }
-            if (ch === '}') { braceDepth = Math.max(0, braceDepth - 1); continue; }
-            if (ch === '[') { bracketDepth++; continue; }
-            if (ch === ']') { bracketDepth = Math.max(0, bracketDepth - 1); continue; }
-            if (ch === '(') { parenDepth++; continue; }
-            if (ch === ')') { parenDepth = Math.max(0, parenDepth - 1); continue; }
-            if (braceDepth === 0 && bracketDepth === 0 && parenDepth === 0) {
-                if (ch === '=' || ch === '<' || ch === '>') rawCandidates.push({ index: i, token: ch });
-                if (awaitingCdotsOperator && (ch === '+' || ch === '-')) {
-                    rawCandidates.push({ index: i, token: ch });
-                    awaitingCdotsOperator = false;
-                }
-            }
-        }
-
-        const normalizeSpace = (value = '') => String(value).replace(/\s+/g, ' ').trim();
-        const trimPreview = (value, maxLen, trimLeft) => {
-            const text = normalizeSpace(value);
-            if (text.length <= maxLen) return text;
-            return trimLeft ? `...${text.slice(-maxLen)}` : `${text.slice(0, maxLen)}...`;
-        };
-        const stripOperator = (right, token) => {
-            const cleaned = normalizeSpace(right);
-            if (!token) return cleaned;
-            if (cleaned.startsWith(token)) return normalizeSpace(cleaned.slice(token.length));
-            if (token.length === 1 && cleaned[0] === token) return normalizeSpace(cleaned.slice(1));
-            return cleaned;
-        };
-
-        const candidates = rawCandidates.map(candidate => {
-            const left = tex.slice(0, candidate.index).trim();
-            const right = tex.slice(candidate.index).trim();
-            if (!left || !right) return null;
-            const rightBody = stripOperator(right, candidate.token);
-            if (!rightBody) return null;
-            const leftPreview = trimPreview(left, 18, true) || '...';
-            const rightPreview = trimPreview(rightBody, 18, false) || '...';
-            return {
-                index: candidate.index,
-                token: candidate.token,
-                leftPreview,
-                rightPreview
-            };
-        }).filter(Boolean);
-
-        return candidates.length
-            ? { candidates, reason: '' }
-            : { candidates: [], reason: '나눌 연산자가 없습니다.' };
+        return buildMathSplitCandidates(tex);
     },
 
     splitMathAtIndex(mjxContainer, splitIndex) {
@@ -278,7 +403,7 @@ export const Events = {
         const sizeInp = document.getElementById('block-font-size-input');
         if (famSel) famSel.value = b && b.fontFamily ? b.fontFamily : 'default';
         if (sizeInp) {
-            sizeInp.placeholder = State.docData.meta.fontSizePt || 10.5;
+            sizeInp.placeholder = State.settings.fontSizePt || 10.5;
             sizeInp.value = b && b.fontSizePt ? b.fontSizePt : '';
         }
     },
@@ -545,6 +670,11 @@ export const Events = {
             return false;
         };
 
+        const fileInput = document.getElementById('fileInput');
+        if (fileInput) {
+            fileInput.addEventListener('change', () => eventsApi.loadProjectJSONFromInput(fileInput));
+        }
+
         const mathMenu = document.getElementById('math-menu');
         const mathMenuOps = mathMenu ? mathMenu.querySelector('.math-menu-ops') : null;
         let activeMath = null;
@@ -667,6 +797,259 @@ export const Events = {
             return true;
         };
 
+        const floatingToolbar = document.getElementById('floating-toolbar');
+        if (floatingToolbar) {
+            floatingToolbar.addEventListener('mousedown', (e) => {
+                const btn = e.target.closest('.ft-btn');
+                if (!btn) return;
+                const action = btn.dataset.action;
+                if (action === 'concept-blank') {
+                    eventsApi.applyConceptBlankToSelection();
+                    return;
+                }
+                const cmd = btn.dataset.cmd;
+                if (!cmd) return;
+                const value = btn.dataset.value || null;
+                document.execCommand(cmd, false, value);
+            });
+            floatingToolbar.addEventListener('change', (e) => {
+                const target = e.target;
+                if (target.id === 'ft-font-family') {
+                    eventsApi.applyInlineFontFamily(target.value);
+                    return;
+                }
+                if (target.id === 'ft-font-size') {
+                    eventsApi.applyInlineFontSize(target.value);
+                }
+            });
+        }
+
+        const paperContainer = document.getElementById('paper-container');
+        if (paperContainer) {
+            paperContainer.addEventListener('click', (e) => {
+                const btn = e.target.closest('.block-action-btn');
+                if (!btn) return;
+                const action = btn.dataset.action;
+                const wrap = btn.closest('.block-wrapper');
+                const id = wrap ? wrap.dataset.id : null;
+                if (!action || !id) return;
+                e.preventDefault();
+                e.stopPropagation();
+                if (action === 'add-break') {
+                    Renderer.performAndRender(() => Actions.addBlockBelow('break', id));
+                    return;
+                }
+                if (action === 'add-spacer') {
+                    Renderer.performAndRender(() => Actions.addBlockBelow('spacer', id));
+                }
+            });
+        }
+
+        document.addEventListener('click', (e) => {
+            const closeBtn = e.target.closest('.modal-close');
+            if (closeBtn) {
+                const modalId = closeBtn.dataset.modal;
+                if (modalId) Utils.closeModal(modalId);
+                return;
+            }
+
+            const actionEl = e.target.closest('[data-action]');
+            if (!actionEl) return;
+            const action = actionEl.dataset.action;
+            if (!action) return;
+
+            if (action === 'open-modal') {
+                e.preventDefault();
+                const modalId = actionEl.dataset.modal;
+                if (!modalId) return;
+                Utils.openModal(modalId);
+                const focusId = actionEl.dataset.focus;
+                if (focusId) {
+                    const focusEl = document.getElementById(focusId);
+                    if (focusEl) focusEl.focus();
+                }
+                return;
+            }
+            if (action === 'close-modal') {
+                e.preventDefault();
+                const modalId = actionEl.dataset.modal;
+                if (modalId) Utils.closeModal(modalId);
+                return;
+            }
+            if (action === 'confirm-import') {
+                e.preventDefault();
+                const overwrite = actionEl.dataset.overwrite === 'true';
+                const normalizeLlm = document.getElementById('setting-normalize-llm');
+                const didImport = Actions.confirmImport(
+                    document.getElementById('import-textarea').value.trim(),
+                    overwrite,
+                    parseInt(document.getElementById('setting-limit').value) || 0,
+                    document.getElementById('setting-spacer').checked,
+                    normalizeLlm ? normalizeLlm.checked : false
+                );
+                if (didImport) { Renderer.renderPages(); ManualRenderer.renderAll(); }
+                return;
+            }
+            if (action === 'execute-find-replace') {
+                e.preventDefault();
+                const f = document.getElementById('fr-find-input').value;
+                const r = document.getElementById('fr-replace-input').value;
+                if (!f) return;
+                let replaceCount = 0;
+                State.docData.blocks.forEach(b => {
+                    if (!b.content) return;
+                    let idx = b.content.indexOf(f);
+                    if (idx === -1) return;
+                    while (idx !== -1) { replaceCount++; idx = b.content.indexOf(f, idx + f.length); }
+                    b.content = b.content.replaceAll(f, r);
+                });
+                Renderer.renderPages();
+                ManualRenderer.renderAll();
+                State.saveHistory();
+                Utils.closeModal('find-replace-modal');
+                Utils.showToast(`"${f}" → "${r}" ${replaceCount}건 바꿈`, replaceCount ? 'success' : 'info');
+                return;
+            }
+            if (action === 'print-with-math') {
+                e.preventDefault();
+                eventsApi.printWithMath();
+                return;
+            }
+            if (action === 'print-preflight') {
+                e.preventDefault();
+                const mode = actionEl.dataset.mode;
+                if (mode) eventsApi.printPreflightAction(mode);
+                return;
+            }
+            if (action === 'open-patch-notes') {
+                e.preventDefault();
+                eventsApi.openPatchNotes();
+                return;
+            }
+            if (action === 'save-project') {
+                e.preventDefault();
+                FileSystem.saveProjectJSON(() => Renderer.syncAllBlocks());
+                return;
+            }
+            if (action === 'reset-project') {
+                e.preventDefault();
+                eventsApi.resetProject();
+                return;
+            }
+            if (action === 'open-file-dialog') {
+                e.preventDefault();
+                const input = document.getElementById('fileInput');
+                if (input) input.click();
+                return;
+            }
+            if (action === 'open-project-folder') {
+                e.preventDefault();
+                FileSystem.openProjectFolder();
+                return;
+            }
+            if (action === 'download-prompt') {
+                e.preventDefault();
+                eventsApi.downloadPromptFile(actionEl);
+                return;
+            }
+            if (action === 'undo') {
+                e.preventDefault();
+                if (State.undo()) { Renderer.renderPages(); ManualRenderer.renderAll(); }
+                return;
+            }
+            if (action === 'redo') {
+                e.preventDefault();
+                if (State.redo()) { Renderer.renderPages(); ManualRenderer.renderAll(); }
+                return;
+            }
+            if (action === 'insert-image-box') {
+                e.preventDefault();
+                eventsApi.insertImageBoxSafe();
+                return;
+            }
+            if (action === 'split-block') {
+                e.preventDefault();
+                Renderer.performAndRender(() => eventsApi.splitBlockAtCursor());
+                return;
+            }
+            if (action === 'insert-image-placeholder') {
+                e.preventDefault();
+                eventsApi.insertImagePlaceholderAtEnd();
+                return;
+            }
+            if (action === 'add-spacer') {
+                e.preventDefault();
+                Renderer.performAndRender(() => Actions.addBlockBelow('spacer'));
+                return;
+            }
+            if (action === 'add-break') {
+                e.preventDefault();
+                Renderer.performAndRender(() => Actions.addBlockBelow('break'));
+                return;
+            }
+            if (action === 'toggle-gray-bg') {
+                e.preventDefault();
+                if (Actions.toggleStyle('bgGray')) { Renderer.renderPages(); ManualRenderer.renderAll(); }
+                return;
+            }
+            if (action === 'toggle-border') {
+                e.preventDefault();
+                if (Actions.toggleStyle('bordered')) { Renderer.renderPages(); ManualRenderer.renderAll(); }
+                return;
+            }
+            if (action === 'apply-align') {
+                e.preventDefault();
+                const align = actionEl.dataset.align;
+                if (align && Actions.applyAlign(align)) { Renderer.renderPages(); ManualRenderer.renderAll(); }
+                return;
+            }
+            if (action === 'duplicate-block') {
+                e.preventDefault();
+                if (Actions.duplicateTargetBlock()) { Renderer.renderPages(); ManualRenderer.renderAll(); }
+                return;
+            }
+            if (action === 'add-block-above') {
+                e.preventDefault();
+                const type = actionEl.dataset.type || 'example';
+                if (Actions.addBlockAbove(type)) { Renderer.renderPages(); ManualRenderer.renderAll(); }
+                return;
+            }
+            if (action === 'add-block-below') {
+                e.preventDefault();
+                const type = actionEl.dataset.type || 'example';
+                if (Actions.addBlockBelow(type)) { Renderer.renderPages(); ManualRenderer.renderAll(); }
+                return;
+            }
+            if (action === 'apply-block-font') {
+                e.preventDefault();
+                eventsApi.applyBlockFontFromMenu();
+                return;
+            }
+            if (action === 'delete-block') {
+                e.preventDefault();
+                if (State.contextTargetId && Actions.deleteBlockById(State.contextTargetId)) {
+                    Renderer.renderPages();
+                    ManualRenderer.renderAll();
+                }
+                Utils.closeModal('context-menu');
+                return;
+            }
+            if (action === 'toggle-rendering') {
+                e.preventDefault();
+                eventsApi.toggleRenderingMode();
+                return;
+            }
+            if (action === 'render-all') {
+                e.preventDefault();
+                eventsApi.renderAllSafe();
+                return;
+            }
+            if (action === 'resolve-confirm') {
+                e.preventDefault();
+                Utils.resolveConfirm(actionEl.dataset.result === 'true');
+            }
+        });
+
         body.addEventListener('dragover', (e) => {
             if (State.dragSrcId) return;
             if (!isFileDrag(e)) return;
@@ -686,7 +1069,10 @@ export const Events = {
                     r.onload = async (ev) => {
                         try {
                             const parsed = JSON.parse(ev.target.result);
-                            State.docData = State.normalizeDocData(parsed, { sanitize: true });
+                            if (!parsed || typeof parsed !== 'object' || !parsed.data || !parsed.settings) {
+                                throw new Error('지원하지 않는 파일 형식입니다.');
+                            }
+                            State.applyProjectData(parsed, { sanitize: true });
                             await FileSystem.loadImagesForDisplay(State.docData.blocks);
                             Renderer.renderPages();
                             ManualRenderer.renderAll();
@@ -741,7 +1127,7 @@ export const Events = {
             }
             if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && key === 'n') {
                 e.preventDefault();
-                if (typeof window.resetProject === 'function') window.resetProject();
+                eventsApi.resetProject();
                 return;
             }
             if ((e.ctrlKey || e.metaKey) && key === 'o') {
@@ -1074,7 +1460,7 @@ export const Events = {
         const resizeHandle = document.querySelector('.resizer-handle');
         if(resizeHandle) resizeHandle.addEventListener('mousedown', (e) => {
             e.preventDefault(); e.stopPropagation(); if(!State.selectedImage) return; 
-            const startX = e.clientX, startY = e.clientY; const startW = State.selectedImage.offsetWidth, startH = State.selectedImage.offsetHeight; const zoom = State.docData.meta.zoom || 1.0; 
+            const startX = e.clientX, startY = e.clientY; const startW = State.selectedImage.offsetWidth, startH = State.selectedImage.offsetHeight; const zoom = State.settings.zoom || 1.0; 
             function doDrag(evt) { const newW = Math.max(20, startW + (evt.clientX - startX) / zoom); const newH = Math.max(20, startH + (evt.clientY - startY) / zoom); State.selectedImage.style.width = newW + 'px'; State.selectedImage.style.height = newH + 'px'; Events.showResizer(State.selectedImage); } 
             function stopDrag() { window.removeEventListener('mousemove', doDrag); window.removeEventListener('mouseup', stopDrag); Actions.updateBlockContent(State.selectedImage.closest('.block-wrapper').dataset.id, State.selectedImage.closest('.editable-box').innerHTML); } 
             window.addEventListener('mousemove', doDrag); window.addEventListener('mouseup', stopDrag); 
