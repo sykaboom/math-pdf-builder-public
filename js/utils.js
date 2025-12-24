@@ -1,6 +1,7 @@
 // Filename: js/utils.js
 import { choiceLayoutGrid, normalizeChoiceLayout, getChoiceLayoutGrid, getChoiceColumnCount } from './choice-layout.js';
 import { normalizeLlmOutput, protectMathEnvironments } from './math-logic.js';
+import { escapeTokenValue, serializeEditorTable, serializeChoiceTable } from './table-serialize.js';
 export const Utils = {
     preservedClasses: ['custom-box', 'labeled-box', 'simple-box', 'box-label', 'box-content', 'rect-box', 'rect-box-content'],
     choiceLabels: ['①', '②', '③', '④', '⑤'],
@@ -142,48 +143,17 @@ export const Utils = {
         return container.innerHTML;
     },
 
-    escapeTokenValue(value = '') {
-        return String(value).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-    },
-
     serializeEditorTable(table) {
-        if (!table) return '';
-        const rows = Array.from(table.rows);
-        const rowCount = rows.length;
-        const colCount = rows[0] ? rows[0].cells.length : 0;
-        if (!rowCount || !colCount) return '';
-        const entries = [];
-        rows.forEach((row, r) => {
-            Array.from(row.cells).forEach((cell, c) => {
-                const raw = this.cleanRichContentToTex(cell.innerHTML || '');
-                const normalized = raw.replace(/\u00A0/g, ' ');
-                if (!normalized.trim()) return;
-                const escaped = this.escapeTokenValue(normalized);
-                entries.push(`(${r + 1}x${c + 1}_"${escaped}")`);
-            });
-        });
-        const head = `[표_${rowCount}x${colCount}]`;
-        return entries.length ? `${head} : ${entries.join(', ')}` : head;
+        return serializeEditorTable(table, { normalizeHtml: this.cleanRichContentToTex.bind(this) });
     },
 
     serializeChoiceTable(table) {
-        if (!table) return '';
-        const layout = this.normalizeChoiceLayout(table.dataset ? table.dataset.layout : '2');
-        const layoutToken = layout === '1' ? '1행' : layout === '5' ? '5행' : '2행';
-        const items = [];
-        table.querySelectorAll('td[data-choice-index]').forEach(cell => {
-            const idx = parseInt(cell.dataset.choiceIndex, 10);
-            if (!Number.isFinite(idx)) return;
-            const textEl = cell.querySelector('.choice-text');
-            const raw = this.cleanRichContentToTex(textEl ? textEl.innerHTML : '');
-            const normalized = raw.replace(/\u00A0/g, ' ');
-            if (!normalized.trim()) return;
-            items.push({ idx, value: normalized });
+        return serializeChoiceTable(table, {
+            normalizeHtml: this.cleanRichContentToTex.bind(this),
+            normalizeLayout: this.normalizeChoiceLayout.bind(this),
+            layoutGrid: this.getChoiceLayoutGrid.bind(this),
+            choiceLabels: this.choiceLabels
         });
-        items.sort((a, b) => a.idx - b.idx);
-        const entries = items.map(item => `(${item.idx}_"${this.escapeTokenValue(item.value)}")`);
-        const head = `[선지_${layoutToken}]`;
-        return entries.length ? `${head} : ${entries.join(', ')}` : head;
     },
 
     replaceTablesWithTokensInDom(root) {
