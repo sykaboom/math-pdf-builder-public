@@ -682,7 +682,18 @@ export const Events = {
             const file = e.dataTransfer.files && e.dataTransfer.files[0];
             if(file) {
                 if(file.name.endsWith('.json')) {
-                    const r = new FileReader(); r.onload = async (ev) => { try { State.docData = JSON.parse(ev.target.result); await FileSystem.loadImagesForDisplay(State.docData.blocks); Renderer.renderPages(); ManualRenderer.renderAll(); State.saveHistory(); } catch(err){ alert("로드 실패"); } }; r.readAsText(file);
+                    const r = new FileReader();
+                    r.onload = async (ev) => {
+                        try {
+                            const parsed = JSON.parse(ev.target.result);
+                            State.docData = State.normalizeDocData(parsed, { sanitize: true });
+                            await FileSystem.loadImagesForDisplay(State.docData.blocks);
+                            Renderer.renderPages();
+                            ManualRenderer.renderAll();
+                            State.saveHistory();
+                        } catch(err){ alert("로드 실패"); }
+                    };
+                    r.readAsText(file);
                 } else if (file.type === 'text/plain' || /\.txt$/i.test(file.name)) {
                     const r = new FileReader(); r.onload = (ev) => { document.getElementById('import-textarea').value = ev.target.result; Utils.openModal('import-modal'); }; r.readAsText(file);
                 }
@@ -1029,7 +1040,9 @@ export const Events = {
         });
         document.addEventListener('paste', async (e) => {
             let target = null; if (State.selectedPlaceholder && State.selectedPlaceholder.getAttribute('contenteditable') === 'false') target = State.selectedPlaceholder; else { const sel = window.getSelection(); if (sel.rangeCount) { const node = sel.anchorNode; const el = node.nodeType === 1 ? node : node.parentElement; if (el.closest('.editable-box')) target = 'cursor'; } } 
-            const items = (e.clipboardData || e.originalEvent.clipboardData).items; 
+            const clipboard = e.clipboardData || e.originalEvent.clipboardData;
+            if (!clipboard) return;
+            const items = clipboard.items || []; 
             for (let item of items) { 
                 if (item.kind === 'file' && item.type.includes('image/')) { 
                     if(!target) return; e.preventDefault(); const file = item.getAsFile(); 
@@ -1043,6 +1056,19 @@ export const Events = {
                     State.saveHistory(500); return; 
                 } 
             } 
+            if (target === 'cursor') {
+                const htmlData = clipboard.getData('text/html');
+                if (htmlData) {
+                    e.preventDefault();
+                    const sanitized = Utils.sanitizeHtml(htmlData);
+                    if (sanitized) {
+                        document.execCommand('insertHTML', false, sanitized);
+                    } else {
+                        const textData = clipboard.getData('text/plain');
+                        if (textData) document.execCommand('insertText', false, textData);
+                    }
+                }
+            }
         });
 
         const resizeHandle = document.querySelector('.resizer-handle');

@@ -5,6 +5,9 @@
 
 AI(LLM)를 이용해 코드를 수정할 때, 전체 코드를 뒤질 필요 없이 **"수정하려는 목적"**에 맞는 파일 하나만 선택하면 됩니다.
 
+## 아키텍처 가이드라인
+프로젝트의 미래 통합 기준과 코드 점검 원칙은 `PROJECT_BLUEPRINT.md`를 참고하세요.
+
 ## 사용하기 (배포판)
 - GitHub Pages: https://sykaboom.github.io/math-pdf-builder-public/
 - 최신 Chromium 계열 브라우저(Chrome/Edge) 권장.

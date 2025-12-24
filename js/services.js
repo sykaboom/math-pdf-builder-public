@@ -568,7 +568,6 @@ export const FileSystem = {
                 statusEl.textContent = "✅ 폴더 연결됨 (저장: 폴더)";
             }
             Utils.showToast("폴더가 연결되었습니다.", "success"); 
-            if (window.updatePromptDates) window.updatePromptDates();
             this.loadImagesForDisplay(State.docData.blocks); 
         } catch (e) { }
     },

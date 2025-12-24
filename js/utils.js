@@ -108,6 +108,54 @@ export const Utils = {
         return div.innerHTML;
     },
 
+    sanitizeHtml(htmlContent = '') {
+        const container = document.createElement('div');
+        container.innerHTML = String(htmlContent || '');
+        ['script', 'iframe', 'object', 'embed', 'link', 'meta', 'style'].forEach(tag => {
+            container.querySelectorAll(tag).forEach(node => node.remove());
+        });
+
+        const urlAttrs = new Set(['href', 'src', 'xlink:href', 'formaction']);
+        const isUnsafeUrl = (value, attrName) => {
+            const raw = String(value || '');
+            const compact = raw.trim().replace(/\s+/g, '').toLowerCase();
+            if (!compact) return false;
+            if (compact.startsWith('javascript:') || compact.startsWith('vbscript:')) return true;
+            if (compact.startsWith('data:')) {
+                if (attrName === 'src' || attrName === 'href' || attrName === 'xlink:href') {
+                    if (compact.startsWith('data:image/')) {
+                        if (compact.startsWith('data:image/svg+xml')) return true;
+                        return false;
+                    }
+                    return true;
+                }
+            }
+            return false;
+        };
+
+        container.querySelectorAll('*').forEach(el => {
+            Array.from(el.attributes).forEach(attr => {
+                const name = attr.name.toLowerCase();
+                if (name.startsWith('on')) {
+                    el.removeAttribute(attr.name);
+                    return;
+                }
+                if (name === 'style') {
+                    const value = String(attr.value || '').toLowerCase();
+                    if (value.includes('expression(') || value.includes('javascript:')) {
+                        el.removeAttribute(attr.name);
+                    }
+                    return;
+                }
+                if (urlAttrs.has(name) && isUnsafeUrl(attr.value, name)) {
+                    el.removeAttribute(attr.name);
+                }
+            });
+        });
+
+        return container.innerHTML;
+    },
+
     escapeTokenValue(value = '') {
         return String(value).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
     },

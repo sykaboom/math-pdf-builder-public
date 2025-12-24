@@ -6,24 +6,6 @@ import { Renderer } from './renderer.js';
 import { Actions } from './actions.js';
 import { Events } from './events.js';
 
-const formatDateYMD = (value, timeZone) => {
-    const date = value instanceof Date ? value : new Date(value);
-    if (Number.isNaN(date.getTime())) return '';
-    if (timeZone && typeof Intl !== 'undefined') {
-        const formatter = new Intl.DateTimeFormat('en-CA', {
-            timeZone,
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit'
-        });
-        return formatter.format(date);
-    }
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-};
-
 const getFileHandleByPath = async (root, relPath) => {
     const parts = relPath.split('/').filter(Boolean);
     let dir = root;
@@ -94,7 +76,16 @@ window.saveProjectJSON = () => FileSystem.saveProjectJSON(() => Renderer.syncAll
 window.loadProjectJSONFromInput = (input) => {
     const file = input.files[0]; if(!file) return;
     const r = new FileReader();
-    r.onload = async (e) => { try { State.docData = JSON.parse(e.target.result); await FileSystem.loadImagesForDisplay(State.docData.blocks); Renderer.renderPages(); ManualRenderer.renderAll(); State.saveHistory(); } catch(err) { alert("파일 로드 실패: "+err.message); } };
+    r.onload = async (e) => {
+        try {
+            const parsed = JSON.parse(e.target.result);
+            State.docData = State.normalizeDocData(parsed, { sanitize: true });
+            await FileSystem.loadImagesForDisplay(State.docData.blocks);
+            Renderer.renderPages();
+            ManualRenderer.renderAll();
+            State.saveHistory();
+        } catch(err) { alert("파일 로드 실패: "+err.message); }
+    };
     r.readAsText(file);
 };
 window.confirmImport = (overwrite) => {
@@ -263,38 +254,6 @@ window.openPatchNotes = async () => {
         if (body) body.textContent = '패치노트를 불러오지 못했습니다.';
     }
 };
-window.updatePromptDates = async () => {
-    const buttons = Array.from(document.querySelectorAll('.prompt-download[data-prompt-path]'));
-    if (!buttons.length) return;
-
-    const setDateText = (btn, text) => {
-        const span = btn.querySelector('.prompt-date');
-        if (!span) return;
-        span.textContent = text ? `(${text})` : '';
-        if (btn && btn.dataset) btn.dataset.promptDate = text === 'n/a' ? '' : (text || '');
-    };
-
-    const readDateFromGitHub = async (path) => {
-        const repo = 'sykaboom/math-pdf-builder-public';
-        const apiUrl = `https://api.github.com/repos/${repo}/commits?path=${encodeURIComponent(path)}&per_page=1`;
-        try {
-            const response = await fetch(apiUrl, { cache: 'no-store' });
-            if (!response.ok) return '';
-            const data = await response.json();
-            const commitDate = data && data[0] && data[0].commit && data[0].commit.committer && data[0].commit.committer.date;
-            return commitDate ? formatDateYMD(commitDate, 'Asia/Seoul') : '';
-        } catch (e) {
-            return '';
-        }
-    };
-
-    for (const btn of buttons) {
-        const path = btn.dataset.promptPath;
-        if (!path) continue;
-        const dateText = await readDateFromGitHub(path);
-        setDateText(btn, dateText || 'n/a');
-    }
-};
 
 // [Fix] Actions 호출 후 렌더링 파이프라인 연결
 window.toggleGrayBg = () => { if(Actions.toggleStyle('bgGray')) { Renderer.renderPages(); ManualRenderer.renderAll(); } };
@@ -313,7 +272,6 @@ window.addEventListener('DOMContentLoaded', () => {
     State.saveHistory(); 
     Events.initGlobalListeners();
     updateRenderingToggleUI();
-    window.updatePromptDates();
 
     // [Fix] 줌 최적화 로직 복구 (입력시 CSS Transform, 놓으면 렌더링)
     const zoomRange = document.getElementById('zoomRange');

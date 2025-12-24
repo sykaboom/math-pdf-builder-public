@@ -1,11 +1,182 @@
 // Filename: js/state.js
 import { Utils } from './utils.js';
 
+const DEFAULT_META = {
+    title: "시험지 제목",
+    subtitle: "단원명",
+    footerText: "학원명",
+    zoom: 1.0,
+    columns: 2,
+    marginTopMm: 15,
+    marginSideMm: 10,
+    columnGapMm: 5,
+    fontFamily: 'serif',
+    fontSizePt: 10.5,
+    labelFontFamily: 'gothic',
+    labelFontSizePt: null,
+    labelBold: true,
+    labelUnderline: false,
+    pageLayouts: {}
+};
+
+const DEFAULT_BLOCK = {
+    id: 'b0',
+    type: 'concept',
+    content: '<span class="q-label">안내</span> 내용 입력...'
+};
+
+const buildDefaultMeta = () => ({
+    ...DEFAULT_META,
+    pageLayouts: {}
+});
+
+const buildDefaultBlock = () => ({ ...DEFAULT_BLOCK });
+
+const buildDefaultDocData = () => ({
+    meta: buildDefaultMeta(),
+    blocks: [buildDefaultBlock()]
+});
+
+const isPlainObject = (value) => value && typeof value === 'object' && !Array.isArray(value);
+
+const toNumber = (value) => {
+    const num = Number(value);
+    return Number.isFinite(num) ? num : null;
+};
+
+const normalizeMeta = (rawMeta) => {
+    const meta = isPlainObject(rawMeta) ? { ...rawMeta } : {};
+    const defaults = buildDefaultMeta();
+
+    meta.title = typeof meta.title === 'string' ? meta.title : defaults.title;
+    meta.subtitle = typeof meta.subtitle === 'string' ? meta.subtitle : defaults.subtitle;
+    meta.footerText = typeof meta.footerText === 'string' ? meta.footerText : defaults.footerText;
+
+    const zoom = toNumber(meta.zoom);
+    meta.zoom = zoom && zoom > 0 ? zoom : defaults.zoom;
+
+    const columns = toNumber(meta.columns);
+    meta.columns = columns === 1 ? 1 : 2;
+
+    const marginTop = toNumber(meta.marginTopMm);
+    meta.marginTopMm = marginTop !== null && marginTop >= 0 ? marginTop : defaults.marginTopMm;
+
+    const marginSide = toNumber(meta.marginSideMm);
+    meta.marginSideMm = marginSide !== null && marginSide >= 0 ? marginSide : defaults.marginSideMm;
+
+    const columnGap = toNumber(meta.columnGapMm);
+    meta.columnGapMm = columnGap !== null && columnGap >= 0 ? columnGap : defaults.columnGapMm;
+
+    meta.fontFamily = typeof meta.fontFamily === 'string' && meta.fontFamily.trim()
+        ? meta.fontFamily
+        : defaults.fontFamily;
+
+    const fontSize = toNumber(meta.fontSizePt);
+    meta.fontSizePt = fontSize && fontSize > 0 ? fontSize : defaults.fontSizePt;
+
+    meta.labelFontFamily = typeof meta.labelFontFamily === 'string' && meta.labelFontFamily.trim()
+        ? meta.labelFontFamily
+        : defaults.labelFontFamily;
+
+    if (meta.labelFontSizePt === null || meta.labelFontSizePt === '') {
+        meta.labelFontSizePt = null;
+    } else {
+        const labelSize = toNumber(meta.labelFontSizePt);
+        meta.labelFontSizePt = labelSize && labelSize > 0 ? labelSize : null;
+    }
+
+    meta.labelBold = typeof meta.labelBold === 'boolean' ? meta.labelBold : defaults.labelBold;
+    meta.labelUnderline = typeof meta.labelUnderline === 'boolean' ? meta.labelUnderline : defaults.labelUnderline;
+
+    if (isPlainObject(meta.pageLayouts)) {
+        const normalizedLayouts = {};
+        Object.entries(meta.pageLayouts).forEach(([key, value]) => {
+            const layout = toNumber(value);
+            if (layout === 1 || layout === 2) normalizedLayouts[key] = layout;
+        });
+        meta.pageLayouts = normalizedLayouts;
+    } else {
+        meta.pageLayouts = {};
+    }
+
+    return meta;
+};
+
+const normalizeBlock = (rawBlock, index, usedIds, options) => {
+    const block = isPlainObject(rawBlock) ? { ...rawBlock } : {};
+    let id = typeof block.id === 'string' ? block.id.trim() : '';
+    if (!id || usedIds.has(id)) {
+        id = `b_${Date.now()}_${index}_${Math.random().toString(16).slice(2, 6)}`;
+    }
+    usedIds.add(id);
+    block.id = id;
+
+    block.type = typeof block.type === 'string' && block.type.trim() ? block.type.trim() : 'example';
+
+    if (typeof block.content !== 'string') block.content = '';
+    if (options.sanitize) block.content = Utils.sanitizeHtml(block.content);
+
+    if (block.type === 'spacer') {
+        const height = toNumber(block.height);
+        block.height = height && height > 0 ? height : 50;
+    }
+
+    if ('bordered' in block && typeof block.bordered !== 'boolean') delete block.bordered;
+    if ('bgGray' in block && typeof block.bgGray !== 'boolean') delete block.bgGray;
+
+    if ('fontFamily' in block && (typeof block.fontFamily !== 'string' || !block.fontFamily.trim())) delete block.fontFamily;
+    if ('fontSizePt' in block) {
+        const size = toNumber(block.fontSizePt);
+        if (!size || size <= 0) delete block.fontSizePt;
+        else block.fontSizePt = size;
+    }
+
+    if ('derived' in block && typeof block.derived !== 'string') delete block.derived;
+
+    if ('conceptAnswerStart' in block) {
+        const value = toNumber(block.conceptAnswerStart);
+        if (value === null) delete block.conceptAnswerStart;
+        else block.conceptAnswerStart = value;
+    }
+    if ('conceptAnswerAssigned' in block) {
+        const value = toNumber(block.conceptAnswerAssigned);
+        if (value === null) delete block.conceptAnswerAssigned;
+        else block.conceptAnswerAssigned = value;
+    }
+
+    if ('style' in block) {
+        if (!isPlainObject(block.style)) {
+            delete block.style;
+        } else if (block.style.textAlign && !['left', 'center', 'right'].includes(block.style.textAlign)) {
+            delete block.style.textAlign;
+        }
+    }
+
+    return block;
+};
+
+const normalizeBlocks = (rawBlocks, options = {}) => {
+    const opts = { sanitize: false, ensureAtLeastOne: false, ...options };
+    const blocks = Array.isArray(rawBlocks) ? rawBlocks : [];
+    const usedIds = new Set();
+    const normalized = blocks.map((block, index) => normalizeBlock(block, index, usedIds, opts)).filter(Boolean);
+    if (opts.ensureAtLeastOne && normalized.length === 0) {
+        normalized.push(buildDefaultBlock());
+    }
+    return normalized;
+};
+
+const normalizeDocData = (raw, options = {}) => {
+    const opts = { sanitize: false, ensureAtLeastOne: true, ...options };
+    const base = isPlainObject(raw) ? raw : {};
+    const normalized = { ...base };
+    normalized.meta = normalizeMeta(base.meta);
+    normalized.blocks = normalizeBlocks(base.blocks, opts);
+    return normalized;
+};
+
 export const State = {
-    docData: {
-        meta: { title: "시험지 제목", subtitle: "단원명", footerText: "학원명", zoom: 1.0, columns: 2, marginTopMm: 15, marginSideMm: 10, columnGapMm: 5, fontFamily: 'serif', fontSizePt: 10.5, labelFontFamily: 'gothic', labelFontSizePt: null, labelBold: true, labelUnderline: false, pageLayouts: {} },
-        blocks: [ { id: 'b0', type: 'concept', content: '<span class="q-label">안내</span> 내용 입력...' } ]
-    },
+    docData: buildDefaultDocData(),
     historyStack: [],
     historyIndex: -1,
     renderTimer: null,
@@ -26,6 +197,9 @@ export const State = {
     conceptBlankAnswersIsMath: [],
     conceptBlankAnswersHash: '',
     keysPressed: {},
+
+    normalizeDocData,
+    normalizeBlocks,
 
     saveHistory(debounceTime = 0, options = null) {
         let delay = debounceTime;
@@ -104,24 +278,7 @@ export const State = {
         if (!str) return false;
         try {
             const parsed = JSON.parse(str);
-            this.docData = parsed;
-            this.docData.meta = Object.assign({
-                title: "시험지 제목",
-                subtitle: "단원명",
-                footerText: "학원명",
-                zoom: 1.0,
-                columns: 2,
-                marginTopMm: 15,
-                marginSideMm: 10,
-                columnGapMm: 5,
-                fontFamily: 'serif',
-                fontSizePt: 10.5,
-                labelFontFamily: 'gothic',
-                labelFontSizePt: null,
-                labelBold: true,
-                labelUnderline: false,
-                pageLayouts: {}
-            }, parsed.meta || {});
+            this.docData = normalizeDocData(parsed);
             return true;
         } catch(e) { console.error(e); return false; }
     },
