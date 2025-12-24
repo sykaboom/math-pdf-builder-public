@@ -1,29 +1,14 @@
 // Filename: js/utils.js
+import { choiceLayoutGrid, normalizeChoiceLayout, getChoiceLayoutGrid, getChoiceColumnCount } from './choice-layout.js';
 import { normalizeLlmOutput, protectMathEnvironments } from './math-logic.js';
 export const Utils = {
     preservedClasses: ['custom-box', 'labeled-box', 'simple-box', 'box-label', 'box-content', 'rect-box', 'rect-box-content'],
     choiceLabels: ['①', '②', '③', '④', '⑤'],
     confirmResolver: null,
-    choiceLayoutGrid: {
-        '1': [[1, 2, 3, 4, 5]],
-        '2': [[1, 2, 3], [4, 5, 0]],
-        '5': [[1], [2], [3], [4], [5]]
-    },
-    normalizeChoiceLayout(value) {
-        const v = String(value || '').trim();
-        if (v === '1' || v === '1행') return '1';
-        if (v === '2' || v === '2행') return '2';
-        if (v === '5' || v === '5행') return '5';
-        return '2';
-    },
-    getChoiceLayoutGrid(layout) {
-        const normalized = this.normalizeChoiceLayout(layout);
-        return this.choiceLayoutGrid[normalized] || this.choiceLayoutGrid['2'];
-    },
-    getChoiceColumnCount(layout) {
-        const grid = this.getChoiceLayoutGrid(layout);
-        return grid[0] ? grid[0].length : 1;
-    },
+    choiceLayoutGrid,
+    normalizeChoiceLayout,
+    getChoiceLayoutGrid,
+    getChoiceColumnCount,
     debounce(func, wait) {
         let timeout;
         return function(...args) {
