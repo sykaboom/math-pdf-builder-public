@@ -1,7 +1,7 @@
 // Filename: js/actions.js
 import { State } from './state.js';
 import { Utils } from './utils.js';
-import { ImportParser } from './services.js';
+import { ImportParser } from './import-parser.js';
 import { buildNewBlockData, buildSplitBlockData, cloneBlockData } from './block-logic.js';
 import { expandImportedBlocks, parseJsonImport } from './import-logic.js';
 
