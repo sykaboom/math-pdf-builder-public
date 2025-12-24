@@ -26,7 +26,6 @@ window.MathJax = {
         typeset: false,
         pageReady: () => {
             return MathJax.startup.defaultPageReady().then(() => {
-                console.log('MathJax Engine Ready');
                 window.isMathJaxReady = true;
             });
         }

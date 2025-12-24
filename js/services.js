@@ -163,7 +163,7 @@ export const ManualRenderer = {
 
     async renderAll(callback, options = {}) {
         if (!options.force && State.renderingEnabled === false) return;
-        if (!window.isMathJaxReady) { console.log("MathJax Waiting..."); return; }
+        if (!window.isMathJaxReady) { return; }
         if (this.isRendering) return; 
         this.isRendering = true;
         this.resetConceptBlankTracking();

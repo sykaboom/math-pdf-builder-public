@@ -392,5 +392,4 @@ window.addEventListener('DOMContentLoaded', () => {
         e.target.value='';
     });
 
-    console.log("🚀 Editor System Initialized (v4.0.1 Fixed - All Features Restored)");
 });

@@ -2,6 +2,11 @@
 export const TABLE_MIN_WIDTH = 40;
 export const TABLE_MIN_HEIGHT = 24;
 
+/**
+ * Ensure a colgroup with enough columns exists for a table.
+ * @param {HTMLTableElement} table
+ * @returns {HTMLTableColElement|null}
+ */
 export const ensureColgroup = (table) => {
     const firstRow = table.querySelector('tr');
     const colCount = firstRow ? firstRow.children.length : 0;
@@ -201,6 +206,13 @@ export const getColIndicesForRect = (table, rect) => {
     return indices;
 };
 
+/**
+ * Determine if the cursor is near a table cell resize handle.
+ * @param {HTMLTableCellElement} cell
+ * @param {MouseEvent} event
+ * @param {number} [margin=4]
+ * @returns {{type: 'col' | 'row', index: number} | null}
+ */
 export const getTableResizeHit = (cell, event, margin = 4) => {
     if (!cell) return null;
     const table = cell.closest('table.editor-table');

@@ -300,7 +300,7 @@ export const Utils = {
         text = text.replace(/\*\*([^*]+?)\*\*/g, '$1').replace(/\*\*/g, '');
         text = text.replace(/\$\$([\s\S]*?)\$\$/g, (match, body) => `$${body}$`);
         text = text.replace(/\\frac/g, '\\dfrac');
-        text = text.replace(/\\cdot(?:\\s*\\cdot){2}/g, '\\cdots');
+        text = text.replace(/\\cdot(?:\s*\\cdot){2}/g, '\\cdots');
         text = this.protectMathEnvironments(text);
         text = text.replace(/\[선지_([^\]]+)\]\s*:?\s*/g, (match, layout) => {
             const normalized = String(layout || '').trim();
