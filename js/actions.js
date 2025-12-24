@@ -2,6 +2,7 @@
 import { State } from './state.js';
 import { Utils } from './utils.js';
 import { ImportParser } from './services.js';
+import { buildNewBlockData, buildSplitBlockData, cloneBlockData } from './block-logic.js';
 
 export const Actions = {
     // 렌더링을 직접 호출하지 않고 데이터만 조작
@@ -23,12 +24,7 @@ export const Actions = {
     },
 
     createNewBlockData(type) {
-        const newBlock = { id: 'b_' + Date.now(), type: type, content: '' };
-        if (type === 'concept') newBlock.content = '<span class="q-label">개념</span> ';
-        if (type === 'image') { newBlock.type = 'example'; newBlock.content = Utils.getImagePlaceholderHTML(); }
-        if (type === 'break') newBlock.type = 'break';
-        if (type === 'spacer') { newBlock.type = 'spacer'; newBlock.height = 50; }
-        return newBlock;
+        return buildNewBlockData(type, { imagePlaceholderHtml: Utils.getImagePlaceholderHTML() });
     },
 
     addBlockBelow(type, refId) {
@@ -57,8 +53,7 @@ export const Actions = {
     duplicateTargetBlock() {
         if (!State.contextTargetId) return false;
         const idx = State.docData.blocks.findIndex(b => b.id === State.contextTargetId);
-        const clone = JSON.parse(JSON.stringify(State.docData.blocks[idx]));
-        clone.id = 'copy_' + Date.now();
+        const clone = cloneBlockData(State.docData.blocks[idx]);
         State.docData.blocks.splice(idx + 1, 0, clone);
         State.saveHistory();
         Utils.closeModal('context-menu');
@@ -113,9 +108,7 @@ export const Actions = {
         const base = State.docData.blocks[idx];
         if (!base || !['concept', 'example', 'answer'].includes(base.type)) return false;
 
-        const newBlock = JSON.parse(JSON.stringify(base));
-        newBlock.id = 'b_' + Date.now() + '_' + Math.random().toString(16).slice(2, 6);
-        newBlock.content = afterHtml || '';
+        const newBlock = buildSplitBlockData(base, afterHtml);
 
         State.docData.blocks[idx].content = beforeHtml || '';
         State.docData.blocks.splice(idx + 1, 0, newBlock);
