@@ -8,6 +8,12 @@ import {
     normalizeProjectData as normalizeProjectDataCore,
     normalizeSettings as normalizeSettingsCore
 } from './state-normalize.js';
+import {
+    buildHistoryMetaEntry,
+    buildHistoryMetaInfo,
+    buildSnapshot,
+    shouldCoalesceHistory
+} from './history-logic.js';
 
 const normalizeBlocks = (rawBlocks, options = {}) => normalizeBlocksCore(rawBlocks, {
     ...options,
@@ -77,49 +83,39 @@ export const State = {
             delay = 0;
         }
         const doSave = () => {
-            const cleanData = JSON.parse(JSON.stringify(this.docData));
-            cleanData.blocks.forEach(b => b.content = Utils.cleanRichContentToTex(b.content));
-            const snapshot = {
-                data: cleanData,
-                settings: JSON.parse(JSON.stringify(this.settings))
-            };
-            const str = JSON.stringify(snapshot);
-
+            const { snapshotStr } = buildSnapshot(this.docData, this.settings, {
+                cleanContent: Utils.cleanRichContentToTex
+            });
             const now = Date.now();
-            const metaInfo = meta && typeof meta === 'object' ? {
-                reason: meta.reason || 'manual',
-                blockId: meta.blockId || null,
-                coalesceMs: Number.isFinite(meta.coalesceMs) ? meta.coalesceMs : 2000
-            } : null;
-            const canCoalesce = metaInfo
-                && metaInfo.reason === 'typing'
-                && this.historyIndex >= 0
-                && this.historyIndex === this.historyStack.length - 1
-                && this.historyMeta
-                && this.historyMeta.reason === 'typing'
-                && (now - this.historyMeta.time) <= metaInfo.coalesceMs
-                && (!metaInfo.blockId || metaInfo.blockId === this.historyMeta.blockId);
+            const metaInfo = buildHistoryMetaInfo(meta);
+            const canCoalesce = shouldCoalesceHistory({
+                historyIndex: this.historyIndex,
+                historyStackLength: this.historyStack.length,
+                historyMeta: this.historyMeta,
+                metaInfo,
+                now
+            });
 
             if (canCoalesce) {
-                if (this.historyStack[this.historyIndex] === str) return;
-                this.historyStack[this.historyIndex] = str;
-                this.historyMeta = { reason: 'typing', blockId: metaInfo.blockId, time: now };
-                localStorage.setItem('editorAutoSave', str);
+                if (this.historyStack[this.historyIndex] === snapshotStr) return;
+                this.historyStack[this.historyIndex] = snapshotStr;
+                this.historyMeta = buildHistoryMetaEntry(metaInfo, now);
+                localStorage.setItem('editorAutoSave', snapshotStr);
                 return;
             }
             
-            if (this.historyIndex >= 0 && this.historyStack[this.historyIndex] === str) return;
+            if (this.historyIndex >= 0 && this.historyStack[this.historyIndex] === snapshotStr) return;
             
             this.historyIndex++;
             this.historyStack = this.historyStack.slice(0, this.historyIndex);
-            this.historyStack.push(str);
+            this.historyStack.push(snapshotStr);
             
             if (this.historyStack.length > 30) {
                 this.historyStack.shift();
                 this.historyIndex--;
             }
-            this.historyMeta = metaInfo ? { reason: metaInfo.reason, blockId: metaInfo.blockId, time: now } : { reason: 'manual', blockId: null, time: now };
-            localStorage.setItem('editorAutoSave', str);
+            this.historyMeta = buildHistoryMetaEntry(metaInfo, now);
+            localStorage.setItem('editorAutoSave', snapshotStr);
         };
 
         if (delay > 0) {
@@ -132,14 +128,10 @@ export const State = {
 
     autosaveDraft(debounceTime = 0) {
         const doSave = () => {
-            const cleanData = JSON.parse(JSON.stringify(this.docData));
-            cleanData.blocks.forEach(b => b.content = Utils.cleanRichContentToTex(b.content));
-            const snapshot = {
-                data: cleanData,
-                settings: JSON.parse(JSON.stringify(this.settings))
-            };
-            const str = JSON.stringify(snapshot);
-            localStorage.setItem('editorAutoSave', str);
+            const { snapshotStr } = buildSnapshot(this.docData, this.settings, {
+                cleanContent: Utils.cleanRichContentToTex
+            });
+            localStorage.setItem('editorAutoSave', snapshotStr);
         };
 
         if (debounceTime > 0) {
