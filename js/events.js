@@ -158,6 +158,20 @@ export const Events = {
         let bracketDepth = 0;
         let parenDepth = 0;
         let awaitingCdotsOperator = false;
+        const cdotTripletEnd = (startIndex) => {
+            let idx = startIndex;
+            let count = 0;
+            while (count < 3) {
+                if (tex[idx] !== '\\') return null;
+                const rest = tex.slice(idx + 1);
+                const match = rest.match(/^([a-zA-Z]+|.)/);
+                if (!match || match[1] !== 'cdot') return null;
+                idx += match[1].length + 1;
+                while (idx < tex.length && /\s/.test(tex[idx])) idx++;
+                count++;
+            }
+            return idx;
+        };
 
         for (let i = 0; i < tex.length; i++) {
             const ch = tex[i];
@@ -171,6 +185,14 @@ export const Events = {
                         awaitingCdotsOperator = true;
                         i += cmd.length;
                         continue;
+                    }
+                    if (atTopLevel && cmd === 'cdot') {
+                        const tripletEnd = cdotTripletEnd(i);
+                        if (tripletEnd !== null) {
+                            awaitingCdotsOperator = true;
+                            i = tripletEnd - 1;
+                            continue;
+                        }
                     }
                     if (atTopLevel && awaitingCdotsOperator && cdotsOperatorCommands.has(cmd)) {
                         rawCandidates.push({ index: i, token: `\\${cmd}` });
