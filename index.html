@@ -250,13 +250,14 @@
     </div>
 
     <div class="sidebar-tree">
+        <button class="btn" data-action="open-modal" data-modal="import-modal" style="margin-bottom:8px; border-left: 3px solid #6f42c1; color: #6f42c1; font-weight:bold;">📥 AI 데이터 입력 (Alt+I)</button>
+        <button id="toggle-rendering-btn" class="btn" data-action="toggle-rendering" style="margin-bottom:8px;">🔓 렌더링 해제 (편집 모드)</button>
         <button class="btn btn-danger" data-action="print-with-math" style="margin-bottom:8px;">🖨️ 인쇄하기</button>
         <button class="btn" data-action="open-patch-notes" style="margin-bottom:8px;">📝 패치노트</button>
 
         <details class="sidebar-folder">
             <summary>파일</summary>
             <div class="sidebar-folder-body">
-                <button class="btn" data-action="open-modal" data-modal="import-modal" style="border-left: 3px solid #6f42c1; color: #6f42c1; font-weight:bold;">📥 AI 데이터 입력 (Alt+I)</button>
                 <button class="btn btn-warning" data-action="reset-project">🗑️ 새로 만들기 (Alt+N)</button>
                 <button class="btn btn-primary" data-action="save-project">💾 저장 (Ctrl+S)</button>
                 <button class="btn" data-action="open-file-dialog">📂 열기 (Ctrl+O)</button>
@@ -382,11 +383,6 @@
                     <div class="settings-row"><label>단 간격(mm)</label><input type="number" id="setting-column-gap" min="0" max="20" step="1"></div>
                     <div class="settings-row"><label>푸터 텍스트</label><input type="text" id="setting-footer-text"></div>
                 </div>
-                <button id="toggle-rendering-btn" class="btn" data-action="toggle-rendering" style="margin-bottom:6px;">🔓 렌더링 해제 (편집 모드)</button>
-                <button class="btn btn-purple" data-action="render-all" style="margin-bottom:0; padding: 12px;">
-                    ⚡ 수식 변환 (Render)<br>
-                    <span style="font-size:10px; opacity:0.8;">Click: $..$ → SVG / DblClick: Edit</span>
-                </button>
             </div>
         </details>
 

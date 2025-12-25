@@ -249,6 +249,8 @@ table.choice-table .choice-text { display: inline-block; min-width: 0; }
 #context-menu { position: fixed; background: white; border: 1px solid #ccc; box-shadow: 0 4px 15px rgba(0,0,0,0.15); border-radius: 6px; z-index: 9999; display: none; width: 230px; }
 .menu-item { padding: 8px 12px; cursor: pointer; font-size: 13px; display: flex; justify-content: space-between; align-items: center; color: #333; }
 .menu-item:hover { background: #e7f5ff; color: #007bff; }
+.menu-item.disabled { opacity: 0.5; cursor: not-allowed; color: #999; }
+.menu-item.disabled:hover { background: transparent; color: #999; }
 .menu-font-row { justify-content: flex-start; gap: 6px; cursor: default; }
 .menu-font-row:hover { background: transparent; color: inherit; }
 .menu-font-row select, .menu-font-row input { font-size: 12px; }
@@ -258,6 +260,7 @@ table.choice-table .choice-text { display: inline-block; min-width: 0; }
 
 .btn { width: 100%; padding: 8px; margin-bottom: 5px; cursor: pointer; background: white; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; }
 .btn:hover { background: #f8f9fa; }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; background: #f3f3f3; color: #888; border-color: #ddd; }
 .btn-primary { background: #007bff; color: white; border: none; font-weight: bold; }
 .btn-warning { background: #ffc107; color: #212529; border: none; font-weight: bold; }
 .btn-success { background: #28a745; color: white; border: none; font-weight: bold; }

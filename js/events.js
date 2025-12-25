@@ -117,6 +117,38 @@ export const Events = {
         this.printPreflightData = null;
     },
 
+    getEditableContextFromSelection() {
+        const sel = window.getSelection();
+        if (!sel || sel.rangeCount === 0) return null;
+        const anchor = sel.anchorNode;
+        const el = anchor ? (anchor.nodeType === Node.ELEMENT_NODE ? anchor : anchor.parentElement) : null;
+        if (!el) return null;
+        const box = el.closest('.editable-box');
+        if (!box || !box.isContentEditable || box.getAttribute('contenteditable') === 'false') return null;
+        return { box, wrap: box.closest('.block-wrapper') };
+    },
+
+    canInsertImageAtCursor() {
+        return !!this.getEditableContextFromSelection();
+    },
+
+    updateImageInsertAvailability() {
+        const canInsert = this.canInsertImageAtCursor();
+        document.querySelectorAll('[data-action="insert-image-box"]').forEach((el) => {
+            if (el.tagName === 'BUTTON') {
+                el.disabled = !canInsert;
+                return;
+            }
+            if (canInsert) {
+                el.classList.remove('disabled');
+                el.removeAttribute('data-disabled');
+            } else {
+                el.classList.add('disabled');
+                el.setAttribute('data-disabled', 'true');
+            }
+        });
+    },
+
     updateRenderingToggleUI() {
         const btn = document.getElementById('toggle-rendering-btn');
         if (!btn) return;
@@ -145,6 +177,7 @@ export const Events = {
             }
         }
         this.updateRenderingToggleUI();
+        this.updateImageInsertAvailability();
     },
 
     async renderAllSafe() {
@@ -263,37 +296,20 @@ export const Events = {
     },
     
     insertImageBoxSafe() {
-        const active = document.activeElement;
-        if(active && active.isContentEditable) {
-            const wrap = active.closest('.block-wrapper');
-            const id = wrap ? wrap.dataset.id : null;
-            document.execCommand('insertHTML', false, Utils.getImagePlaceholderHTML());
-            if (id) {
-                Actions.updateBlockContent(id, Utils.cleanRichContentToTex(active.innerHTML), true);
-                Renderer.debouncedRebalance();
-                State.lastEditableId = id;
-            }
+        const context = this.getEditableContextFromSelection();
+        if (!context) {
+            Utils.showToast('커서를 놓은 뒤 이미지 삽입을 사용하세요.', 'info');
+            this.updateImageInsertAvailability();
             return;
         }
-
-        const targetId = State.lastEditableId || State.contextTargetId;
-        if (targetId) {
-            const box = document.querySelector(`.block-wrapper[data-id="${targetId}"] .editable-box`);
-            if (box) {
-                box.focus();
-                const r = document.createRange(); r.selectNodeContents(box); r.collapse(false);
-                const s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
-                document.execCommand('insertHTML', false, Utils.getImagePlaceholderHTML());
-                Actions.updateBlockContent(targetId, Utils.cleanRichContentToTex(box.innerHTML), true);
-                Renderer.debouncedRebalance();
-                return;
-            }
+        document.execCommand('insertHTML', false, Utils.getImagePlaceholderHTML());
+        const wrap = context.wrap;
+        if (wrap && wrap.dataset && wrap.dataset.id) {
+            Actions.updateBlockContent(wrap.dataset.id, Utils.cleanRichContentToTex(context.box.innerHTML), true);
+            Renderer.debouncedRebalance();
+            State.lastEditableId = wrap.dataset.id;
         }
-
-        if(Actions.addBlockBelow('image')) {
-            Renderer.renderPages();
-            ManualRenderer.renderAll();
-        }
+        this.updateImageInsertAvailability();
     },
 
     addImageBlockBelow(refId) {
@@ -534,10 +550,20 @@ export const Events = {
     },
 
     handleBlockMousedown(e, id) {
+        const box = e.currentTarget;
+        const activeWrap = document.activeElement ? document.activeElement.closest('.block-wrapper') : null;
+        const activeId = activeWrap && activeWrap.dataset ? activeWrap.dataset.id : null;
+        if (box && activeId !== id) {
+            const focusTarget = e.target.closest('[contenteditable="true"]') || box;
+            if (focusTarget && typeof focusTarget.focus === 'function') {
+                focusTarget.focus();
+            }
+        }
         State.lastEditableId = id;
         if(e.target.tagName==='IMG') { this.showResizer(e.target); e.stopPropagation(); State.selectedImage=e.target; }
         const placeholder = e.target.closest('.image-placeholder');
         if(placeholder) { e.stopPropagation(); if(State.selectedPlaceholder) State.selectedPlaceholder.classList.remove('selected'); State.selectedPlaceholder = placeholder; State.selectedPlaceholder.classList.add('selected'); State.selectedPlaceholder.setAttribute('contenteditable', 'false'); }
+        this.updateImageInsertAvailability();
     },
 
     handleBlockKeydown(e, id, box, renderCallback) {
@@ -675,6 +701,13 @@ export const Events = {
         if (fileInput) {
             fileInput.addEventListener('change', () => eventsApi.loadProjectJSONFromInput(fileInput));
         }
+
+        document.querySelectorAll('[data-action="insert-image-box"]').forEach((el) => {
+            if (el.tagName !== 'BUTTON') return;
+            el.addEventListener('mousedown', (e) => {
+                if (!el.disabled) e.preventDefault();
+            });
+        });
 
         const mathMenu = document.getElementById('math-menu');
         const mathMenuOps = mathMenu ? mathMenu.querySelector('.math-menu-ops') : null;
@@ -868,12 +901,42 @@ export const Events = {
                 fragment: buildBoxTokenFragment(startToken, bodyText, endToken)
             };
         };
+        const elementSelectorMap = {
+            'concept-blank': '.blank-box.concept-blank-box',
+            'blank': '.blank-box:not(.concept-blank-box)',
+            'image': '.image-placeholder',
+            'rect-box': '.rect-box',
+            'custom-box': '.custom-box'
+        };
+        const getElementSelector = (kind) => elementSelectorMap[kind] || null;
+        const getElementIndex = (target, selector) => {
+            if (!target || !selector) return -1;
+            const wrap = target.closest('.block-wrapper');
+            if (!wrap) return -1;
+            const nodes = Array.from(wrap.querySelectorAll(selector));
+            return nodes.indexOf(target);
+        };
+        const resolveActiveElement = () => {
+            if (!activeElement) return null;
+            if (activeElement.node && activeElement.node.isConnected) return activeElement.node;
+            if (!activeElement.blockId || !activeElement.selector) return null;
+            const wrap = document.querySelector(`.block-wrapper[data-id="${activeElement.blockId}"]`);
+            if (!wrap) return null;
+            const nodes = Array.from(wrap.querySelectorAll(activeElement.selector));
+            if (!nodes.length) return null;
+            const idx = Number.isInteger(activeElement.index) ? activeElement.index : -1;
+            return (idx >= 0 && idx < nodes.length) ? nodes[idx] : nodes[0];
+        };
         const openElementMenu = (target, kind) => {
             if (!elementMenu || !target) return;
+            const selector = getElementSelector(kind);
+            const index = getElementIndex(target, selector);
             activeElement = {
                 node: target,
                 kind,
-                blockId: target.closest('.block-wrapper')?.dataset?.id || null
+                blockId: target.closest('.block-wrapper')?.dataset?.id || null,
+                selector,
+                index
             };
             if (elementMenuTitle) {
                 const labelMap = {
@@ -1133,6 +1196,7 @@ export const Events = {
             }
             if (action === 'insert-image-box') {
                 e.preventDefault();
+                if (actionEl.getAttribute('data-disabled') === 'true') return;
                 eventsApi.insertImageBoxSafe();
                 return;
             }
@@ -1270,6 +1334,7 @@ export const Events = {
 
         const tableEditor = createTableEditor();
         tableEditor.init();
+        this.updateImageInsertAvailability();
 
         // [Fix] 스크롤 시 팝업 닫기 추가
         window.addEventListener('scroll', () => {
@@ -1370,7 +1435,10 @@ export const Events = {
                 scheduleMathSelectionHighlight();
             }, 10);
         });
-        document.addEventListener('selectionchange', scheduleMathSelectionHighlight);
+        document.addEventListener('selectionchange', () => {
+            scheduleMathSelectionHighlight();
+            eventsApi.updateImageInsertAvailability();
+        });
 
         document.addEventListener('click', (e) => {
             const btn = e.target.closest('.image-load-btn');
@@ -1490,9 +1558,9 @@ export const Events = {
                 if (!btn || !activeElement) return;
                 e.preventDefault(); e.stopPropagation();
                 const action = btn.dataset.action;
-                const target = activeElement.node;
+                const target = resolveActiveElement();
                 const wrapId = activeElement.blockId;
-                if (!target || !target.isConnected) {
+                if (!target) {
                     closeElementMenu();
                     return;
                 }

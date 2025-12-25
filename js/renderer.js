@@ -133,7 +133,10 @@ export const Renderer = {
                 }
                 State.lastFocusId=null;
                 if (preserveScrollAfterFocus && workspace) workspace.scrollTop = scrollTop;
+                Events.updateImageInsertAvailability();
             }, 0);
+        } else {
+            Events.updateImageInsertAvailability();
         }
     },
 
