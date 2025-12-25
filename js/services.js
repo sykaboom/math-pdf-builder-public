@@ -3,6 +3,7 @@ import { State } from './state.js';
 import { Utils } from './utils.js';
 import { parseChoiceData, parseTableCellData } from './table-parse.js';
 import { buildChoiceTableElement, buildEditorTableElement } from './table-elements.js';
+import { decodeMathEntities, sanitizeMathTokens } from './math-tokenize.js';
 
 export const ManualRenderer = {
     mathCache: new Map(),
@@ -138,50 +139,9 @@ export const ManualRenderer = {
             }
         });
 
-        const escapeForMathTex = (value = '') => {
-            return value
-                .replace(/\\/g, '\\textbackslash ')
-                .replace(/([{}#%&_\$])/g, '\\$1')
-                .replace(/\^/g, '\\^{}')
-                .replace(/~/g, '\\~{}');
-        };
-
-        const decodeMathEntities = (value = '') => {
-            let text = String(value);
-            text = text.replace(/&amp;lt;/g, '&lt;').replace(/&amp;gt;/g, '&gt;');
-            text = text.replace(/&lt;/g, '<').replace(/&gt;/g, '>');
-            return text;
-        };
-
-        const sanitizeMathTokens = (tex) => {
-            if (!tex) return tex;
-            const normalizeMathBlankLabel = (value = '') => {
-                return String(value).replace(/\s+/g, ' ').trim();
-            };
-            const formatConceptBlankLabel = (value = '') => {
-                const normalized = normalizeMathBlankLabel(value);
-                return `(${normalized || '#'})`;
-            };
-            const toMathBlankText = (label = '') => {
-                const normalized = normalizeMathBlankLabel(label);
-                return `\\class{math-blank-box}{\\bbox[border:1.5px solid #000; padding: 3px 12px; background: #fff]{\\text{${escapeForMathTex(normalized)}}}}`;
-            };
-            const getConceptBlankIndexForMath = (answerText = '') => {
-                if (renderer.conceptBlankMathQueue.length) return renderer.conceptBlankMathQueue.shift();
-                return renderer.recordConceptBlank(answerText, { isMath: true });
-            };
-            const toConceptBlankText = (answerText = '', rawLabel = '#') => {
-                if (!trackConceptBlanks) return toMathBlankText(formatConceptBlankLabel(rawLabel));
-                const index = getConceptBlankIndexForMath(answerText);
-                return toMathBlankText(`(${index})`);
-            };
-            const toBoxedText = (label = '') => {
-                return `\\boxed{\\text{${escapeForMathTex(label)}}}`;
-            };
-            tex = tex.replace(/\[개념빈칸([:_])([^\]]*?)\]([\s\S]*?)\[\/개념빈칸\]/g, (m, delim, label, body) => toConceptBlankText(body, label));
-            tex = tex.replace(/\[빈칸[:_](.*?)\]/g, (m, label) => toMathBlankText(label));
-            tex = tex.replace(/\[이미지\s*:\s*(.*?)\]/g, (m, label) => toBoxedText(label));
-            return tex;
+        const getConceptBlankIndexForMath = (answerText = '') => {
+            if (renderer.conceptBlankMathQueue.length) return renderer.conceptBlankMathQueue.shift();
+            return renderer.recordConceptBlank(answerText, { isMath: true });
         };
 
         const applyTokenReplacementsOutsideMath = (root, options = {}) => {
@@ -404,7 +364,10 @@ export const ManualRenderer = {
                 const isDisplay = fullTex.startsWith('$$'); 
                 const cleanTex = isDisplay ? fullTex.slice(2, -2) : fullTex.slice(1, -1);
                 const decodedTex = decodeMathEntities(cleanTex);
-                const preparedTex = sanitizeMathTokens(decodedTex);
+                const preparedTex = sanitizeMathTokens(decodedTex, {
+                    trackConceptBlanks,
+                    getConceptBlankIndex: getConceptBlankIndexForMath
+                });
                 const cacheKey = preparedTex + (isDisplay ? '_D' : '_I');
                 let mjxNode = null;
 
