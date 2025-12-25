@@ -277,6 +277,28 @@ export const Utils = {
             setTimeout(() => toast.remove(), 250);
         }, duration);
     },
+    async copyText(text = '') {
+        const value = String(text ?? '');
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(value);
+            return true;
+        }
+        const textarea = document.createElement('textarea');
+        textarea.value = value;
+        textarea.setAttribute('readonly', '');
+        textarea.style.position = 'fixed';
+        textarea.style.top = '-1000px';
+        document.body.appendChild(textarea);
+        textarea.select();
+        let ok = false;
+        try {
+            ok = document.execCommand('copy');
+        } catch (err) {
+            ok = false;
+        }
+        textarea.remove();
+        return ok;
+    },
     openModal(id) { document.getElementById(id).style.display = 'flex'; },
     closeModal(id) { document.getElementById(id).style.display = 'none'; },
     confirmDialog(message) {

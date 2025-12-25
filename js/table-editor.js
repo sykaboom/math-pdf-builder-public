@@ -21,6 +21,7 @@ import {
     getColIndicesForRect,
     getTableResizeHit
 } from './table-utils.js';
+import { serializeEditorTable, serializeChoiceTable } from './table-serialize.js';
 
 export const createTableEditor = () => {
     const TABLE_RESIZE_MARGIN = 4;
@@ -833,7 +834,7 @@ export const createTableEditor = () => {
         e.stopPropagation();
     };
 
-    const handleTableMenuClick = (e) => {
+    const handleTableMenuClick = async (e) => {
         const btn = e.target.closest('[data-action]');
         if (!btn) return;
         if (!activeTable) { Utils.showToast("표를 먼저 선택하세요.", "error"); return; }
@@ -841,6 +842,23 @@ export const createTableEditor = () => {
         const selectionCells = getSelectionCellsForTable(activeTable);
         const selectionRect = selectionCells.length ? getSelectionRect() : null;
         const action = btn.dataset.action;
+        if (action === 'copy-table') {
+            const token = serializeEditorTable(activeTable, { normalizeHtml: Utils.cleanRichContentToTex });
+            if (!token) { Utils.showToast('복사할 표가 없습니다.', 'info'); return; }
+            const ok = await Utils.copyText(token);
+            Utils.showToast(ok ? '표가 복사되었습니다.' : '복사에 실패했습니다.', ok ? 'success' : 'error');
+            return;
+        } else if (action === 'delete-table') {
+            const confirmed = await Utils.confirmDialog('표를 삭제하겠습니까?');
+            if (!confirmed) return;
+            const wrap = activeTable.closest('.block-wrapper');
+            const id = wrap ? wrap.dataset.id : null;
+            activeTable.remove();
+            if (id) syncTableToState(wrap.querySelector('table.editor-table') || wrap);
+            activeTable = null;
+            closeTableMenu();
+            return;
+        }
         if (action === 'add-row-above') { addRowToTable(activeTable, 'above'); syncTableToState(activeTable); }
         else if (action === 'add-row-below') { addRowToTable(activeTable, 'below'); syncTableToState(activeTable); }
         else if (action === 'add-col-left') { addColumnToTable(activeTable, 'left'); syncTableToState(activeTable); }
@@ -921,13 +939,37 @@ export const createTableEditor = () => {
         e.stopPropagation();
     };
 
-    const handleChoiceMenuClick = (e) => {
-        const btn = e.target.closest('[data-layout]');
-        if (!btn) return;
+    const handleChoiceMenuClick = async (e) => {
+        const actionBtn = e.target.closest('[data-action]');
+        const layoutBtn = e.target.closest('[data-layout]');
+        if (!actionBtn && !layoutBtn) return;
         if (!activeChoiceTable) { Utils.showToast("선지를 먼저 선택하세요.", "error"); return; }
-        const nextTable = applyChoiceLayout(activeChoiceTable, btn.dataset.layout);
-        if (nextTable) syncChoiceToState(nextTable);
-        if (choiceMenuOpen && nextTable) positionChoiceMenu(nextTable);
+        if (actionBtn) {
+            const action = actionBtn.dataset.action;
+            if (action === 'copy-choice') {
+                const token = serializeChoiceTable(activeChoiceTable, { normalizeHtml: Utils.cleanRichContentToTex, normalizeLayout: Utils.normalizeChoiceLayout, choiceLabels: Utils.choiceLabels });
+                if (!token) { Utils.showToast('복사할 선지가 없습니다.', 'info'); return; }
+                const ok = await Utils.copyText(token);
+                Utils.showToast(ok ? '선지가 복사되었습니다.' : '복사에 실패했습니다.', ok ? 'success' : 'error');
+                return;
+            }
+            if (action === 'delete-choice') {
+                const confirmed = await Utils.confirmDialog('선지를 삭제하겠습니까?');
+                if (!confirmed) return;
+                const wrap = activeChoiceTable.closest('.block-wrapper');
+                const id = wrap ? wrap.dataset.id : null;
+                activeChoiceTable.remove();
+                if (id) syncChoiceToState(wrap.querySelector('table.choice-table') || wrap);
+                activeChoiceTable = null;
+                closeChoiceMenu();
+                return;
+            }
+        }
+        if (layoutBtn) {
+            const nextTable = applyChoiceLayout(activeChoiceTable, layoutBtn.dataset.layout);
+            if (nextTable) syncChoiceToState(nextTable);
+            if (choiceMenuOpen && nextTable) positionChoiceMenu(nextTable);
+        }
     };
 
     const handleDocumentMouseDown = (e) => {
@@ -969,7 +1011,23 @@ export const createTableEditor = () => {
     };
 
     const handleDoubleClick = (e) => {
-        if (e.target.closest('table.editor-table')) {
+        if (e.target.closest('#table-menu') || e.target.closest('#choice-menu')) return true;
+        const choiceTable = e.target.closest('table.choice-table');
+        if (choiceTable) {
+            activeChoiceTable = choiceTable;
+            openChoiceMenu(choiceTable);
+            e.stopPropagation();
+            return true;
+        }
+        const cell = e.target.closest('table.editor-table td');
+        if (cell) {
+            activeCell = cell;
+            activeTable = cell.closest('table.editor-table');
+            if (!e.shiftKey) {
+                clearTableSelection();
+                tableSelectAnchor = cell;
+            }
+            openTableMenu(activeTable);
             e.stopPropagation();
             return true;
         }

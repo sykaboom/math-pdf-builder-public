@@ -223,6 +223,14 @@ table.choice-table .choice-text { display: inline-block; min-width: 0; }
 .math-menu-op-token { font-family: 'Courier New', monospace; font-weight: 700; color: #222; }
 .math-menu-op-right { flex: 1; text-align: left; color: #555; }
 .math-menu-empty { font-size: 11px; color: #888; padding: 2px 4px; }
+#element-menu { position: absolute; display: none; flex-direction: column; gap: 6px; background: #fff; border: 1px solid #ccc; border-radius: 6px; padding: 8px 10px; z-index: 10005; box-shadow: 0 6px 16px rgba(0,0,0,0.18); font-size: 12px; min-width: 200px; }
+.element-menu-title { font-size: 10px; font-weight: 700; color: #666; }
+.element-menu-row { display: flex; gap: 6px; }
+.element-menu-btn { border: 1px solid #ddd; background: #fff; border-radius: 4px; padding: 3px 8px; font-size: 11px; cursor: pointer; }
+.element-menu-btn:hover { background: #e7f5ff; border-color: #007bff; color: #007bff; }
+.choice-menu-actions { margin-top: 6px; }
+.menu-btn-danger { color: #dc3545; border-color: #f1b0b7; }
+.menu-btn-danger:hover { background: #fdecee; border-color: #dc3545; color: #dc3545; }
 
 /* [도구] */
 #floating-toolbar { position: absolute; background: #333; border-radius: 6px; padding: 5px; display: none; gap: 5px; z-index: 10000; box-shadow: 0 4px 12px rgba(0,0,0,0.3); transform: translate(-50%, -120%); align-items: center; }
@@ -281,7 +289,7 @@ table.choice-table .choice-text { display: inline-block; min-width: 0; }
 
 @media print {
     @page { size: A4 portrait; margin: 0; }
-    .sidebar, #floating-toolbar, #image-resizer, #context-menu, #table-menu, #table-menu-handle, #choice-menu, #choice-menu-handle, #math-menu, .block-handle, .block-actions, #loading-indicator, #drop-overlay, .modal-overlay, .page-layout-control { display: none !important; }
+    .sidebar, #floating-toolbar, #image-resizer, #context-menu, #table-menu, #table-menu-handle, #choice-menu, #choice-menu-handle, #math-menu, #element-menu, .block-handle, .block-actions, #loading-indicator, #drop-overlay, .modal-overlay, .page-layout-control { display: none !important; }
     body, .workspace { background: white; overflow: visible; display: block; margin: 0; padding: 0; }
     .page { display: flex !important; flex-direction: column !important; margin: 0; box-shadow: none; border: none; page-break-after: always; transform: none !important; width: 210mm; height: 297mm !important; overflow: hidden !important; }
     .page.page-first { height: 297mm !important; }

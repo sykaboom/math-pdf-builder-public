@@ -161,6 +161,13 @@
         </div>
         <div class="table-menu-hint">선택 셀 기준으로 적용됩니다.</div>
     </div>
+    <div class="table-menu-section">
+        <div class="table-menu-label">기타</div>
+        <div class="table-menu-row">
+            <button class="table-menu-btn" data-action="copy-table">복사</button>
+            <button class="table-menu-btn menu-btn-danger" data-action="delete-table">삭제</button>
+        </div>
+    </div>
 </div>
 
 <div id="choice-menu-handle" title="선지 메뉴">선지</div>
@@ -171,6 +178,10 @@
         <button class="choice-menu-btn" data-layout="2">2행(3+2)</button>
         <button class="choice-menu-btn" data-layout="5">5행</button>
     </div>
+    <div class="choice-menu-row choice-menu-actions">
+        <button class="choice-menu-btn" data-action="copy-choice">복사</button>
+        <button class="choice-menu-btn menu-btn-danger" data-action="delete-choice">삭제</button>
+    </div>
 </div>
 
 <div id="math-menu">
@@ -179,8 +190,24 @@
         <button class="math-menu-btn" data-action="blank">빈칸</button>
         <button class="math-menu-btn" data-action="unblank" disabled>빈칸 취소</button>
     </div>
+    <div class="math-menu-row">
+        <button class="math-menu-btn" data-action="copy">복사</button>
+        <button class="math-menu-btn menu-btn-danger" data-action="delete">삭제</button>
+    </div>
     <div class="math-menu-title">나누기 기준</div>
     <div class="math-menu-ops"></div>
+</div>
+
+<div id="element-menu">
+    <div class="element-menu-title">요소 편집</div>
+    <div class="element-menu-row">
+        <button class="element-menu-btn" data-action="edit">편집</button>
+        <button class="element-menu-btn" data-action="copy">복사</button>
+        <button class="element-menu-btn menu-btn-danger" data-action="delete">삭제</button>
+    </div>
+    <div class="element-menu-row">
+        <button class="element-menu-btn" data-action="unblank">빈칸 취소</button>
+    </div>
 </div>
 
 <div id="context-menu">

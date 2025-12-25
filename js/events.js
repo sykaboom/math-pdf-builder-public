@@ -744,6 +744,130 @@ export const Events = {
             mathMenu.style.top = `${top}px`;
             mathMenu.style.left = `${left}px`;
         };
+        const elementMenu = document.getElementById('element-menu');
+        const elementMenuTitle = elementMenu ? elementMenu.querySelector('.element-menu-title') : null;
+        const elementMenuUnblankBtn = elementMenu ? elementMenu.querySelector('[data-action="unblank"]') : null;
+        const elementMenuUnblankRow = elementMenuUnblankBtn ? elementMenuUnblankBtn.closest('.element-menu-row') : null;
+        let activeElement = null;
+        const closeElementMenu = () => {
+            if (elementMenu) elementMenu.style.display = 'none';
+            activeElement = null;
+        };
+        const decodeHtml = (value = '') => {
+            const tmp = document.createElement('div');
+            tmp.innerHTML = String(value);
+            return tmp.textContent || '';
+        };
+        const buildTokenFragmentFromLines = (lines) => {
+            const frag = document.createDocumentFragment();
+            lines.forEach((line, idx) => {
+                frag.appendChild(document.createTextNode(line));
+                if (idx < lines.length - 1) frag.appendChild(document.createElement('br'));
+            });
+            return frag;
+        };
+        const buildConceptBlankToken = (blank) => {
+            const dataset = blank.dataset || {};
+            const rawLabel = dataset.rawLabel !== undefined
+                ? decodeHtml(dataset.rawLabel)
+                : (dataset.label !== undefined ? decodeHtml(dataset.label) : '#');
+            const delim = dataset.delim || ':';
+            const answer = dataset.answer ? decodeHtml(dataset.answer) : '';
+            return `[개념빈칸${delim}${rawLabel}]${answer}[/개념빈칸]`;
+        };
+        const buildBlankToken = (blank) => {
+            const dataset = blank.dataset || {};
+            const delim = dataset.delim || ':';
+            const label = decodeHtml(blank.textContent || '');
+            return `[빈칸${delim}${label}]`;
+        };
+        const buildImageToken = (placeholder) => {
+            const label = decodeHtml(placeholder.getAttribute('data-label') || '');
+            return `[이미지:${label}]`;
+        };
+        const extractBoxBodyText = (contentEl) => {
+            if (!contentEl) return '';
+            const cleaned = Utils.cleanRichContentToTex(contentEl.innerHTML);
+            const tmp = document.createElement('div');
+            tmp.innerHTML = cleaned;
+            return (tmp.innerText || '').replace(/\u00A0/g, ' ').trim();
+        };
+        const buildBoxTokenFragment = (startToken, bodyText, endToken) => {
+            const frag = document.createDocumentFragment();
+            frag.appendChild(document.createTextNode(startToken));
+            frag.appendChild(document.createElement('br'));
+            if (bodyText) {
+                const lines = bodyText.split(/\n/);
+                lines.forEach((line, idx) => {
+                    frag.appendChild(document.createTextNode(line));
+                    if (idx < lines.length - 1) frag.appendChild(document.createElement('br'));
+                });
+            }
+            frag.appendChild(document.createElement('br'));
+            frag.appendChild(document.createTextNode(endToken));
+            return frag;
+        };
+        const buildBoxTokenText = (startToken, bodyText, endToken) => {
+            const lines = [startToken];
+            if (bodyText) lines.push(...bodyText.split(/\n/));
+            lines.push('');
+            lines.push(endToken);
+            return lines.join('\n');
+        };
+        const buildRectBoxTokenData = (rectBox) => {
+            const bodyText = extractBoxBodyText(rectBox.querySelector('.rect-box-content'));
+            const startToken = '[블록사각형]';
+            const endToken = '[/블록사각형]';
+            return {
+                text: buildBoxTokenText(startToken, bodyText, endToken),
+                fragment: buildBoxTokenFragment(startToken, bodyText, endToken)
+            };
+        };
+        const buildCustomBoxTokenData = (customBox) => {
+            let labelText = '';
+            const labelEl = customBox.querySelector('.box-label');
+            if (labelEl) labelText = labelEl.textContent.replace(/[<>]/g, '').trim();
+            const bodyText = extractBoxBodyText(customBox.querySelector('.box-content'));
+            const startToken = labelText ? `[블록박스_${labelText}]` : `[블록박스_]`;
+            const endToken = '[/블록박스]';
+            return {
+                text: buildBoxTokenText(startToken, bodyText, endToken),
+                fragment: buildBoxTokenFragment(startToken, bodyText, endToken)
+            };
+        };
+        const openElementMenu = (target, kind) => {
+            if (!elementMenu || !target) return;
+            activeElement = {
+                node: target,
+                kind,
+                blockId: target.closest('.block-wrapper')?.dataset?.id || null
+            };
+            if (elementMenuTitle) {
+                const labelMap = {
+                    'concept-blank': '개념빈칸',
+                    'blank': '빈칸',
+                    'image': '이미지',
+                    'rect-box': '사각형',
+                    'custom-box': '박스'
+                };
+                elementMenuTitle.textContent = `${labelMap[kind] || '요소'} 편집`;
+            }
+            if (elementMenuUnblankRow) {
+                const showUnblank = kind === 'concept-blank';
+                elementMenuUnblankRow.style.display = showUnblank ? 'flex' : 'none';
+            }
+            elementMenu.style.display = 'flex';
+            const rect = target.getBoundingClientRect();
+            const menuRect = elementMenu.getBoundingClientRect();
+            const pad = 8;
+            let top = rect.top + window.scrollY - menuRect.height - 8;
+            if (top < window.scrollY + pad) top = rect.bottom + window.scrollY + 8;
+            let left = rect.left + window.scrollX + (rect.width / 2) - (menuRect.width / 2);
+            left = Math.min(Math.max(left, window.scrollX + pad), window.scrollX + window.innerWidth - pad - menuRect.width);
+            top = Math.min(Math.max(top, window.scrollY + pad), window.scrollY + window.innerHeight - pad - menuRect.height);
+            elementMenu.style.top = `${top}px`;
+            elementMenu.style.left = `${left}px`;
+        };
         let mathDragState = null;
         let mathSelectionRaf = null;
         const highlightedMath = new Set();
@@ -1119,6 +1243,7 @@ export const Events = {
             document.getElementById('context-menu').style.display = 'none';
             document.getElementById('floating-toolbar').style.display = 'none';
             closeMathMenu();
+            closeElementMenu();
             tableEditor.handleScroll();
         }, true);
 
@@ -1126,7 +1251,7 @@ export const Events = {
             if (e.key === 'Escape') {
                 tableEditor.handleEscape();
                 Utils.resolveConfirm(false);
-                Utils.closeModal('context-menu'); document.getElementById('floating-toolbar').style.display='none'; closeMathMenu(); this.hideResizer(); Utils.closeModal('import-modal'); Utils.closeModal('find-replace-modal'); return;
+                Utils.closeModal('context-menu'); document.getElementById('floating-toolbar').style.display='none'; closeMathMenu(); closeElementMenu(); this.hideResizer(); Utils.closeModal('import-modal'); Utils.closeModal('find-replace-modal'); return;
             }
             const key = e.key.toLowerCase();
             State.keysPressed[key] = true; 
@@ -1173,6 +1298,7 @@ export const Events = {
             const menu = document.getElementById('context-menu');
             if (menu && menu.style.display === 'block') { if (!e.target.closest('#context-menu') && !e.target.closest('.block-handle')) menu.style.display = 'none'; }
             if (!e.target.closest('.image-placeholder') && !e.target.closest('#imgUpload')) { if(State.selectedPlaceholder) { State.selectedPlaceholder.classList.remove('selected'); State.selectedPlaceholder.setAttribute('contenteditable', 'false'); } State.selectedPlaceholder = null; } 
+            if (!e.target.closest('#element-menu')) closeElementMenu();
             if (!e.target.closest('#math-menu') && !e.target.closest('mjx-container')) closeMathMenu();
             const mjx = e.target.closest('mjx-container');
             mathDragState = mjx ? { target: mjx, x: e.clientX, y: e.clientY } : null;
@@ -1243,6 +1369,33 @@ export const Events = {
                         if (id) Renderer.syncBlock(id);
                         return;
                     }
+                    if (action === 'copy') {
+                        const tex = targetMath.getAttribute('data-tex') || '';
+                        if (!tex) {
+                            Utils.showToast('수식 정보를 찾지 못했습니다.', 'info');
+                            return;
+                        }
+                        const isDisplay = targetMath.getAttribute('display') === 'true';
+                        const mathSource = isDisplay ? `$$${tex}$$` : `$${tex}$`;
+                        const ok = await Utils.copyText(mathSource);
+                        Utils.showToast(ok ? '수식이 복사되었습니다.' : '복사에 실패했습니다.', ok ? 'success' : 'error');
+                        return;
+                    }
+                    if (action === 'delete') {
+                        const tex = targetMath.getAttribute('data-tex') || '';
+                        if (!tex) {
+                            Utils.showToast('수식 정보를 찾지 못했습니다.', 'info');
+                            return;
+                        }
+                        const confirmed = await Utils.confirmDialog('수식을 삭제하겠습니까?');
+                        if (!confirmed) return;
+                        targetMath.remove();
+                        if (id) Renderer.syncBlock(id, true);
+                        if (/\[개념빈칸[:_]/.test(tex)) {
+                            Renderer.updateConceptBlankSummary({ changedBlockId: id || null });
+                        }
+                        return;
+                    }
                     if (action === 'unblank') {
                         const tex = targetMath.getAttribute('data-tex') || '';
                         if (!tex) {
@@ -1290,169 +1443,134 @@ export const Events = {
                 }
             });
         }
-
-        document.addEventListener('click', (e) => {
-            const mjx = e.target.closest('mjx-container');
-            if (mjx && State.renderingEnabled) {
-                const sel = window.getSelection();
-                if (sel && sel.rangeCount && !sel.isCollapsed) {
-                    try {
-                        if (sel.containsNode(mjx, true)) return;
-                    } catch (err) {
+        if (elementMenu) {
+            elementMenu.addEventListener('click', async (e) => {
+                const btn = e.target.closest('[data-action]');
+                if (!btn || !activeElement) return;
+                e.preventDefault(); e.stopPropagation();
+                const action = btn.dataset.action;
+                const target = activeElement.node;
+                const wrapId = activeElement.blockId;
+                if (!target || !target.isConnected) {
+                    closeElementMenu();
+                    return;
+                }
+                if (action === 'edit') {
+                    if (activeElement.kind === 'concept-blank') {
+                        const token = buildConceptBlankToken(target);
+                        target.replaceWith(document.createTextNode(token));
+                        if (wrapId) Renderer.syncBlock(wrapId);
+                        Renderer.updateConceptBlankSummary({ changedBlockId: wrapId || null });
+                    } else if (activeElement.kind === 'blank') {
+                        const token = buildBlankToken(target);
+                        target.replaceWith(document.createTextNode(token));
+                        if (wrapId) Renderer.syncBlock(wrapId);
+                    } else if (activeElement.kind === 'image') {
+                        const token = buildImageToken(target);
+                        target.replaceWith(document.createTextNode(token));
+                        if (wrapId) Renderer.syncBlock(wrapId);
+                    } else if (activeElement.kind === 'rect-box') {
+                        const data = buildRectBoxTokenData(target);
+                        target.replaceWith(data.fragment);
+                        if (wrapId) Renderer.syncBlock(wrapId);
+                    } else if (activeElement.kind === 'custom-box') {
+                        const data = buildCustomBoxTokenData(target);
+                        target.replaceWith(data.fragment);
+                        if (wrapId) Renderer.syncBlock(wrapId);
+                    }
+                    closeElementMenu();
+                    return;
+                }
+                if (action === 'copy') {
+                    let token = '';
+                    if (activeElement.kind === 'concept-blank') token = buildConceptBlankToken(target);
+                    else if (activeElement.kind === 'blank') token = buildBlankToken(target);
+                    else if (activeElement.kind === 'image') token = buildImageToken(target);
+                    else if (activeElement.kind === 'rect-box') token = buildRectBoxTokenData(target).text;
+                    else if (activeElement.kind === 'custom-box') token = buildCustomBoxTokenData(target).text;
+                    if (!token) {
+                        Utils.showToast('복사할 내용이 없습니다.', 'info');
                         return;
                     }
+                    const ok = await Utils.copyText(token);
+                    Utils.showToast(ok ? '복사되었습니다.' : '복사에 실패했습니다.', ok ? 'success' : 'error');
+                    return;
                 }
-                openMathMenu(mjx);
-                return;
-            }
+                if (action === 'delete') {
+                    const confirmed = await Utils.confirmDialog('요소를 삭제하겠습니까?');
+                    if (!confirmed) return;
+                    target.remove();
+                    if (wrapId) Renderer.syncBlock(wrapId, true);
+                    if (activeElement.kind === 'concept-blank') {
+                        Renderer.updateConceptBlankSummary({ changedBlockId: wrapId || null });
+                    }
+                    closeElementMenu();
+                    return;
+                }
+                if (action === 'unblank') {
+                    if (activeElement.kind !== 'concept-blank') return;
+                    const dataset = target.dataset || {};
+                    const answerSource = dataset.answer ? decodeHtml(dataset.answer) : '';
+                    const confirmed = await Utils.confirmDialog('개념빈칸을 없애겠습니까?');
+                    if (!confirmed) return;
+                    const frag = answerSource
+                        ? buildTokenFragmentFromLines(answerSource.split(/\n/))
+                        : document.createDocumentFragment();
+                    target.replaceWith(frag);
+                    if (wrapId) Renderer.syncBlock(wrapId, true);
+                    await Renderer.updateConceptBlankSummary({ changedBlockId: wrapId || null });
+                    closeElementMenu();
+                }
+            });
+        }
+
+        document.addEventListener('click', (e) => {
             if (!e.target.closest('#math-menu')) closeMathMenu();
+            if (!e.target.closest('#element-menu')) closeElementMenu();
         });
         
-        document.addEventListener('dblclick', async (e) => {
+        document.addEventListener('dblclick', (e) => {
             if (!State.renderingEnabled) return;
-            if (tableEditor.handleDoubleClick(e)) return;
+            if (e.target.closest('#math-menu') || e.target.closest('#element-menu')) return;
             const mjx = e.target.closest('mjx-container');
             if (mjx) {
-                closeMathMenu();
+                closeElementMenu();
+                openMathMenu(mjx);
                 e.preventDefault(); e.stopPropagation();
-                ManualRenderer.revertToSource(mjx);
-                Renderer.syncBlock(mjx.closest('.block-wrapper').dataset.id);
                 return;
             }
             const blank = e.target.closest('.blank-box');
             if (blank) {
+                closeMathMenu();
+                const kind = blank.dataset && blank.dataset.blankKind === 'concept' ? 'concept-blank' : 'blank';
+                openElementMenu(blank, kind);
                 e.preventDefault(); e.stopPropagation();
-                const dataset = blank.dataset || {};
-                if (dataset.blankKind === 'concept') {
-                    const decodeHtml = (value = '') => {
-                        const tmp = document.createElement('div');
-                        tmp.innerHTML = String(value);
-                        return tmp.textContent || '';
-                    };
-                    const wrapEl = blank.closest('.block-wrapper');
-                    const wrapId = wrapEl?.dataset?.id || null;
-                    const blankMeta = {
-                        index: dataset.index || '',
-                        rawLabel: dataset.rawLabel !== undefined ? dataset.rawLabel : (dataset.label || ''),
-                        answer: dataset.answer !== undefined ? dataset.answer : ''
-                    };
-                    const confirmed = await Utils.confirmDialog('개념빈칸을 없애겠습니까?');
-                    if (!confirmed) return;
-                    const wrap = wrapId
-                        ? document.querySelector(`.block-wrapper[data-id="${wrapId}"]`)
-                        : (wrapEl && wrapEl.isConnected ? wrapEl : null);
-                    let targetBlank = blank.isConnected ? blank : null;
-                    if (!targetBlank && wrap) {
-                        const blanks = Array.from(wrap.querySelectorAll('.blank-box.concept-blank-box'));
-                        if (blankMeta.index) {
-                            targetBlank = blanks.find(node => node.dataset.index === blankMeta.index) || null;
-                        }
-                        if (!targetBlank) {
-                            targetBlank = blanks.find(node => {
-                                const raw = node.dataset.rawLabel !== undefined ? node.dataset.rawLabel : (node.dataset.label || '');
-                                return (node.dataset.answer || '') === blankMeta.answer && raw === blankMeta.rawLabel;
-                            }) || null;
-                        }
-                        if (!targetBlank && blanks.length === 1) targetBlank = blanks[0];
-                    }
-                    if (!targetBlank) return;
-                    const answerSource = (targetBlank.dataset.answer !== undefined && targetBlank.dataset.answer !== '')
-                        ? targetBlank.dataset.answer
-                        : blankMeta.answer;
-                    const answer = answerSource ? decodeHtml(answerSource) : '';
-                    const frag = document.createDocumentFragment();
-                    if (answer) {
-                        const lines = answer.split(/\n/);
-                        lines.forEach((line, idx) => {
-                            frag.appendChild(document.createTextNode(line));
-                            if (idx < lines.length - 1) frag.appendChild(document.createElement('br'));
-                        });
-                    }
-                    targetBlank.replaceWith(frag);
-                    if (wrapId) Renderer.syncBlock(wrapId, true);
-                    await Renderer.updateConceptBlankSummary({ changedBlockId: wrapId || null });
-                    return;
-                } else {
-                    const text = blank.innerText;
-                    const delim = dataset.delim || ':';
-                    blank.replaceWith(document.createTextNode(`[빈칸${delim}${text}]`));
-                }
-                Renderer.syncBlock(blank.closest('.block-wrapper').dataset.id);
                 return;
             }
             const placeholder = e.target.closest('.image-placeholder');
             if (placeholder) {
+                closeMathMenu();
+                openElementMenu(placeholder, 'image');
                 e.preventDefault(); e.stopPropagation();
-                const wrap = placeholder.closest('.block-wrapper');
-                const id = wrap ? wrap.dataset.id : null;
-                const label = placeholder.dataset ? (placeholder.dataset.label || '') : '';
-                placeholder.replaceWith(document.createTextNode(`[이미지:${label}]`));
-                if (id) Renderer.syncBlock(id);
                 return;
             }
             const rectBox = e.target.closest('.rect-box');
             if (rectBox) {
+                closeMathMenu();
+                openElementMenu(rectBox, 'rect-box');
                 e.preventDefault(); e.stopPropagation();
-                const wrap = rectBox.closest('.block-wrapper');
-                const id = wrap ? wrap.dataset.id : null;
-                const contentEl = rectBox.querySelector('.rect-box-content');
-                let bodyText = '';
-                if (contentEl) {
-                    const cleaned = Utils.cleanRichContentToTex(contentEl.innerHTML);
-                    const tmp = document.createElement('div');
-                    tmp.innerHTML = cleaned;
-                    bodyText = (tmp.innerText || '').replace(/\u00A0/g, ' ').trim();
-                }
-                const frag = document.createDocumentFragment();
-                frag.appendChild(document.createTextNode('[블록사각형]'));
-                frag.appendChild(document.createElement('br'));
-                if (bodyText) {
-                    const lines = bodyText.split(/\n/);
-                    lines.forEach((ln, idx) => {
-                        frag.appendChild(document.createTextNode(ln));
-                        if (idx < lines.length - 1) frag.appendChild(document.createElement('br'));
-                    });
-                }
-                frag.appendChild(document.createElement('br'));
-                frag.appendChild(document.createTextNode('[/블록사각형]'));
-                rectBox.replaceWith(frag);
-                if (id) Renderer.syncBlock(id);
                 return;
             }
             const customBox = e.target.closest('.custom-box');
             if (customBox) {
+                closeMathMenu();
+                openElementMenu(customBox, 'custom-box');
                 e.preventDefault(); e.stopPropagation();
-                const wrap = customBox.closest('.block-wrapper');
-                const id = wrap ? wrap.dataset.id : null;
-                let labelText = '';
-                const labelEl = customBox.querySelector('.box-label');
-                if (labelEl) {
-                    labelText = labelEl.textContent.replace(/[<>]/g, '').trim();
-                }
-                const contentEl = customBox.querySelector('.box-content');
-                let bodyText = '';
-                if (contentEl) {
-                    const cleaned = Utils.cleanRichContentToTex(contentEl.innerHTML);
-                    const tmp = document.createElement('div');
-                    tmp.innerHTML = cleaned;
-                    bodyText = (tmp.innerText || '').replace(/\u00A0/g, ' ').trim();
-                }
-                const startToken = labelText ? `[블록박스_${labelText}]` : `[블록박스_]`;
-                const endToken = `[/블록박스]`;
-                const frag = document.createDocumentFragment();
-                frag.appendChild(document.createTextNode(startToken));
-                frag.appendChild(document.createElement('br'));
-                if (bodyText) {
-                    const lines = bodyText.split(/\n/);
-                    lines.forEach((ln, idx) => {
-                        frag.appendChild(document.createTextNode(ln));
-                        if (idx < lines.length - 1) frag.appendChild(document.createElement('br'));
-                    });
-                }
-                frag.appendChild(document.createElement('br'));
-                frag.appendChild(document.createTextNode(endToken));
-                customBox.replaceWith(frag);
-                if (id) Renderer.syncBlock(id);
+                return;
+            }
+            if (tableEditor.handleDoubleClick(e)) {
+                closeMathMenu();
+                closeElementMenu();
                 return;
             }
         });
