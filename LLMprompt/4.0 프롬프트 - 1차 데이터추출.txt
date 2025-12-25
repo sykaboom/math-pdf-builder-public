@@ -1,5 +1,5 @@
 {
-Filename: 4.0 프롬프트 (1단계 추출) 다운로드 (2025-12-21).txt
+Filename: 4.0 프롬프트 - 1차 데이터추출.txt
 Full Content:
 [역할]
 당신은 PDF/이미지의 **Raw Data(원문) 추출 전문가**입니다.
