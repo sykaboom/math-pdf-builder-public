@@ -1478,24 +1478,35 @@ export const Events = {
         });
         document.addEventListener('keyup', (e) => State.keysPressed[e.key.toLowerCase()] = false);
 
+        const findMathContainerFromNode = (node) => {
+            let current = node;
+            while (current) {
+                if (current.nodeType === Node.ELEMENT_NODE) {
+                    const tag = current.tagName ? current.tagName.toLowerCase() : '';
+                    if (tag === 'mjx-container') return current;
+                    if (current.classList && current.classList.contains('math-atom')) return current;
+                    if (current.getAttribute && current.getAttribute('data-tex')) return current;
+                }
+                if (current.parentNode) {
+                    current = current.parentNode;
+                    continue;
+                }
+                const root = typeof current.getRootNode === 'function' ? current.getRootNode() : null;
+                current = root && root.host ? root.host : null;
+            }
+            return null;
+        };
+
         const findMathTargetFromEvent = (evt) => {
             if (!evt) return null;
             const path = typeof evt.composedPath === 'function' ? evt.composedPath() : null;
             if (path && path.length) {
                 for (const node of path) {
-                    if (!node || !node.tagName) continue;
-                    const tag = node.tagName.toLowerCase();
-                    if (tag === 'mjx-container') return node;
-                    if (tag === 'mjx-math' && node.closest) {
-                        const parent = node.closest('mjx-container');
-                        if (parent) return parent;
-                    }
+                    const found = findMathContainerFromNode(node);
+                    if (found) return found;
                 }
             }
-            if (evt.target && evt.target.closest) {
-                return evt.target.closest('mjx-container');
-            }
-            return null;
+            return findMathContainerFromNode(evt.target);
         };
 
         document.addEventListener('mousedown', (e) => {
