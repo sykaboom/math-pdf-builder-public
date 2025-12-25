@@ -53,6 +53,21 @@
     </div>
 </div>
 
+<div id="element-edit-modal" class="modal-overlay">
+    <div class="modal-content" style="width:520px; gap:12px;">
+        <div style="font-weight:bold; display:flex; justify-content:space-between;">
+            <span id="element-edit-title">요소 편집</span>
+            <span class="modal-close" data-modal="element-edit-modal" style="cursor:pointer;">×</span>
+        </div>
+        <textarea id="element-edit-textarea" class="modal-textarea" placeholder="편집할 내용을 입력하세요..."></textarea>
+        <div id="element-edit-hint" style="font-size:11px; color:#666; line-height:1.4;"></div>
+        <div style="display:flex; justify-content:flex-end; gap:8px;">
+            <button class="btn btn-primary btn-sm" data-action="apply-element-edit">적용</button>
+            <button class="btn btn-sm" data-action="close-modal" data-modal="element-edit-modal">취소</button>
+        </div>
+    </div>
+</div>
+
 <div id="print-preflight-modal" class="modal-overlay">
     <div class="modal-content" style="width:420px; gap:12px;">
         <div style="font-weight:bold; display:flex; justify-content:space-between;">
@@ -164,6 +179,7 @@
     <div class="table-menu-section">
         <div class="table-menu-label">기타</div>
         <div class="table-menu-row">
+            <button class="table-menu-btn" data-action="edit-table">편집</button>
             <button class="table-menu-btn" data-action="copy-table">복사</button>
             <button class="table-menu-btn menu-btn-danger" data-action="delete-table">삭제</button>
         </div>
@@ -179,6 +195,7 @@
         <button class="choice-menu-btn" data-layout="5">5행</button>
     </div>
     <div class="choice-menu-row choice-menu-actions">
+        <button class="choice-menu-btn" data-action="edit-choice">편집</button>
         <button class="choice-menu-btn" data-action="copy-choice">복사</button>
         <button class="choice-menu-btn menu-btn-danger" data-action="delete-choice">삭제</button>
     </div>

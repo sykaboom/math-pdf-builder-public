@@ -781,40 +781,12 @@ export const Events = {
         const elementMenuTitle = elementMenu ? elementMenu.querySelector('.element-menu-title') : null;
         const elementMenuUnblankBtn = elementMenu ? elementMenu.querySelector('[data-action="unblank"]') : null;
         const elementMenuUnblankRow = elementMenuUnblankBtn ? elementMenuUnblankBtn.closest('.element-menu-row') : null;
+        const elementEditModal = document.getElementById('element-edit-modal');
+        const elementEditTitle = document.getElementById('element-edit-title');
+        const elementEditTextarea = document.getElementById('element-edit-textarea');
+        const elementEditHint = document.getElementById('element-edit-hint');
         let activeElement = null;
-        const createRawEditWrapper = (kind, options = {}) => {
-            const { block = false } = options;
-            const wrapper = document.createElement(block ? 'div' : 'span');
-            wrapper.className = 'raw-edit';
-            wrapper.dataset.rawKind = kind;
-            wrapper.setAttribute('contenteditable', 'true');
-            return wrapper;
-        };
-        const appendLinesToWrapper = (wrapper, lines) => {
-            lines.forEach((line, idx) => {
-                wrapper.appendChild(document.createTextNode(line));
-                if (idx < lines.length - 1) wrapper.appendChild(document.createElement('br'));
-            });
-        };
-        const buildRawEditFromText = (kind, text, options = {}) => {
-            const wrapper = createRawEditWrapper(kind, options);
-            const lines = String(text ?? '').split(/\n/);
-            appendLinesToWrapper(wrapper, lines);
-            return wrapper;
-        };
-        const buildRawEditBoxWrapper = (kind, startToken, contentEl, endToken) => {
-            const wrapper = createRawEditWrapper(kind, { block: true });
-            wrapper.appendChild(document.createTextNode(startToken));
-            wrapper.appendChild(document.createElement('br'));
-            if (contentEl) {
-                Array.from(contentEl.childNodes).forEach(node => {
-                    wrapper.appendChild(node.cloneNode(true));
-                });
-            }
-            wrapper.appendChild(document.createElement('br'));
-            wrapper.appendChild(document.createTextNode(endToken));
-            return wrapper;
-        };
+        let activeEdit = null;
         const closeElementMenu = () => {
             if (elementMenu) elementMenu.style.display = 'none';
             activeElement = null;
@@ -901,14 +873,37 @@ export const Events = {
                 fragment: buildBoxTokenFragment(startToken, bodyText, endToken)
             };
         };
-        const elementSelectorMap = {
+        const selectorMap = {
+            'math': 'mjx-container',
             'concept-blank': '.blank-box.concept-blank-box',
             'blank': '.blank-box:not(.concept-blank-box)',
             'image': '.image-placeholder',
             'rect-box': '.rect-box',
-            'custom-box': '.custom-box'
+            'custom-box': '.custom-box',
+            'table': 'table.editor-table',
+            'choice': 'table.choice-table'
         };
-        const getElementSelector = (kind) => elementSelectorMap[kind] || null;
+        const labelMap = {
+            'math': '수식',
+            'concept-blank': '개념빈칸',
+            'blank': '빈칸',
+            'image': '이미지',
+            'rect-box': '사각형',
+            'custom-box': '박스',
+            'table': '표',
+            'choice': '선지'
+        };
+        const editHintMap = {
+            'math': '수식은 $...$ 또는 $$...$$ 형식으로 입력하세요.',
+            'concept-blank': '형식: [개념빈칸:#]정답[/개념빈칸]',
+            'blank': '형식: [빈칸: 내용]',
+            'image': '형식: [이미지: 설명]',
+            'rect-box': '형식: [블록사각형] ... [/블록사각형]',
+            'custom-box': '형식: [블록박스_라벨] ... [/블록박스]',
+            'table': '형식: [표_행x열] : (1x1_"내용")',
+            'choice': '형식: [선지_1행/2행/5행] : (1_"내용")'
+        };
+        const getElementSelector = (kind) => selectorMap[kind] || null;
         const getElementIndex = (target, selector) => {
             if (!target || !selector) return -1;
             const wrap = target.closest('.block-wrapper');
@@ -916,16 +911,103 @@ export const Events = {
             const nodes = Array.from(wrap.querySelectorAll(selector));
             return nodes.indexOf(target);
         };
-        const resolveActiveElement = () => {
-            if (!activeElement) return null;
-            if (activeElement.node && activeElement.node.isConnected) return activeElement.node;
-            if (!activeElement.blockId || !activeElement.selector) return null;
-            const wrap = document.querySelector(`.block-wrapper[data-id="${activeElement.blockId}"]`);
+        const resolveTargetFromRef = (ref) => {
+            if (!ref) return null;
+            if (ref.node && ref.node.isConnected) return ref.node;
+            if (!ref.blockId || !ref.selector) return null;
+            const wrap = document.querySelector(`.block-wrapper[data-id="${ref.blockId}"]`);
             if (!wrap) return null;
-            const nodes = Array.from(wrap.querySelectorAll(activeElement.selector));
+            const nodes = Array.from(wrap.querySelectorAll(ref.selector));
             if (!nodes.length) return null;
-            const idx = Number.isInteger(activeElement.index) ? activeElement.index : -1;
+            const idx = Number.isInteger(ref.index) ? ref.index : -1;
             return (idx >= 0 && idx < nodes.length) ? nodes[idx] : nodes[0];
+        };
+        const resolveActiveElement = () => resolveTargetFromRef(activeElement);
+        const resolveActiveEditTarget = () => resolveTargetFromRef(activeEdit);
+        const buildMathToken = (mjx) => {
+            if (!mjx) return '';
+            const tex = mjx.getAttribute('data-tex') || '';
+            if (!tex) return '';
+            const isDisplay = mjx.getAttribute('display') === 'true';
+            return isDisplay ? `$$${tex}$$` : `$${tex}$`;
+        };
+        const buildEditToken = (kind, target) => {
+            if (!target) return '';
+            if (kind === 'math') return buildMathToken(target);
+            if (kind === 'concept-blank') return buildConceptBlankToken(target);
+            if (kind === 'blank') return buildBlankToken(target);
+            if (kind === 'image') return buildImageToken(target);
+            if (kind === 'rect-box') return buildRectBoxTokenData(target).text;
+            if (kind === 'custom-box') return buildCustomBoxTokenData(target).text;
+            if (kind === 'table') return Utils.serializeEditorTable(target);
+            if (kind === 'choice') return Utils.serializeChoiceTable(target);
+            return '';
+        };
+        const openEditModalForTarget = (kind, target) => {
+            if (!elementEditModal || !elementEditTextarea) return;
+            if (!target) {
+                Utils.showToast('편집할 대상을 찾지 못했습니다.', 'info');
+                return;
+            }
+            const selector = getElementSelector(kind);
+            const index = getElementIndex(target, selector);
+            const blockId = target.closest('.block-wrapper')?.dataset?.id || null;
+            const token = buildEditToken(kind, target);
+            if (!token) {
+                Utils.showToast('편집할 내용을 찾지 못했습니다.', 'info');
+                return;
+            }
+            activeEdit = { kind, blockId, selector, index, node: target };
+            if (elementEditTitle) {
+                elementEditTitle.textContent = `${labelMap[kind] || '요소'} 편집`;
+            }
+            if (elementEditHint) {
+                elementEditHint.textContent = editHintMap[kind] || '';
+            }
+            elementEditTextarea.value = token;
+            Utils.openModal('element-edit-modal');
+            setTimeout(() => {
+                elementEditTextarea.focus();
+                elementEditTextarea.select();
+            }, 0);
+        };
+        const applyActiveEdit = async () => {
+            if (!activeEdit || !elementEditTextarea) return;
+            const rawValue = elementEditTextarea.value ?? '';
+            if (!rawValue.trim()) {
+                Utils.showToast('내용이 비어 있습니다.', 'info');
+                return;
+            }
+            const target = resolveActiveEditTarget();
+            if (!target) {
+                Utils.showToast('편집 대상을 찾지 못했습니다.', 'error');
+                Utils.closeModal('element-edit-modal');
+                activeEdit = null;
+                return;
+            }
+            const frag = buildTokenFragmentFromLines(String(rawValue).split(/\r?\n/));
+            target.replaceWith(frag);
+
+            const blockId = activeEdit.blockId;
+            if (blockId) Renderer.syncBlock(blockId, true);
+
+            const wrap = blockId ? document.querySelector(`.block-wrapper[data-id="${blockId}"]`) : null;
+            const box = wrap ? wrap.querySelector('.editable-box') : null;
+            const needsConceptSync = /\[개념빈칸[:_]/.test(rawValue) || activeEdit.kind === 'concept-blank' || activeEdit.kind === 'math';
+
+            if (State.renderingEnabled && box) {
+                if (needsConceptSync) {
+                    await Renderer.updateConceptBlankSummary({ changedBlockId: blockId || null });
+                } else {
+                    await ManualRenderer.typesetElement(box);
+                    Renderer.updatePreflightPanel();
+                }
+            } else {
+                Renderer.updatePreflightPanel();
+            }
+            Renderer.debouncedRebalance();
+            Utils.closeModal('element-edit-modal');
+            activeEdit = null;
         };
         const openElementMenu = (target, kind) => {
             if (!elementMenu || !target) return;
@@ -939,13 +1021,6 @@ export const Events = {
                 index
             };
             if (elementMenuTitle) {
-                const labelMap = {
-                    'concept-blank': '개념빈칸',
-                    'blank': '빈칸',
-                    'image': '이미지',
-                    'rect-box': '사각형',
-                    'custom-box': '박스'
-                };
                 elementMenuTitle.textContent = `${labelMap[kind] || '요소'} 편집`;
             }
             if (elementMenuUnblankRow) {
@@ -1106,6 +1181,7 @@ export const Events = {
                 e.preventDefault();
                 const modalId = actionEl.dataset.modal;
                 if (modalId) Utils.closeModal(modalId);
+                if (modalId === 'element-edit-modal') activeEdit = null;
                 return;
             }
             if (action === 'confirm-import') {
@@ -1277,6 +1353,11 @@ export const Events = {
                 eventsApi.renderAllSafe();
                 return;
             }
+            if (action === 'apply-element-edit') {
+                e.preventDefault();
+                applyActiveEdit();
+                return;
+            }
             if (action === 'resolve-confirm') {
                 e.preventDefault();
                 Utils.resolveConfirm(actionEl.dataset.result === 'true');
@@ -1332,7 +1413,9 @@ export const Events = {
             await Renderer.refreshConceptBlankAnswerBlocks();
         });
 
-        const tableEditor = createTableEditor();
+        const tableEditor = createTableEditor({
+            openEditModal: ({ kind, target }) => openEditModalForTarget(kind, target)
+        });
         tableEditor.init();
         this.updateImageInsertAvailability();
 
@@ -1349,7 +1432,16 @@ export const Events = {
             if (e.key === 'Escape') {
                 tableEditor.handleEscape();
                 Utils.resolveConfirm(false);
-                Utils.closeModal('context-menu'); document.getElementById('floating-toolbar').style.display='none'; closeMathMenu(); closeElementMenu(); this.hideResizer(); Utils.closeModal('import-modal'); Utils.closeModal('find-replace-modal'); return;
+                Utils.closeModal('context-menu');
+                document.getElementById('floating-toolbar').style.display='none';
+                closeMathMenu();
+                closeElementMenu();
+                this.hideResizer();
+                Utils.closeModal('import-modal');
+                Utils.closeModal('find-replace-modal');
+                Utils.closeModal('element-edit-modal');
+                activeEdit = null;
+                return;
             }
             const key = e.key.toLowerCase();
             State.keysPressed[key] = true; 
@@ -1466,16 +1558,7 @@ export const Events = {
                     const action = btn.dataset.action;
                     closeMathMenu();
                     if (action === 'edit') {
-                        const tex = targetMath.getAttribute('data-tex') || '';
-                        if (!tex) {
-                            Utils.showToast('수식 정보를 찾지 못했습니다.', 'info');
-                            return;
-                        }
-                        const isDisplay = targetMath.getAttribute('display') === 'true';
-                        const mathSource = isDisplay ? `$$${tex}$$` : `$${tex}$`;
-                        const wrapper = buildRawEditFromText('math', mathSource, { block: isDisplay });
-                        targetMath.replaceWith(wrapper);
-                        if (id) Renderer.syncBlock(id);
+                        openEditModalForTarget('math', targetMath);
                         return;
                     }
                     if (action === 'copy') {
@@ -1565,36 +1648,7 @@ export const Events = {
                     return;
                 }
                 if (action === 'edit') {
-                    if (activeElement.kind === 'concept-blank') {
-                        const token = buildConceptBlankToken(target);
-                        const wrapper = buildRawEditFromText('concept-blank', token);
-                        target.replaceWith(wrapper);
-                        if (wrapId) Renderer.syncBlock(wrapId);
-                    } else if (activeElement.kind === 'blank') {
-                        const token = buildBlankToken(target);
-                        const wrapper = buildRawEditFromText('blank', token);
-                        target.replaceWith(wrapper);
-                        if (wrapId) Renderer.syncBlock(wrapId);
-                    } else if (activeElement.kind === 'image') {
-                        const token = buildImageToken(target);
-                        const wrapper = buildRawEditFromText('image', token);
-                        target.replaceWith(wrapper);
-                        if (wrapId) Renderer.syncBlock(wrapId);
-                    } else if (activeElement.kind === 'rect-box') {
-                        const contentEl = target.querySelector('.rect-box-content');
-                        const wrapper = buildRawEditBoxWrapper('rect-box', '[블록사각형]', contentEl, '[/블록사각형]');
-                        target.replaceWith(wrapper);
-                        if (wrapId) Renderer.syncBlock(wrapId);
-                    } else if (activeElement.kind === 'custom-box') {
-                        const contentEl = target.querySelector('.box-content');
-                        let labelText = '';
-                        const labelEl = target.querySelector('.box-label');
-                        if (labelEl) labelText = labelEl.textContent.replace(/[<>]/g, '').trim();
-                        const startToken = labelText ? `[블록박스_${labelText}]` : '[블록박스_]';
-                        const wrapper = buildRawEditBoxWrapper('custom-box', startToken, contentEl, '[/블록박스]');
-                        target.replaceWith(wrapper);
-                        if (wrapId) Renderer.syncBlock(wrapId);
-                    }
+                    openEditModalForTarget(activeElement.kind, target);
                     closeElementMenu();
                     return;
                 }

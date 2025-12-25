@@ -23,7 +23,8 @@ import {
 } from './table-utils.js';
 import { serializeEditorTable, serializeChoiceTable } from './table-serialize.js';
 
-export const createTableEditor = () => {
+export const createTableEditor = (options = {}) => {
+    const { openEditModal } = options;
     const TABLE_RESIZE_MARGIN = 4;
     const TABLE_HANDLE_SIZE = 12;
     let tableResizeState = null;
@@ -842,13 +843,21 @@ export const createTableEditor = () => {
         const selectionCells = getSelectionCellsForTable(activeTable);
         const selectionRect = selectionCells.length ? getSelectionRect() : null;
         const action = btn.dataset.action;
+        if (action === 'edit-table') {
+            if (typeof openEditModal === 'function') {
+                openEditModal({ kind: 'table', target: activeTable });
+            }
+            closeTableMenu();
+            return;
+        }
         if (action === 'copy-table') {
             const token = serializeEditorTable(activeTable, { normalizeHtml: Utils.cleanRichContentToTex });
             if (!token) { Utils.showToast('복사할 표가 없습니다.', 'info'); return; }
             const ok = await Utils.copyText(token);
             Utils.showToast(ok ? '표가 복사되었습니다.' : '복사에 실패했습니다.', ok ? 'success' : 'error');
             return;
-        } else if (action === 'delete-table') {
+        }
+        if (action === 'delete-table') {
             const confirmed = await Utils.confirmDialog('표를 삭제하겠습니까?');
             if (!confirmed) return;
             const wrap = activeTable.closest('.block-wrapper');
@@ -946,6 +955,13 @@ export const createTableEditor = () => {
         if (!activeChoiceTable) { Utils.showToast("선지를 먼저 선택하세요.", "error"); return; }
         if (actionBtn) {
             const action = actionBtn.dataset.action;
+            if (action === 'edit-choice') {
+                if (typeof openEditModal === 'function') {
+                    openEditModal({ kind: 'choice', target: activeChoiceTable });
+                }
+                closeChoiceMenu();
+                return;
+            }
             if (action === 'copy-choice') {
                 const token = serializeChoiceTable(activeChoiceTable, { normalizeHtml: Utils.cleanRichContentToTex, normalizeLayout: Utils.normalizeChoiceLayout, choiceLabels: Utils.choiceLabels });
                 if (!token) { Utils.showToast('복사할 선지가 없습니다.', 'info'); return; }
