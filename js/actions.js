@@ -122,6 +122,7 @@ export const Actions = {
     confirmImport(input, overwrite, limit, addSpacer, normalizeLlm = false) {
         if(!input) return false;
         let finalBlocks = [];
+        let metaUpdates = null;
         try {
             const jsonBlocks = parseJsonImport(input);
             if (jsonBlocks) {
@@ -131,13 +132,28 @@ export const Actions = {
                 return false;
             } else {
                 const normalized = normalizeLlm ? Utils.normalizeLlmOutput(input) : input;
-                finalBlocks = ImportParser.parse(normalized);
+                const parsed = ImportParser.parse(normalized);
+                if (Array.isArray(parsed)) {
+                    finalBlocks = parsed;
+                } else {
+                    finalBlocks = parsed && Array.isArray(parsed.blocks) ? parsed.blocks : [];
+                    metaUpdates = parsed && parsed.meta ? parsed.meta : null;
+                }
             }
             finalBlocks = State.normalizeBlocks(finalBlocks, { sanitize: true });
             const processedBlocks = expandImportedBlocks(finalBlocks, { limit, addSpacer });
 
             if (overwrite) State.docData.blocks = processedBlocks;
             else State.docData.blocks = State.docData.blocks.concat(processedBlocks);
+            if (metaUpdates) {
+                const meta = State.docData.meta || (State.docData.meta = {});
+                if (typeof metaUpdates.title === 'string' && metaUpdates.title.trim()) {
+                    meta.title = metaUpdates.title;
+                }
+                if (typeof metaUpdates.subtitle === 'string' && metaUpdates.subtitle.trim()) {
+                    meta.subtitle = metaUpdates.subtitle;
+                }
+            }
             State.saveHistory();
             Utils.closeModal('import-modal');
             return true;

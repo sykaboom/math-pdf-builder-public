@@ -2,10 +2,39 @@
 import { parseChoiceData, parseTableCellData } from './table-parse.js';
 import { buildChoiceTableElement, buildEditorTableElement } from './table-elements.js';
 
+const HEADER_TOKENS = [
+    { token: '머릿말_과정', key: 'title' },
+    { token: '머릿말_단원', key: 'subtitle' }
+];
+
+const extractHeaderTokens = (input = '') => {
+    const lines = String(input || '').split(/\r?\n/);
+    const meta = {};
+    const normalizeValue = (value = '') => String(value).replace(/\s+/g, ' ').trim();
+    const remaining = [];
+    lines.forEach((line) => {
+        const trimmedLine = line.trim();
+        let consumed = false;
+        for (const { token, key } of HEADER_TOKENS) {
+            const regex = new RegExp(`^\\[\\[${token}\\]\\]\\s*:?\\s*(.*)$`);
+            const match = trimmedLine.match(regex);
+            if (match) {
+                const value = normalizeValue(match[1]);
+                if (value) meta[key] = value;
+                consumed = true;
+                break;
+            }
+        }
+        if (!consumed) remaining.push(line);
+    });
+    return { text: remaining.join('\n').trim(), meta };
+};
+
 export const ImportParser = {
     parse(text) {
         const blocks = [];
-        const rawItems = text.split('[[').filter(s => s.trim().length > 0);
+        const { text: cleanedText, meta } = extractHeaderTokens(text);
+        const rawItems = cleanedText.split('[[').filter(s => s.trim().length > 0);
         const escapeHtml = (value = '') => {
             return String(value)
                 .replace(/&/g, '&amp;')
@@ -16,9 +45,10 @@ export const ImportParser = {
         };
         rawItems.forEach(chunk => {
             const closeIdx = chunk.indexOf(']]'); if (closeIdx === -1) return;
-            const meta = chunk.substring(0, closeIdx); let content = chunk.substring(closeIdx + 2).trim();
+            const blockMeta = chunk.substring(0, closeIdx);
+            let content = chunk.substring(closeIdx + 2).trim();
             if (content.startsWith(':')) content = content.substring(1).trim();
-            const metaClean = meta.trim();
+            const metaClean = blockMeta.trim();
             const [stylePart, labelPart] = metaClean.includes('_') ? metaClean.split('_') : ['기본', metaClean];
             const styles = stylePart.split(',');
             const labelTrim = (labelPart || '').trim();
@@ -176,6 +206,6 @@ export const ImportParser = {
             if (hasStyle('개념')) type = 'concept';
             blocks.push({ id: `imp_${Date.now()}${Math.random()}`, type, content: label + ' ' + content, bordered, bgGray });
         });
-        return blocks;
+        return { blocks, meta };
     }
 };
