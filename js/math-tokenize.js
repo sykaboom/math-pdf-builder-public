@@ -44,3 +44,8 @@ export const sanitizeMathTokens = (tex, options = {}) => {
     nextTex = nextTex.replace(/\[이미지\s*:\s*(.*?)\]/g, (m, label) => toBoxedText(label));
     return nextTex;
 };
+
+export const stripConceptBlankTokens = (tex) => {
+    if (!tex) return tex;
+    return tex.replace(/\[개념빈칸([:_])([^\]]*?)\]([\s\S]*?)\[\/개념빈칸\]/g, (m, delim, label, body) => String(body || ''));
+};

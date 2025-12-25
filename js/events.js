@@ -6,6 +6,7 @@ import { ManualRenderer, FileSystem } from './services.js';
 import { Utils } from './utils.js';
 import { createTableEditor } from './table-editor.js';
 import { getMathSplitCandidates as buildMathSplitCandidates } from './math-logic.js';
+import { stripConceptBlankTokens } from './math-tokenize.js';
 
 const PATCH_NOTES_PATH = 'PATCH_NOTES.txt';
 
@@ -677,6 +678,8 @@ export const Events = {
 
         const mathMenu = document.getElementById('math-menu');
         const mathMenuOps = mathMenu ? mathMenu.querySelector('.math-menu-ops') : null;
+        const mathBlankBtn = mathMenu ? mathMenu.querySelector('[data-action="blank"]') : null;
+        const mathUnblankBtn = mathMenu ? mathMenu.querySelector('[data-action="unblank"]') : null;
         let activeMath = null;
         const closeMathMenu = () => {
             if (mathMenu) mathMenu.style.display = 'none';
@@ -687,6 +690,9 @@ export const Events = {
             activeMath = mjx;
             if (mathMenuOps) {
                 const tex = mjx.getAttribute('data-tex') || '';
+                const hasConceptBlank = /\[개념빈칸[:_]/.test(tex);
+                if (mathBlankBtn) mathBlankBtn.disabled = hasConceptBlank;
+                if (mathUnblankBtn) mathUnblankBtn.style.display = hasConceptBlank ? 'inline-flex' : 'none';
                 const splitData = eventsApi.getMathSplitCandidates(tex);
                 mathMenuOps.innerHTML = '';
                 if (splitData.candidates.length === 0) {
@@ -1229,6 +1235,26 @@ export const Events = {
                     if (action === 'edit') {
                         ManualRenderer.revertToSource(targetMath);
                         if (id) Renderer.syncBlock(id);
+                        return;
+                    }
+                    if (action === 'unblank') {
+                        const tex = targetMath.getAttribute('data-tex') || '';
+                        if (!tex) {
+                            Utils.showToast('수식 정보를 찾지 못했습니다.', 'info');
+                            return;
+                        }
+                        const cleanedTex = stripConceptBlankTokens(tex);
+                        if (cleanedTex === tex) {
+                            Utils.showToast('개념빈칸이 없습니다.', 'info');
+                            return;
+                        }
+                        const confirmed = await Utils.confirmDialog('개념빈칸을 없애겠습니까?');
+                        if (!confirmed) return;
+                        const isDisplay = targetMath.getAttribute('display') === 'true';
+                        const mathSource = isDisplay ? `$$${cleanedTex}$$` : `$${cleanedTex}$`;
+                        targetMath.replaceWith(document.createTextNode(mathSource));
+                        if (id) Renderer.syncBlock(id, true);
+                        Renderer.updateConceptBlankSummary({ changedBlockId: id || null });
                         return;
                     }
                     if (action === 'blank') {
