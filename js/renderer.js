@@ -7,6 +7,30 @@ import { Events } from './events.js';
 
 export const Renderer = {
     conceptBlankSyncing: false,
+    conceptBlankPending: null,
+    queueConceptBlankSummaryUpdate(changedBlockId = null) {
+        if (!this.conceptBlankPending) {
+            this.conceptBlankPending = { changedBlockId: changedBlockId || null, timer: null };
+        } else if (changedBlockId) {
+            if (this.conceptBlankPending.changedBlockId && this.conceptBlankPending.changedBlockId !== changedBlockId) {
+                this.conceptBlankPending.changedBlockId = null;
+            } else if (!this.conceptBlankPending.changedBlockId) {
+                this.conceptBlankPending.changedBlockId = changedBlockId;
+            }
+        }
+        if (this.conceptBlankPending.timer) return;
+        this.conceptBlankPending.timer = setTimeout(() => this.flushConceptBlankSummaryUpdate(), 80);
+    },
+    async flushConceptBlankSummaryUpdate() {
+        const pending = this.conceptBlankPending;
+        if (!pending) return;
+        if (this.conceptBlankSyncing || ManualRenderer.isRendering) {
+            pending.timer = setTimeout(() => this.flushConceptBlankSummaryUpdate(), 80);
+            return;
+        }
+        this.conceptBlankPending = null;
+        await this.updateConceptBlankSummary({ changedBlockId: pending.changedBlockId });
+    },
     getPageColumnsCount(pageNum) {
         const settings = State.settings || {};
         const layouts = settings.pageLayouts || {};
@@ -567,12 +591,19 @@ export const Renderer = {
     },
 
     async updateConceptBlankSummary(options = {}) {
-        if (this.conceptBlankSyncing) return;
+        if (this.conceptBlankSyncing) {
+            this.queueConceptBlankSummaryUpdate(options.changedBlockId);
+            return;
+        }
         if (!State.renderingEnabled) {
             await this.refreshConceptBlankAnswerBlocks([]);
             return;
         }
-        if (!window.isMathJaxReady || ManualRenderer.isRendering) return;
+        if (!window.isMathJaxReady) return;
+        if (ManualRenderer.isRendering) {
+            this.queueConceptBlankSummaryUpdate(options.changedBlockId);
+            return;
+        }
 
         const idsWithConceptBlank = new Set();
         State.docData.blocks.forEach((block) => {
