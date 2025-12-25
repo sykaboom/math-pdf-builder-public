@@ -288,21 +288,37 @@ export const Renderer = {
             
             if (!isReadOnly) {
                 box.addEventListener('blur', async () => {
+                    const cleaned = Utils.cleanRichContentToTex(box.innerHTML);
+                    if (cleaned === block.content) return;
+
+                    Actions.updateBlockContent(block.id, cleaned, true);
                     if (!State.renderingEnabled) {
-                        Actions.updateBlockContent(block.id, Utils.cleanRichContentToTex(box.innerHTML), true);
                         this.debouncedRebalance();
                         this.updatePreflightPanel();
                         return;
                     }
-                    if(!window.isMathJaxReady) return;
-                    const hasConceptBlank = !!box.querySelector('.concept-blank-box')
-                        || /\[개념빈칸[:_]/.test(box.innerText);
+                    if (!window.isMathJaxReady) {
+                        this.debouncedRebalance();
+                        this.updatePreflightPanel();
+                        return;
+                    }
+
+                    const hasConceptBlank = /\[개념빈칸[:_]/.test(cleaned);
+                    const needsTypeset = /\[빈칸[:_]/.test(cleaned)
+                        || cleaned.includes('$')
+                        || cleaned.includes('[이미지')
+                        || cleaned.includes('[블록박스')
+                        || cleaned.includes('[블록사각형')
+                        || cleaned.includes('[표_')
+                        || cleaned.includes('[선지_')
+                        || cleaned.includes('[BOLD')
+                        || cleaned.includes('[굵게')
+                        || cleaned.includes('[밑줄');
                     if (hasConceptBlank) {
                         await ManualRenderer.renderAll();
-                    } else if(/\[빈칸[:_]/.test(box.innerText) || box.innerText.includes('$') || box.innerText.includes('[이미지') || box.innerText.includes('[블록박스') || box.innerText.includes('[블록사각형') || box.innerText.includes('[표_') || box.innerText.includes('[선지_') || box.innerText.includes('[BOLD') || box.innerText.includes('[굵게') || box.innerText.includes('[밑줄')) {
+                    } else if (needsTypeset) {
                         await ManualRenderer.typesetElement(box);
                     }
-                    Actions.updateBlockContent(block.id, Utils.cleanRichContentToTex(box.innerHTML), true);
                     this.debouncedRebalance(); 
                     this.updatePreflightPanel();
                 });
