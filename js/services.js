@@ -4,6 +4,7 @@ import { Utils } from './utils.js';
 import { parseChoiceData, parseTableCellData } from './table-parse.js';
 import { buildChoiceTableElement, buildEditorTableElement } from './table-elements.js';
 import { decodeMathEntities, sanitizeMathTokens } from './math-tokenize.js';
+import { buildBoxHtml, buildRectBoxHtml, replaceBoxTokensInHtml } from './box-render.js';
 
 export const ManualRenderer = {
     mathCache: new Map(),
@@ -77,48 +78,9 @@ export const ManualRenderer = {
         }
         const renderer = this;
         const trackConceptBlanks = options.trackConceptBlanks !== false;
-        // [Fix] 에디터에서 직접 타이핑한 블록박스 문법도 렌더링
-        const renderBox = (label, bodyHtml) => {
-            let body = (bodyHtml || '').trim();
-            body = body.replace(/^(<br\s*\/?>)+/gi, '').replace(/(<br\s*\/?>)+$/gi, '');
-            body = body.replace(/\n/g, '<br>');
-            if (label) {
-                const rawLabel = (label || '').trim();
-                const safeLabel = rawLabel
-                    .replace(/&/g, '&amp;')
-                    .replace(/</g, '&lt;')
-                    .replace(/>/g, '&gt;')
-                    .replace(/"/g, '&quot;');
-                const isViewLabel = rawLabel === '보기';
-                const labelHtml = isViewLabel
-                    ? `<div class="box-label view-label">${safeLabel}</div>`
-                    : `<div class="box-label">${safeLabel}</div>`;
-                return `<div class="custom-box labeled-box" contenteditable="false">${labelHtml}<div class="box-content">${body}</div></div>`;
-            }
-            return `<div class="custom-box simple-box" contenteditable="false"><div class="box-content">${body}</div></div>`;
-        };
-        const renderRectBox = (bodyHtml) => {
-            let body = (bodyHtml || '').trim();
-            body = body.replace(/^(<br\s*\/?>)+/gi, '').replace(/(<br\s*\/?>)+$/gi, '');
-            body = body.replace(/\n/g, '<br>');
-            return `<div class="rect-box" contenteditable="false"><div class="rect-box-content">${body}</div></div>`;
-        };
-
-        const multilineBoxRegex = /\[블록박스_([^\]]*)\]\s*(?::)?\s*([\s\S]*?)\[\/블록박스\]/g;
-        element.innerHTML = element.innerHTML.replace(multilineBoxRegex, (m, label, body) => {
-            return renderBox((label || '').trim(), body);
-        });
-
-        const inlineBoxRegex = /\[블록박스_([^\]]*)\]\s*(?::)?\s*([\s\S]*?)(?=(<br\s*\/?>|<\/div>|<\/p>|$))/gi;
-        element.innerHTML = element.innerHTML.replace(inlineBoxRegex, (m, label, body) => {
-            const trimmedBody = (body || '').replace(/^\s+/, '');
-            if (!trimmedBody.trim()) return m; // 종료 토큰 누락 등은 원문 유지
-            return renderBox((label || '').trim(), trimmedBody);
-        });
-
-        const multilineRectBoxRegex = /\[블록사각형\]\s*([\s\S]*?)\[\/블록사각형\]/g;
-        element.innerHTML = element.innerHTML.replace(multilineRectBoxRegex, (m, body) => {
-            return renderRectBox(body);
+        element.innerHTML = replaceBoxTokensInHtml(element.innerHTML, {
+            renderBox: buildBoxHtml,
+            renderRectBox: buildRectBoxHtml
         });
 
         // [Fix] 블록박스를 원자적 개체로 유지하고, 불필요한 빈 줄을 제거
