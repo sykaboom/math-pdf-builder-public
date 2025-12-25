@@ -1227,7 +1227,7 @@ export const Events = {
         });
 
         if (mathMenu) {
-            mathMenu.addEventListener('click', (e) => {
+            mathMenu.addEventListener('click', async (e) => {
                 const btn = e.target.closest('[data-action]');
                 const splitBtn = e.target.closest('[data-split-index]');
                 if ((!btn && !splitBtn) || !activeMath) return;
