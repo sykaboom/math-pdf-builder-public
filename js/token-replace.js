@@ -1,4 +1,10 @@
 // Filename: js/token-replace.js
+/**
+ * Replace editor tokens outside math delimiters with DOM elements.
+ * @param {HTMLElement} root
+ * @param {Object} options
+ * @returns {boolean} true when any replacement occurred
+ */
 export const replaceTokensOutsideMath = (root, options = {}) => {
     const {
         passIndex = 0,

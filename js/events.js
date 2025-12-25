@@ -688,11 +688,17 @@ export const Events = {
         const openMathMenu = (mjx) => {
             if (!mathMenu) return;
             activeMath = mjx;
+            const tex = mjx.getAttribute('data-tex') || '';
+            const hasConceptBlank = /\[개념빈칸[:_]/.test(tex);
+            if (mathBlankBtn) {
+                mathBlankBtn.disabled = hasConceptBlank;
+                mathBlankBtn.title = hasConceptBlank ? '이미 개념빈칸입니다.' : '수식을 개념빈칸으로 전환';
+            }
+            if (mathUnblankBtn) {
+                mathUnblankBtn.disabled = !hasConceptBlank;
+                mathUnblankBtn.title = hasConceptBlank ? '개념빈칸을 해제합니다.' : '개념빈칸이 없습니다.';
+            }
             if (mathMenuOps) {
-                const tex = mjx.getAttribute('data-tex') || '';
-                const hasConceptBlank = /\[개념빈칸[:_]/.test(tex);
-                if (mathBlankBtn) mathBlankBtn.disabled = hasConceptBlank;
-                if (mathUnblankBtn) mathUnblankBtn.style.display = hasConceptBlank ? 'inline-flex' : 'none';
                 const splitData = eventsApi.getMathSplitCandidates(tex);
                 mathMenuOps.innerHTML = '';
                 if (splitData.candidates.length === 0) {

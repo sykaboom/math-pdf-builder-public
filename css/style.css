@@ -215,6 +215,7 @@ table.choice-table .choice-text { display: inline-block; min-width: 0; }
 .math-menu-title { font-size: 10px; font-weight: 700; color: #666; }
 .math-menu-btn { border: 1px solid #ddd; background: #fff; border-radius: 4px; padding: 3px 8px; font-size: 11px; cursor: pointer; }
 .math-menu-btn:hover { background: #e7f5ff; border-color: #007bff; color: #007bff; }
+.math-menu-btn:disabled { opacity: 0.45; cursor: not-allowed; background: #f3f3f3; color: #888; border-color: #ddd; }
 .math-menu-ops { display: flex; flex-direction: column; gap: 4px; max-height: 180px; overflow: auto; }
 .math-menu-op { border: 1px solid #eee; background: #fff; border-radius: 4px; padding: 4px 6px; font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 6px; }
 .math-menu-op:hover { background: #f8fbff; border-color: #007bff; color: #007bff; }

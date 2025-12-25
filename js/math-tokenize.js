@@ -14,6 +14,12 @@ export const decodeMathEntities = (value = '') => {
     return text;
 };
 
+/**
+ * Replace concept blank/image tokens inside math with TeX-safe placeholders.
+ * @param {string} tex
+ * @param {{trackConceptBlanks?: boolean, getConceptBlankIndex?: function}} options
+ * @returns {string}
+ */
 export const sanitizeMathTokens = (tex, options = {}) => {
     if (!tex) return tex;
     const { trackConceptBlanks = true, getConceptBlankIndex } = options;
@@ -45,6 +51,11 @@ export const sanitizeMathTokens = (tex, options = {}) => {
     return nextTex;
 };
 
+/**
+ * Strip concept blank tokens from math and keep only the raw answer text.
+ * @param {string} tex
+ * @returns {string}
+ */
 export const stripConceptBlankTokens = (tex) => {
     if (!tex) return tex;
     return tex.replace(/\[개념빈칸([:_])([^\]]*?)\]([\s\S]*?)\[\/개념빈칸\]/g, (m, delim, label, body) => String(body || ''));
