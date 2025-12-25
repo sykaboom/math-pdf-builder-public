@@ -6,6 +6,7 @@ import { buildChoiceTableElement, buildEditorTableElement } from './table-elemen
 import { decodeMathEntities, sanitizeMathTokens } from './math-tokenize.js';
 import { buildBoxHtml, buildRectBoxHtml, replaceBoxTokensInHtml } from './box-render.js';
 import { replaceTokensOutsideMath } from './token-replace.js';
+import { buildMathFragmentFromText } from './math-render.js';
 
 export const ManualRenderer = {
     mathCache: new Map(),
@@ -122,48 +123,21 @@ export const ManualRenderer = {
             });
         }
 
-        const regex = /(\$\$[\s\S]+?\$\$|\$[\s\S]+?\$)/g;
         const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT, null, false);
         const textNodes = [];
         while(walker.nextNode()) textNodes.push(walker.currentNode);
 
         for (let node of textNodes) {
             const text = node.nodeValue;
-            if (!text.match(regex)) continue;
-            const fragment = document.createDocumentFragment();
-            let lastIndex = 0; regex.lastIndex = 0; let match;
-            while ((match = regex.exec(text)) !== null) {
-                if (match.index > lastIndex) fragment.appendChild(document.createTextNode(text.substring(lastIndex, match.index)));
-                const fullTex = match[0]; 
-                const isDisplay = fullTex.startsWith('$$'); 
-                const cleanTex = isDisplay ? fullTex.slice(2, -2) : fullTex.slice(1, -1);
-                const decodedTex = decodeMathEntities(cleanTex);
-                const preparedTex = sanitizeMathTokens(decodedTex, {
-                    trackConceptBlanks,
-                    getConceptBlankIndex: getConceptBlankIndexForMath
-                });
-                const cacheKey = preparedTex + (isDisplay ? '_D' : '_I');
-                let mjxNode = null;
-
-                if (this.mathCache.has(cacheKey)) {
-                    mjxNode = this.mathCache.get(cacheKey).cloneNode(true);
-                } else {
-                    try {
-                        mjxNode = await MathJax.tex2svgPromise(preparedTex, { display: isDisplay });
-                        if (mjxNode) {
-                            mjxNode.setAttribute('data-tex', decodedTex); 
-                            mjxNode.setAttribute('display', isDisplay);
-                            mjxNode.setAttribute('contenteditable', 'false');
-                            mjxNode.classList.add('math-atom');
-                            this.mathCache.set(cacheKey, mjxNode.cloneNode(true));
-                        }
-                    } catch(e) { console.error(e); }
-                }
-                if (mjxNode) fragment.appendChild(mjxNode);
-                else fragment.appendChild(document.createTextNode(fullTex));
-                lastIndex = regex.lastIndex;
-            }
-            if (lastIndex < text.length) fragment.appendChild(document.createTextNode(text.substring(lastIndex)));
+            if (!text || (!text.includes('$') && !text.includes('$$'))) continue;
+            const fragment = await buildMathFragmentFromText(text, {
+                decodeMathEntities,
+                sanitizeMathTokens,
+                trackConceptBlanks,
+                getConceptBlankIndex: getConceptBlankIndexForMath,
+                mathCache: this.mathCache,
+                tex2svgPromise: MathJax.tex2svgPromise
+            });
             node.parentNode.replaceChild(fragment, node);
         }
     },
