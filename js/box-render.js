@@ -12,18 +12,18 @@ export const buildBoxHtml = (label, bodyHtml) => {
             .replace(/"/g, '&quot;');
         const isViewLabel = rawLabel === '보기';
         const labelHtml = isViewLabel
-            ? `<div class="box-label view-label">${safeLabel}</div>`
-            : `<div class="box-label">${safeLabel}</div>`;
-        return `<div class="custom-box labeled-box" contenteditable="false">${labelHtml}<div class="box-content">${body}</div></div>`;
+            ? `<div class="box-label view-label" contenteditable="false">${safeLabel}</div>`
+            : `<div class="box-label" contenteditable="false">${safeLabel}</div>`;
+        return `<div class="custom-box labeled-box" contenteditable="false">${labelHtml}<div class="box-content" contenteditable="true">${body}</div></div>`;
     }
-    return `<div class="custom-box simple-box" contenteditable="false"><div class="box-content">${body}</div></div>`;
+    return `<div class="custom-box simple-box" contenteditable="false"><div class="box-content" contenteditable="true">${body}</div></div>`;
 };
 
 export const buildRectBoxHtml = (bodyHtml) => {
     let body = (bodyHtml || '').trim();
     body = body.replace(/^(<br\s*\/?>)+/gi, '').replace(/(<br\s*\/?>)+$/gi, '');
     body = body.replace(/\n/g, '<br>');
-    return `<div class="rect-box" contenteditable="false"><div class="rect-box-content">${body}</div></div>`;
+    return `<div class="rect-box" contenteditable="false"><div class="rect-box-content" contenteditable="true">${body}</div></div>`;
 };
 
 export const replaceBoxTokensInHtml = (html, options = {}) => {

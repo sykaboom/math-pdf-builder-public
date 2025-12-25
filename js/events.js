@@ -749,6 +749,39 @@ export const Events = {
         const elementMenuUnblankBtn = elementMenu ? elementMenu.querySelector('[data-action="unblank"]') : null;
         const elementMenuUnblankRow = elementMenuUnblankBtn ? elementMenuUnblankBtn.closest('.element-menu-row') : null;
         let activeElement = null;
+        const createRawEditWrapper = (kind, options = {}) => {
+            const { block = false } = options;
+            const wrapper = document.createElement(block ? 'div' : 'span');
+            wrapper.className = 'raw-edit';
+            wrapper.dataset.rawKind = kind;
+            wrapper.setAttribute('contenteditable', 'true');
+            return wrapper;
+        };
+        const appendLinesToWrapper = (wrapper, lines) => {
+            lines.forEach((line, idx) => {
+                wrapper.appendChild(document.createTextNode(line));
+                if (idx < lines.length - 1) wrapper.appendChild(document.createElement('br'));
+            });
+        };
+        const buildRawEditFromText = (kind, text, options = {}) => {
+            const wrapper = createRawEditWrapper(kind, options);
+            const lines = String(text ?? '').split(/\n/);
+            appendLinesToWrapper(wrapper, lines);
+            return wrapper;
+        };
+        const buildRawEditBoxWrapper = (kind, startToken, contentEl, endToken) => {
+            const wrapper = createRawEditWrapper(kind, { block: true });
+            wrapper.appendChild(document.createTextNode(startToken));
+            wrapper.appendChild(document.createElement('br'));
+            if (contentEl) {
+                Array.from(contentEl.childNodes).forEach(node => {
+                    wrapper.appendChild(node.cloneNode(true));
+                });
+            }
+            wrapper.appendChild(document.createElement('br'));
+            wrapper.appendChild(document.createTextNode(endToken));
+            return wrapper;
+        };
         const closeElementMenu = () => {
             if (elementMenu) elementMenu.style.display = 'none';
             activeElement = null;
@@ -1365,7 +1398,15 @@ export const Events = {
                     const action = btn.dataset.action;
                     closeMathMenu();
                     if (action === 'edit') {
-                        ManualRenderer.revertToSource(targetMath);
+                        const tex = targetMath.getAttribute('data-tex') || '';
+                        if (!tex) {
+                            Utils.showToast('수식 정보를 찾지 못했습니다.', 'info');
+                            return;
+                        }
+                        const isDisplay = targetMath.getAttribute('display') === 'true';
+                        const mathSource = isDisplay ? `$$${tex}$$` : `$${tex}$`;
+                        const wrapper = buildRawEditFromText('math', mathSource, { block: isDisplay });
+                        targetMath.replaceWith(wrapper);
                         if (id) Renderer.syncBlock(id);
                         return;
                     }
@@ -1458,24 +1499,32 @@ export const Events = {
                 if (action === 'edit') {
                     if (activeElement.kind === 'concept-blank') {
                         const token = buildConceptBlankToken(target);
-                        target.replaceWith(document.createTextNode(token));
+                        const wrapper = buildRawEditFromText('concept-blank', token);
+                        target.replaceWith(wrapper);
                         if (wrapId) Renderer.syncBlock(wrapId);
-                        Renderer.updateConceptBlankSummary({ changedBlockId: wrapId || null });
                     } else if (activeElement.kind === 'blank') {
                         const token = buildBlankToken(target);
-                        target.replaceWith(document.createTextNode(token));
+                        const wrapper = buildRawEditFromText('blank', token);
+                        target.replaceWith(wrapper);
                         if (wrapId) Renderer.syncBlock(wrapId);
                     } else if (activeElement.kind === 'image') {
                         const token = buildImageToken(target);
-                        target.replaceWith(document.createTextNode(token));
+                        const wrapper = buildRawEditFromText('image', token);
+                        target.replaceWith(wrapper);
                         if (wrapId) Renderer.syncBlock(wrapId);
                     } else if (activeElement.kind === 'rect-box') {
-                        const data = buildRectBoxTokenData(target);
-                        target.replaceWith(data.fragment);
+                        const contentEl = target.querySelector('.rect-box-content');
+                        const wrapper = buildRawEditBoxWrapper('rect-box', '[블록사각형]', contentEl, '[/블록사각형]');
+                        target.replaceWith(wrapper);
                         if (wrapId) Renderer.syncBlock(wrapId);
                     } else if (activeElement.kind === 'custom-box') {
-                        const data = buildCustomBoxTokenData(target);
-                        target.replaceWith(data.fragment);
+                        const contentEl = target.querySelector('.box-content');
+                        let labelText = '';
+                        const labelEl = target.querySelector('.box-label');
+                        if (labelEl) labelText = labelEl.textContent.replace(/[<>]/g, '').trim();
+                        const startToken = labelText ? `[블록박스_${labelText}]` : '[블록박스_]';
+                        const wrapper = buildRawEditBoxWrapper('custom-box', startToken, contentEl, '[/블록박스]');
+                        target.replaceWith(wrapper);
                         if (wrapId) Renderer.syncBlock(wrapId);
                     }
                     closeElementMenu();
@@ -1554,6 +1603,11 @@ export const Events = {
                 e.preventDefault(); e.stopPropagation();
                 return;
             }
+            if (tableEditor.handleDoubleClick(e)) {
+                closeMathMenu();
+                closeElementMenu();
+                return;
+            }
             const rectBox = e.target.closest('.rect-box');
             if (rectBox) {
                 closeMathMenu();
@@ -1566,11 +1620,6 @@ export const Events = {
                 closeMathMenu();
                 openElementMenu(customBox, 'custom-box');
                 e.preventDefault(); e.stopPropagation();
-                return;
-            }
-            if (tableEditor.handleDoubleClick(e)) {
-                closeMathMenu();
-                closeElementMenu();
                 return;
             }
         });

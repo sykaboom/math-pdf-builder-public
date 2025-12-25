@@ -22,6 +22,16 @@ export const Utils = {
     cleanRichContentToTex(htmlContent) {
         const div = document.createElement('div');
         div.innerHTML = htmlContent;
+        div.querySelectorAll('.raw-edit').forEach(wrapper => {
+            const frag = document.createDocumentFragment();
+            Array.from(wrapper.childNodes).forEach(node => {
+                frag.appendChild(node.cloneNode(true));
+            });
+            wrapper.replaceWith(frag);
+        });
+        div.querySelectorAll('.box-content, .rect-box-content, .box-label').forEach(el => {
+            el.removeAttribute('contenteditable');
+        });
         const normalizeIneqEntities = (value = '') => {
             let text = value;
             text = text.replace(/&amp;lt;/g, '&lt;').replace(/&amp;gt;/g, '&gt;');

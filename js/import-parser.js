@@ -40,16 +40,16 @@ export const ImportParser = {
                 if (safeLabel) {
                     const isViewLabel = safeLabel === '보기';
                     const labelHtml = isViewLabel
-                        ? `<div class="box-label view-label">${safeLabel}</div>`
-                        : `<div class="box-label">${safeLabel}</div>`;
-                    return `<div class="custom-box labeled-box" contenteditable="false">${labelHtml}<div class="box-content">${bodyText}</div></div>`;
+                        ? `<div class="box-label view-label" contenteditable="false">${safeLabel}</div>`
+                        : `<div class="box-label" contenteditable="false">${safeLabel}</div>`;
+                    return `<div class="custom-box labeled-box" contenteditable="false">${labelHtml}<div class="box-content" contenteditable="true">${bodyText}</div></div>`;
                 }
-                return `<div class="custom-box simple-box" contenteditable="false"><div class="box-content">${bodyText}</div></div>`;
+                return `<div class="custom-box simple-box" contenteditable="false"><div class="box-content" contenteditable="true">${bodyText}</div></div>`;
             };
 
             const renderRectBox = (body) => {
                 const bodyText = (body || '').trim().replace(/\n/g, '<br>');
-                return `<div class="rect-box" contenteditable="false"><div class="rect-box-content">${bodyText}</div></div>`;
+                return `<div class="rect-box" contenteditable="false"><div class="rect-box-content" contenteditable="true">${bodyText}</div></div>`;
             };
 
             const getEscapedImagePlaceholderHTML = (escapedLabelText = '') => {

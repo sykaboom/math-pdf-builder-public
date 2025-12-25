@@ -31,6 +31,7 @@ export const replaceTokensOutsideMath = (root, options = {}) => {
     const shouldSkipTokenization = (node) => {
         const parent = node.parentElement;
         if (!parent) return false;
+        if (parent.closest('.raw-edit')) return true;
         return !!parent.closest('.image-placeholder');
     };
     while (walker.nextNode()) {
@@ -155,7 +156,7 @@ export const replaceTokensOutsideMath = (root, options = {}) => {
                 rectBox.setAttribute('contenteditable', 'false');
                 const rectContent = document.createElement('div');
                 rectContent.className = 'rect-box-content';
-                rectContent.setAttribute('contenteditable', 'false');
+                rectContent.setAttribute('contenteditable', 'true');
                 rectContent.appendChild(buildFragmentFromText(m[15] || ''));
                 rectBox.appendChild(rectContent);
                 frag.appendChild(rectBox);

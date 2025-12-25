@@ -58,11 +58,64 @@ export const ManualRenderer = {
     },
 
     async typesetElement(element, options = {}) {
+        const rawEdits = [];
+        const stashRawEdits = () => {
+            const nodes = Array.from(element.querySelectorAll('.raw-edit'));
+            if (!nodes.length) return;
+            nodes.forEach((node, idx) => {
+                const id = String(idx);
+                rawEdits.push({ id, html: node.outerHTML });
+                const placeholder = document.createElement('span');
+                placeholder.dataset.rawPlaceholder = id;
+                node.replaceWith(placeholder);
+            });
+        };
+        const restoreRawEdits = () => {
+            rawEdits.forEach(({ id, html }) => {
+                const placeholder = element.querySelector(`[data-raw-placeholder="${id}"]`);
+                if (!placeholder) return;
+                const container = document.createElement('div');
+                container.innerHTML = html;
+                const restored = container.firstChild;
+                if (restored) placeholder.replaceWith(restored);
+                else placeholder.remove();
+            });
+        };
+        const renderer = this;
+        const trackConceptBlanks = options.trackConceptBlanks !== false;
+        const recordRawEditConceptBlanks = () => {
+            if (!trackConceptBlanks || rawEdits.length === 0) return;
+            const conceptRegex = /\[개념빈칸([:_])([^\]]*?)\]([\s\S]*?)\[\/개념빈칸\]/g;
+            const mathRegex = /(\$\$[\s\S]+?\$\$|\$[\s\S]+?\$)/g;
+            const getMathRanges = (text) => {
+                const ranges = [];
+                if (!text) return ranges;
+                mathRegex.lastIndex = 0;
+                let m;
+                while ((m = mathRegex.exec(text)) !== null) {
+                    ranges.push([m.index, mathRegex.lastIndex]);
+                }
+                return ranges;
+            };
+            const isIndexInRanges = (index, ranges) => {
+                return ranges.some(([start, end]) => index >= start && index < end);
+            };
+            rawEdits.forEach(({ html }) => {
+                const ranges = getMathRanges(html);
+                conceptRegex.lastIndex = 0;
+                let m;
+                while ((m = conceptRegex.exec(html)) !== null) {
+                    const body = m[3] || '';
+                    const isMath = isIndexInRanges(m.index, ranges);
+                    renderer.recordConceptBlank(body, { isMath });
+                }
+            });
+        };
+        stashRawEdits();
+        recordRawEditConceptBlanks();
         if (element.querySelector('mjx-container') || element.querySelector('.blank-box') || element.querySelector('.image-placeholder')) {
             element.innerHTML = Utils.cleanRichContentToTex(element.innerHTML);
         }
-        const renderer = this;
-        const trackConceptBlanks = options.trackConceptBlanks !== false;
         element.innerHTML = replaceBoxTokensInHtml(element.innerHTML, {
             renderBox: buildBoxHtml,
             renderRectBox: buildRectBoxHtml
@@ -123,6 +176,7 @@ export const ManualRenderer = {
             });
             node.parentNode.replaceChild(fragment, node);
         }
+        if (rawEdits.length) restoreRawEdits();
     },
     
     revertToSource(mjxContainer) {
