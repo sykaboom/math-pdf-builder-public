@@ -9,10 +9,8 @@ window.addEventListener('DOMContentLoaded', () => {
     const saved = localStorage.getItem('editorAutoSave');
     if(saved) State.loadFromHistory(saved);
     
-    Renderer.renderPages(); 
-    State.saveHistory(); 
     Events.initGlobalListeners();
-    Events.updateRenderingToggleUI();
+    Events.toggleRenderingMode(false);
 
     // [Fix] 줌 최적화 로직 복구 (입력시 CSS Transform, 놓으면 렌더링)
     const zoomRange = document.getElementById('zoomRange');

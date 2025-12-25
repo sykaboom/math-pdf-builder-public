@@ -1478,6 +1478,26 @@ export const Events = {
         });
         document.addEventListener('keyup', (e) => State.keysPressed[e.key.toLowerCase()] = false);
 
+        const findMathTargetFromEvent = (evt) => {
+            if (!evt) return null;
+            const path = typeof evt.composedPath === 'function' ? evt.composedPath() : null;
+            if (path && path.length) {
+                for (const node of path) {
+                    if (!node || !node.tagName) continue;
+                    const tag = node.tagName.toLowerCase();
+                    if (tag === 'mjx-container') return node;
+                    if (tag === 'mjx-math' && node.closest) {
+                        const parent = node.closest('mjx-container');
+                        if (parent) return parent;
+                    }
+                }
+            }
+            if (evt.target && evt.target.closest) {
+                return evt.target.closest('mjx-container');
+            }
+            return null;
+        };
+
         document.addEventListener('mousedown', (e) => {
             if (!e.target.closest('#floating-toolbar') && !e.target.closest('.ft-btn')) document.getElementById('floating-toolbar').style.display='none'; 
             if (!e.target.closest('img') && !e.target.closest('#image-resizer')) this.hideResizer(); 
@@ -1490,7 +1510,7 @@ export const Events = {
             if (!e.target.closest('.image-placeholder') && !e.target.closest('#imgUpload')) { if(State.selectedPlaceholder) { State.selectedPlaceholder.classList.remove('selected'); State.selectedPlaceholder.setAttribute('contenteditable', 'false'); } State.selectedPlaceholder = null; } 
             if (!e.target.closest('#element-menu')) closeElementMenu();
             if (!e.target.closest('#math-menu') && !e.target.closest('mjx-container')) closeMathMenu();
-            const mjx = e.target.closest('mjx-container');
+            const mjx = findMathTargetFromEvent(e);
             mathDragState = mjx ? { target: mjx, x: e.clientX, y: e.clientY } : null;
             tableEditor.handleDocumentMouseDown(e);
         });
@@ -1681,11 +1701,18 @@ export const Events = {
                 if (action === 'unblank') {
                     if (activeElement.kind !== 'concept-blank') return;
                     const dataset = target.dataset || {};
-                    const answerSource = dataset.answer ? decodeHtml(dataset.answer) : '';
+                    let answerSource = dataset.answer ? decodeHtml(dataset.answer) : '';
+                    const answerIndex = parseInt(dataset.index, 10);
+                    if (Number.isFinite(answerIndex) && Array.isArray(State.conceptBlankAnswers)) {
+                        const listedAnswer = State.conceptBlankAnswers[answerIndex - 1];
+                        if (typeof listedAnswer === 'string' && listedAnswer.trim()) {
+                            answerSource = listedAnswer;
+                        }
+                    }
                     const confirmed = await Utils.confirmDialog('개념빈칸을 없애겠습니까?');
                     if (!confirmed) return;
                     const frag = answerSource
-                        ? buildTokenFragmentFromLines(answerSource.split(/\n/))
+                        ? buildTokenFragmentFromLines(answerSource.split(/\r?\n/))
                         : document.createDocumentFragment();
                     target.replaceWith(frag);
                     if (wrapId) Renderer.syncBlock(wrapId, true);
@@ -1703,7 +1730,7 @@ export const Events = {
         document.addEventListener('dblclick', (e) => {
             if (!State.renderingEnabled) return;
             if (e.target.closest('#math-menu') || e.target.closest('#element-menu')) return;
-            const mjx = e.target.closest('mjx-container');
+            const mjx = findMathTargetFromEvent(e);
             if (mjx) {
                 closeElementMenu();
                 openMathMenu(mjx);
