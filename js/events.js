@@ -1497,6 +1497,35 @@ export const Events = {
             return null;
         };
 
+        const findMathContainerFromPoint = (x, y, fallbackRoot = null) => {
+            if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+            const elements = typeof document.elementsFromPoint === 'function'
+                ? document.elementsFromPoint(x, y)
+                : [document.elementFromPoint(x, y)].filter(Boolean);
+            for (const el of elements) {
+                const found = findMathContainerFromNode(el);
+                if (found) return found;
+            }
+            let root = fallbackRoot || null;
+            if (!root) {
+                for (const el of elements) {
+                    if (el && el.closest) {
+                        root = el.closest('.editable-box');
+                        if (root) break;
+                    }
+                }
+            }
+            if (!root) return null;
+            const mjxNodes = Array.from(root.querySelectorAll('mjx-container'));
+            for (const node of mjxNodes) {
+                const rect = node.getBoundingClientRect();
+                if (x >= rect.left - 2 && x <= rect.right + 2 && y >= rect.top - 2 && y <= rect.bottom + 2) {
+                    return node;
+                }
+            }
+            return null;
+        };
+
         const findMathTargetFromEvent = (evt) => {
             if (!evt) return null;
             const path = typeof evt.composedPath === 'function' ? evt.composedPath() : null;
@@ -1506,7 +1535,10 @@ export const Events = {
                     if (found) return found;
                 }
             }
-            return findMathContainerFromNode(evt.target);
+            const direct = findMathContainerFromNode(evt.target);
+            if (direct) return direct;
+            const fallbackRoot = evt.target && evt.target.closest ? evt.target.closest('.editable-box') : null;
+            return findMathContainerFromPoint(evt.clientX, evt.clientY, fallbackRoot);
         };
 
         document.addEventListener('mousedown', (e) => {
