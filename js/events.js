@@ -1744,14 +1744,7 @@ export const Events = {
                 if (action === 'unblank') {
                     if (activeElement.kind !== 'concept-blank') return;
                     const dataset = target.dataset || {};
-                    let answerSource = dataset.answer ? decodeHtml(dataset.answer) : '';
-                    const answerIndex = parseInt(dataset.index, 10);
-                    if (Number.isFinite(answerIndex) && Array.isArray(State.conceptBlankAnswers)) {
-                        const listedAnswer = State.conceptBlankAnswers[answerIndex - 1];
-                        if (typeof listedAnswer === 'string' && listedAnswer.trim()) {
-                            answerSource = listedAnswer;
-                        }
-                    }
+                    const answerSource = dataset.answer ? decodeHtml(dataset.answer) : '';
                     const confirmed = await Utils.confirmDialog('개념빈칸을 없애겠습니까?');
                     if (!confirmed) return;
                     const frag = answerSource
