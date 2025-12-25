@@ -7,6 +7,8 @@ import { decodeMathEntities, sanitizeMathTokens } from './math-tokenize.js';
 import { buildBoxHtml, buildRectBoxHtml, replaceBoxTokensInHtml } from './box-render.js';
 import { replaceTokensOutsideMath } from './token-replace.js';
 import { buildMathFragmentFromText } from './math-render.js';
+import { recordConceptBlank, resetConceptBlankTracking, syncConceptBlankAnswers } from './concept-blank.js';
+import { buildImageFilename, buildProjectSaveData, buildSafeProjectFilename, getImageFolderName } from './file-helpers.js';
 
 export const ManualRenderer = {
     mathCache: new Map(),
@@ -17,34 +19,15 @@ export const ManualRenderer = {
     conceptBlankMathQueue: [],
 
     resetConceptBlankTracking() {
-        this.conceptBlankCounter = 0;
-        this.conceptBlankAnswers = [];
-        this.conceptBlankAnswersIsMath = [];
-        this.conceptBlankMathQueue = [];
+        resetConceptBlankTracking(this);
     },
 
     recordConceptBlank(rawAnswer = '', options = {}) {
-        const isMath = options && options.isMath === true;
-        const tmp = document.createElement('div');
-        tmp.innerHTML = String(rawAnswer);
-        const normalized = (tmp.textContent || '').replace(/\u00A0/g, ' ');
-        this.conceptBlankCounter += 1;
-        this.conceptBlankAnswers.push(normalized);
-        this.conceptBlankAnswersIsMath.push(isMath);
-        return this.conceptBlankCounter;
+        return recordConceptBlank(this, rawAnswer, options);
     },
 
     syncConceptBlankAnswers() {
-        const nextAnswers = this.conceptBlankAnswers.slice();
-        const nextIsMath = this.conceptBlankAnswersIsMath.slice();
-        const nextHash = JSON.stringify({ answers: nextAnswers, isMath: nextIsMath });
-        const hasAnswerBlocks = Array.isArray(State.docData.blocks)
-            && State.docData.blocks.some(block => block.derived === 'concept-answers');
-        if (nextHash === State.conceptBlankAnswersHash && (hasAnswerBlocks || nextAnswers.length === 0)) return false;
-        State.conceptBlankAnswers = nextAnswers;
-        State.conceptBlankAnswersIsMath = nextIsMath;
-        State.conceptBlankAnswersHash = nextHash;
-        return true;
+        return syncConceptBlankAnswers(this, State);
     },
 
     async renderAll(callback, options = {}) {
@@ -167,9 +150,9 @@ export const FileSystem = {
     async saveImage(file) {
         if (!this.dirHandle) { alert("⚠️ 폴더 미연결"); return null; }
         try {
-            const folderName = document.getElementById('setting-img-folder').value || 'images';
+            const folderName = getImageFolderName();
             const imgDir = await this.dirHandle.getDirectoryHandle(folderName, { create: true });
-            const filename = `img_${new Date().toISOString().replace(/[-:T.]/g,'').slice(2,14)}.${file.name.split('.').pop()||'png'}`;
+            const filename = buildImageFilename(file);
             const fileHandle = await imgDir.getFileHandle(filename, { create: true });
             const writable = await fileHandle.createWritable(); await writable.write(file); await writable.close();
             const savedFile = await fileHandle.getFile();
@@ -178,7 +161,7 @@ export const FileSystem = {
     },
     async loadImagesForDisplay(blocks) {
         if (!this.dirHandle) return;
-        const folderName = document.getElementById('setting-img-folder').value || 'images';
+        const folderName = getImageFolderName();
         try {
             const imgDir = await this.dirHandle.getDirectoryHandle(folderName);
             for (let block of blocks) {
@@ -200,26 +183,12 @@ export const FileSystem = {
         const defaultBase = '과정_단원';
         const inputName = prompt('저장 파일 이름', defaultBase);
         if (inputName === null) return;
-        let baseName = inputName.trim();
-        if (!baseName) baseName = defaultBase;
-        baseName = baseName.replace(/\.json$/i, '');
-        const safeBase = baseName.replace(/[\\/:*?"<>|]/g, '').replace(/\s+/g, '_').slice(0, 40);
-        const fallbackBase = defaultBase.replace(/[\\/:*?"<>|]/g, '').replace(/\s+/g, '_').slice(0, 40) || '과정_단원';
-        const filename = `${safeBase || fallbackBase}.json`;
+        const filename = buildSafeProjectFilename(inputName, defaultBase);
 
         Utils.showLoading("💾 저장 중...");
         
-        const rawData = {
-            data: JSON.parse(JSON.stringify(State.docData)),
-            settings: JSON.parse(JSON.stringify(State.settings))
-        };
-        rawData.data.blocks.forEach(block => {
-            block.content = Utils.cleanRichContentToTex(block.content);
-            if (block.content.includes('<img')) {
-                const div = document.createElement('div'); div.innerHTML = block.content;
-                div.querySelectorAll('img').forEach(img => { if (img.dataset.path) img.src = img.dataset.path; });
-                block.content = div.innerHTML;
-            }
+        const rawData = buildProjectSaveData(State.docData, State.settings, {
+            cleanContent: Utils.cleanRichContentToTex
         });
 
         if (this.dirHandle) {
