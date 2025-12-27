@@ -32,6 +32,8 @@ window.addEventListener('DOMContentLoaded', () => {
     const marginTopInp = document.getElementById('setting-margin-top');
     const marginSideInp = document.getElementById('setting-margin-side');
     const columnGapInp = document.getElementById('setting-column-gap');
+    const metaTitleInp = document.getElementById('setting-meta-title');
+    const metaSubtitleInp = document.getElementById('setting-meta-subtitle');
     const footerTextInp = document.getElementById('setting-footer-text');
     const meta = State.docData.meta;
     const settings = State.settings;
@@ -40,6 +42,8 @@ window.addEventListener('DOMContentLoaded', () => {
     if (marginTopInp) marginTopInp.value = settings.marginTopMm || 15;
     if (marginSideInp) marginSideInp.value = settings.marginSideMm || 10;
     if (columnGapInp) columnGapInp.value = settings.columnGapMm || 5;
+    if (metaTitleInp) metaTitleInp.value = meta.title || '';
+    if (metaSubtitleInp) metaSubtitleInp.value = meta.subtitle || '';
     if (footerTextInp) footerTextInp.value = meta.footerText || '';
 
     if (columnsSel) columnsSel.addEventListener('change', async (e) => {
@@ -61,6 +65,16 @@ window.addEventListener('DOMContentLoaded', () => {
     numberHandler('marginTopMm', marginTopInp, 15);
     numberHandler('marginSideMm', marginSideInp, 10);
     numberHandler('columnGapMm', columnGapInp, 5);
+    if (metaTitleInp) metaTitleInp.addEventListener('input', (e) => {
+        State.docData.meta.title = e.target.value;
+        Renderer.renderPages();
+        State.saveHistory(500);
+    });
+    if (metaSubtitleInp) metaSubtitleInp.addEventListener('input', (e) => {
+        State.docData.meta.subtitle = e.target.value;
+        Renderer.renderPages();
+        State.saveHistory(500);
+    });
     if (footerTextInp) footerTextInp.addEventListener('input', (e) => {
         State.docData.meta.footerText = e.target.value;
         Renderer.renderPages();

@@ -211,6 +211,9 @@
         <button class="math-menu-btn" data-action="copy">복사</button>
         <button class="math-menu-btn menu-btn-danger" data-action="delete">삭제</button>
     </div>
+    <div class="math-menu-row">
+        <button class="math-menu-btn" data-action="toggle-rendering">렌더링 해제</button>
+    </div>
     <div class="math-menu-title">나누기 기준</div>
     <div class="math-menu-ops"></div>
 </div>
@@ -224,6 +227,9 @@
     </div>
     <div class="element-menu-row">
         <button class="element-menu-btn" data-action="unblank">빈칸 취소</button>
+    </div>
+    <div class="element-menu-row">
+        <button class="element-menu-btn" data-action="toggle-rendering">렌더링 해제</button>
     </div>
 </div>
 
@@ -354,7 +360,7 @@
                     </div>
                 </div>
 
-                <div class="settings-panel" style="margin-bottom:0;">
+                <div class="settings-panel" style="margin-bottom:10px;">
                     <div style="font-size:11px; font-weight:bold; margin-bottom:5px; border-bottom:1px solid #ddd; padding-bottom:3px;">🏷️ 라벨 서식</div>
                     <div class="settings-row"><label>폰트</label>
                         <select id="setting-label-font-family">
@@ -372,6 +378,13 @@
                         <label>밑줄</label>
                         <input type="checkbox" id="setting-label-underline">
                     </div>
+                </div>
+
+                <div class="settings-panel" style="margin-bottom:0;">
+                    <div style="font-size:11px; font-weight:bold; margin-bottom:5px; border-bottom:1px solid #ddd; padding-bottom:3px;">📌 머릿말/꼬릿말</div>
+                    <div class="settings-row"><label>머릿말(과정)</label><input type="text" id="setting-meta-title"></div>
+                    <div class="settings-row"><label>머릿말(단원)</label><input type="text" id="setting-meta-subtitle"></div>
+                    <div class="settings-row"><label>꼬릿말(푸터)</label><input type="text" id="setting-footer-text"></div>
                 </div>
             </div>
         </details>
@@ -398,7 +411,6 @@
                     <div class="settings-row"><label>상/하 여백(mm)</label><input type="number" id="setting-margin-top" min="5" max="30" step="1"></div>
                     <div class="settings-row"><label>좌/우 여백(mm)</label><input type="number" id="setting-margin-side" min="5" max="30" step="1"></div>
                     <div class="settings-row"><label>단 간격(mm)</label><input type="number" id="setting-column-gap" min="0" max="20" step="1"></div>
-                    <div class="settings-row"><label>푸터 텍스트</label><input type="text" id="setting-footer-text"></div>
                 </div>
             </div>
         </details>

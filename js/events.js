@@ -1345,6 +1345,10 @@ export const Events = {
             }
             if (action === 'toggle-rendering') {
                 e.preventDefault();
+                const mathMenu = document.getElementById('math-menu');
+                const elementMenu = document.getElementById('element-menu');
+                if (mathMenu) mathMenu.style.display = 'none';
+                if (elementMenu) elementMenu.style.display = 'none';
                 eventsApi.toggleRenderingMode();
                 return;
             }
