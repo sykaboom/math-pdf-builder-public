@@ -153,6 +153,9 @@ export const Actions = {
                 if (typeof metaUpdates.subtitle === 'string' && metaUpdates.subtitle.trim()) {
                     meta.subtitle = metaUpdates.subtitle;
                 }
+                if (Object.prototype.hasOwnProperty.call(metaUpdates, 'footerText')) {
+                    meta.footerText = metaUpdates.footerText ?? '';
+                }
             }
             State.saveHistory();
             Utils.closeModal('import-modal');

@@ -6,6 +6,7 @@ const HEADER_TOKENS = [
     { token: '머릿말_과정', key: 'title' },
     { token: '머릿말_단원', key: 'subtitle' }
 ];
+const FOOTER_TAG = '꼬릿말';
 
 const extractHeaderTokens = (input = '') => {
     const lines = String(input || '').split(/\r?\n/);
@@ -15,6 +16,15 @@ const extractHeaderTokens = (input = '') => {
     lines.forEach((line) => {
         const trimmedLine = line.trim();
         let consumed = false;
+        if (!consumed) {
+            const footerMatch = trimmedLine.match(new RegExp(`^\\[\\[${FOOTER_TAG}:([^\\]]*)\\]\\]\\s*:?\\s*(.*)$`));
+            if (footerMatch) {
+                const inlineValue = normalizeValue(footerMatch[1] || '');
+                const trailingValue = normalizeValue(footerMatch[2] || '');
+                meta.footerText = inlineValue || trailingValue;
+                consumed = true;
+            }
+        }
         for (const { token, key } of HEADER_TOKENS) {
             const regex = new RegExp(`^\\[\\[${token}\\]\\]\\s*:?\\s*(.*)$`);
             const match = trimmedLine.match(regex);
