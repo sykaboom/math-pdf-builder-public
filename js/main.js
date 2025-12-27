@@ -11,6 +11,7 @@ window.addEventListener('DOMContentLoaded', () => {
     
     Events.initGlobalListeners();
     Events.toggleRenderingMode(false);
+    Renderer.renderPages();
 
     // [Fix] 줌 최적화 로직 복구 (입력시 CSS Transform, 놓으면 렌더링)
     const zoomRange = document.getElementById('zoomRange');
