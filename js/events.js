@@ -5,7 +5,7 @@ import { Renderer } from './renderer.js'; // 순환 참조 아님 (내부 호출
 import { ManualRenderer, FileSystem } from './services.js';
 import { Utils } from './utils.js';
 import { createTableEditor } from './table-editor.js';
-import { getMathSplitCandidates as buildMathSplitCandidates } from './math-logic.js';
+import { getMathSplitCandidates as buildMathSplitCandidates, normalizeMathTex } from './math-logic.js';
 import { stripConceptBlankTokens } from './math-tokenize.js';
 
 const PATCH_NOTES_PATH = 'PATCH_NOTES.txt';
@@ -158,9 +158,14 @@ export const Events = {
     async toggleRenderingMode(forceState) {
         const next = (typeof forceState === 'boolean') ? forceState : !State.renderingEnabled;
         State.renderingEnabled = next;
-        Renderer.renderPages();
         if (next) {
+            State.docData.blocks.forEach(block => {
+                if (typeof block.content !== 'string' || !block.content.includes('raw-edit')) return;
+                block.content = Utils.cleanRichContentToTex(block.content);
+            });
+            Renderer.renderPages();
             await ManualRenderer.renderAll();
+            State.saveHistory();
         } else {
             const container = document.getElementById('paper-container');
             if (container) {
@@ -305,7 +310,7 @@ export const Events = {
         document.execCommand('insertHTML', false, Utils.getImagePlaceholderHTML());
         const wrap = context.wrap;
         if (wrap && wrap.dataset && wrap.dataset.id) {
-            Actions.updateBlockContent(wrap.dataset.id, Utils.cleanRichContentToTex(context.box.innerHTML), true);
+            Actions.updateBlockContent(wrap.dataset.id, Utils.cleanRichContentToTexPreserveRaw(context.box.innerHTML), true);
             Renderer.debouncedRebalance();
             State.lastEditableId = wrap.dataset.id;
         }
@@ -329,7 +334,7 @@ export const Events = {
         const r = document.createRange(); r.selectNodeContents(box); r.collapse(false);
         const s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
         document.execCommand('insertHTML', false, `<br>${Utils.getImagePlaceholderHTML()}`);
-        Actions.updateBlockContent(targetId, Utils.cleanRichContentToTex(box.innerHTML), true);
+        Actions.updateBlockContent(targetId, Utils.cleanRichContentToTexPreserveRaw(box.innerHTML), true);
         Renderer.debouncedRebalance();
         State.lastEditableId = targetId;
     },
@@ -390,8 +395,8 @@ export const Events = {
             beforeHtml = tmpBefore.innerHTML;
         }
 
-        const cleanBefore = Utils.cleanRichContentToTex(beforeHtml);
-        const cleanAfter = Utils.cleanRichContentToTex(afterHtml);
+        const cleanBefore = Utils.cleanRichContentToTexPreserveRaw(beforeHtml);
+        const cleanAfter = Utils.cleanRichContentToTexPreserveRaw(afterHtml);
         return Actions.splitBlockWithContents(targetId, cleanBefore, cleanAfter);
     },
 
@@ -478,7 +483,7 @@ export const Events = {
         State.selectionRange = newRange.cloneRange();
         State.selectionBlockId = wrap.dataset.id || null;
 
-        Actions.updateBlockContent(wrap.dataset.id, Utils.cleanRichContentToTex(box.innerHTML), true);
+        Actions.updateBlockContent(wrap.dataset.id, Utils.cleanRichContentToTexPreserveRaw(box.innerHTML), true);
         Renderer.debouncedRebalance();
     },
 
@@ -538,7 +543,7 @@ export const Events = {
         State.selectionRange = nextRange.cloneRange();
         State.selectionBlockId = wrap.dataset.id || null;
 
-        Actions.updateBlockContent(wrap.dataset.id, Utils.cleanRichContentToTex(box.innerHTML), true);
+        Actions.updateBlockContent(wrap.dataset.id, Utils.cleanRichContentToTexPreserveRaw(box.innerHTML), true);
         Renderer.debouncedRebalance();
         if (State.renderingEnabled) {
             await Renderer.updateConceptBlankSummary({ changedBlockId: wrap.dataset.id });
@@ -572,7 +577,7 @@ export const Events = {
             if (atomBefore) {
                 e.preventDefault();
                 atomBefore.remove();
-                Actions.updateBlockContent(id, Utils.cleanRichContentToTex(box.innerHTML), false);
+                Actions.updateBlockContent(id, Utils.cleanRichContentToTexPreserveRaw(box.innerHTML), false);
                 State.saveHistory(0, { reason: 'edit', blockId: id });
                 return;
             }
@@ -594,7 +599,7 @@ export const Events = {
             if (this.splitBlockAtCursor(id)) renderCallback();
             return;
         }
-        if (e.key === 'Enter' && e.shiftKey) { const atomAfter = Utils.getAtomAfterCaret(box); if (atomAfter) { e.preventDefault(); const br = document.createElement('br'); atomAfter.parentNode.insertBefore(br, atomAfter); const r = document.createRange(); const s = window.getSelection(); r.setStartAfter(br); r.collapse(true); s.removeAllRanges(); s.addRange(r); Actions.updateBlockContent(id, Utils.cleanRichContentToTex(box.innerHTML), true); return; } }
+        if (e.key === 'Enter' && e.shiftKey) { const atomAfter = Utils.getAtomAfterCaret(box); if (atomAfter) { e.preventDefault(); const br = document.createElement('br'); atomAfter.parentNode.insertBefore(br, atomAfter); const r = document.createRange(); const s = window.getSelection(); r.setStartAfter(br); r.collapse(true); s.removeAllRanges(); s.addRange(r); Actions.updateBlockContent(id, Utils.cleanRichContentToTexPreserveRaw(box.innerHTML), true); return; } }
         if(e.key === 'Tab') { e.preventDefault(); if(e.shiftKey) document.execCommand('insertHTML', false, '&nbsp;'.repeat(10)); else if(e.ctrlKey) this.focusNextBlock(id, -1); else this.focusNextBlock(id, 1); return; }
         if(e.key === 'ArrowDown') { if (Utils.isCaretOnLastLine(box)) { e.preventDefault(); this.focusNextBlock(id, 1); } }
         if(e.key === 'ArrowUp') { if (Utils.isCaretOnFirstLine(box)) { e.preventDefault(); this.focusNextBlock(id, -1); } }
@@ -796,6 +801,14 @@ export const Events = {
             tmp.innerHTML = String(value);
             return tmp.textContent || '';
         };
+        const escapeHtml = (value = '') => {
+            return String(value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        };
         const buildTokenFragmentFromLines = (lines) => {
             const frag = document.createDocumentFragment();
             lines.forEach((line, idx) => {
@@ -803,6 +816,28 @@ export const Events = {
                 if (idx < lines.length - 1) frag.appendChild(document.createElement('br'));
             });
             return frag;
+        };
+        const buildRawEditWrapper = (tokenText = '') => {
+            const wrapper = document.createElement('span');
+            wrapper.className = 'raw-edit';
+            wrapper.setAttribute('contenteditable', 'true');
+            const lines = String(tokenText).split(/\r?\n/);
+            wrapper.appendChild(buildTokenFragmentFromLines(lines));
+            return wrapper;
+        };
+        const replaceWithRawEditWrapper = (target, tokenText) => {
+            if (!target) return null;
+            const wrapper = buildRawEditWrapper(tokenText);
+            target.replaceWith(wrapper);
+            const range = document.createRange();
+            range.selectNodeContents(wrapper);
+            range.collapse(false);
+            const sel = window.getSelection();
+            if (sel) {
+                sel.removeAllRanges();
+                sel.addRange(range);
+            }
+            return wrapper;
         };
         const buildConceptBlankToken = (blank) => {
             const dataset = blank.dataset || {};
@@ -971,11 +1006,90 @@ export const Events = {
                 elementEditTextarea.select();
             }, 0);
         };
+        const normalizeConceptAnswerInput = (value, isMath) => {
+            let text = String(value ?? '').trim();
+            if (isMath && /^\$[\s\S]*\$$/.test(text)) {
+                text = text.slice(1, -1).trim();
+            }
+            text = text.replace(/\r\n/g, '\n').replace(/\n/g, ' ').trim();
+            return text;
+        };
+        const updateConceptBlankAnswerByIndex = (targetIndex, nextAnswer) => {
+            if (!Number.isFinite(targetIndex) || targetIndex <= 0) return { changed: false, changedBlockId: null };
+            const conceptRegex = /\[개념빈칸([:_])([^\]]*?)\]([\s\S]*?)\[\/개념빈칸\]/g;
+            let currentIndex = 0;
+            let changedBlockId = null;
+            const safeAnswer = escapeHtml(nextAnswer);
+            State.docData.blocks.forEach(block => {
+                if (block.derived === 'concept-answers') return;
+                if (typeof block.content !== 'string' || !block.content.includes('[개념빈칸')) return;
+                const replaced = block.content.replace(conceptRegex, (match, delim, label) => {
+                    currentIndex += 1;
+                    if (currentIndex !== targetIndex) return match;
+                    changedBlockId = block.id;
+                    return `[개념빈칸${delim}${label}]${safeAnswer}[/개념빈칸]`;
+                });
+                if (replaced !== block.content) block.content = replaced;
+            });
+            return { changed: !!changedBlockId, changedBlockId };
+        };
+        const openConceptAnswerEdit = (item) => {
+            if (!elementEditModal || !elementEditTextarea) return;
+            const index = parseInt(item?.dataset?.answerIndex, 10);
+            if (!Number.isFinite(index) || index <= 0) {
+                Utils.showToast('정답 번호를 찾지 못했습니다.', 'info');
+                return;
+            }
+            const answers = Array.isArray(State.conceptBlankAnswers) ? State.conceptBlankAnswers : [];
+            const isMath = Array.isArray(State.conceptBlankAnswersIsMath)
+                ? State.conceptBlankAnswersIsMath[index - 1] === true
+                : false;
+            const current = answers[index - 1] ?? '';
+            activeEdit = { kind: 'concept-answer', answerIndex: index, isMath };
+            if (elementEditTitle) {
+                elementEditTitle.textContent = `개념빈칸 ${index}번 정답 편집`;
+            }
+            if (elementEditHint) {
+                elementEditHint.textContent = isMath
+                    ? '수식 정답은 $ 없이 입력합니다.'
+                    : '정답 텍스트를 입력합니다.';
+            }
+            elementEditTextarea.value = current;
+            Utils.openModal('element-edit-modal');
+            setTimeout(() => {
+                elementEditTextarea.focus();
+                elementEditTextarea.select();
+            }, 0);
+        };
         const applyActiveEdit = async () => {
             if (!activeEdit || !elementEditTextarea) return;
             const rawValue = elementEditTextarea.value ?? '';
             if (!rawValue.trim()) {
                 Utils.showToast('내용이 비어 있습니다.', 'info');
+                return;
+            }
+            if (activeEdit.kind === 'concept-answer') {
+                const index = activeEdit.answerIndex;
+                const isMath = activeEdit.isMath === true;
+                const normalized = normalizeConceptAnswerInput(rawValue, isMath);
+                if (!normalized) {
+                    Utils.showToast('내용이 비어 있습니다.', 'info');
+                    return;
+                }
+                const result = updateConceptBlankAnswerByIndex(index, normalized);
+                if (!result.changed) {
+                    Utils.showToast('정답을 찾지 못했습니다.', 'info');
+                    return;
+                }
+                State.saveHistory();
+                Renderer.renderPages();
+                if (State.renderingEnabled) {
+                    await ManualRenderer.renderAll();
+                } else {
+                    Renderer.updatePreflightPanel();
+                }
+                Utils.closeModal('element-edit-modal');
+                activeEdit = null;
                 return;
             }
             const target = resolveActiveEditTarget();
@@ -1624,6 +1738,23 @@ export const Events = {
                 if (btn) {
                     const action = btn.dataset.action;
                     closeMathMenu();
+                    if (action === 'toggle-rendering') {
+                        const tex = targetMath.getAttribute('data-tex') || '';
+                        if (!tex) {
+                            Utils.showToast('수식 정보를 찾지 못했습니다.', 'info');
+                            return;
+                        }
+                        const isDisplay = targetMath.getAttribute('display') === 'true';
+                        const normalizedTex = normalizeMathTex(tex);
+                        const mathSource = isDisplay ? `$$${normalizedTex}$$` : `$${normalizedTex}$`;
+                        replaceWithRawEditWrapper(targetMath, mathSource);
+                        if (id) Renderer.syncBlock(id, true);
+                        if (/\[개념빈칸[:_]/.test(mathSource)) {
+                            Renderer.updateConceptBlankSummary({ changedBlockId: id || null });
+                        }
+                        Renderer.updatePreflightPanel();
+                        return;
+                    }
                     if (action === 'edit') {
                         openEditModalForTarget('math', targetMath);
                         return;
@@ -1714,6 +1845,21 @@ export const Events = {
                     closeElementMenu();
                     return;
                 }
+                if (action === 'toggle-rendering') {
+                    const token = buildEditToken(activeElement.kind, target);
+                    if (!token) {
+                        Utils.showToast('렌더링 해제할 내용이 없습니다.', 'info');
+                        return;
+                    }
+                    replaceWithRawEditWrapper(target, token);
+                    if (wrapId) Renderer.syncBlock(wrapId, true);
+                    if (/\[개념빈칸[:_]/.test(token)) {
+                        await Renderer.updateConceptBlankSummary({ changedBlockId: wrapId || null });
+                    }
+                    Renderer.updatePreflightPanel();
+                    closeElementMenu();
+                    return;
+                }
                 if (action === 'edit') {
                     openEditModalForTarget(activeElement.kind, target);
                     closeElementMenu();
@@ -1770,6 +1916,14 @@ export const Events = {
         document.addEventListener('dblclick', (e) => {
             if (!State.renderingEnabled) return;
             if (e.target.closest('#math-menu') || e.target.closest('#element-menu')) return;
+            const answerItem = e.target.closest('.concept-answer-item');
+            if (answerItem) {
+                closeMathMenu();
+                closeElementMenu();
+                openConceptAnswerEdit(answerItem);
+                e.preventDefault(); e.stopPropagation();
+                return;
+            }
             const mjx = findMathTargetFromEvent(e);
             if (mjx) {
                 closeElementMenu();

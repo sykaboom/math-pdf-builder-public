@@ -39,16 +39,28 @@ export const Utils = {
         return div.innerHTML;
     },
 
-    cleanRichContentToTex(htmlContent) {
+    cleanRichContentToTex(htmlContent, options = {}) {
+        const { preserveRawEdit = false } = options;
         const div = document.createElement('div');
         div.innerHTML = htmlContent;
-        div.querySelectorAll('.raw-edit').forEach(wrapper => {
-            const frag = document.createDocumentFragment();
-            Array.from(wrapper.childNodes).forEach(node => {
-                frag.appendChild(node.cloneNode(true));
+        const rawEdits = [];
+        if (preserveRawEdit) {
+            div.querySelectorAll('.raw-edit').forEach((wrapper, idx) => {
+                const id = String(idx);
+                rawEdits.push({ id, html: wrapper.outerHTML });
+                const placeholder = document.createElement('span');
+                placeholder.dataset.rawPlaceholder = id;
+                wrapper.replaceWith(placeholder);
             });
-            wrapper.replaceWith(frag);
-        });
+        } else {
+            div.querySelectorAll('.raw-edit').forEach(wrapper => {
+                const frag = document.createDocumentFragment();
+                Array.from(wrapper.childNodes).forEach(node => {
+                    frag.appendChild(node.cloneNode(true));
+                });
+                wrapper.replaceWith(frag);
+            });
+        }
         div.querySelectorAll('.box-content, .rect-box-content, .box-label').forEach(el => {
             el.removeAttribute('contenteditable');
         });
@@ -126,7 +138,22 @@ export const Utils = {
             if (current) current.replaceWith(table);
         });
         Utils.normalizeMathTextNodes(div);
+        if (preserveRawEdit && rawEdits.length) {
+            rawEdits.forEach(({ id, html }) => {
+                const placeholder = div.querySelector(`span[data-raw-placeholder="${id}"]`);
+                if (!placeholder) return;
+                const container = document.createElement('div');
+                container.innerHTML = html;
+                const restored = container.firstChild;
+                if (restored) placeholder.replaceWith(restored);
+                else placeholder.remove();
+            });
+        }
         return div.innerHTML;
+    },
+
+    cleanRichContentToTexPreserveRaw(htmlContent = '') {
+        return Utils.cleanRichContentToTex(htmlContent, { preserveRawEdit: true });
     },
 
     sanitizeHtml(htmlContent = '') {

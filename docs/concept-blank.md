@@ -22,3 +22,4 @@ This document describes how concept blank tokens are parsed, rendered, and cance
 
 ## Notes
 - If a single math expression contains multiple concept blanks, "빈칸 취소" clears all of them in that expression (concept blank set behavior).
+- Double-clicking an item in the concept answer block opens a modal to edit the answer, and updates the linked token.

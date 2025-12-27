@@ -451,7 +451,7 @@ export const createTableEditor = (options = {}) => {
         if (!wrap) return;
         const box = wrap.querySelector('.editable-box');
         if (!box) return;
-        Actions.updateBlockContent(wrap.dataset.id, Utils.cleanRichContentToTex(box.innerHTML), true);
+        Actions.updateBlockContent(wrap.dataset.id, Utils.cleanRichContentToTexPreserveRaw(box.innerHTML), true);
         Renderer.debouncedRebalance();
     };
 
@@ -578,7 +578,7 @@ export const createTableEditor = (options = {}) => {
         if (!wrap) return;
         const box = wrap.querySelector('.editable-box');
         if (!box) return;
-        Actions.updateBlockContent(wrap.dataset.id, Utils.cleanRichContentToTex(box.innerHTML), true);
+        Actions.updateBlockContent(wrap.dataset.id, Utils.cleanRichContentToTexPreserveRaw(box.innerHTML), true);
         Renderer.debouncedRebalance();
     };
 
@@ -811,7 +811,7 @@ export const createTableEditor = (options = {}) => {
             const wrap = table.closest('.block-wrapper');
             if (wrap) {
                 const box = wrap.querySelector('.editable-box');
-                if (box) Actions.updateBlockContent(wrap.dataset.id, Utils.cleanRichContentToTex(box.innerHTML), true);
+                if (box) Actions.updateBlockContent(wrap.dataset.id, Utils.cleanRichContentToTexPreserveRaw(box.innerHTML), true);
                 Renderer.debouncedRebalance();
             }
             return;

@@ -312,7 +312,7 @@ export const Renderer = {
             
             if (!isReadOnly) {
                 box.addEventListener('blur', async () => {
-                    const cleaned = Utils.cleanRichContentToTex(box.innerHTML);
+                    const cleaned = Utils.cleanRichContentToTexPreserveRaw(box.innerHTML);
                     if (cleaned === block.content) return;
 
                     Actions.updateBlockContent(block.id, cleaned, true);
@@ -347,7 +347,7 @@ export const Renderer = {
                     this.updatePreflightPanel();
                 });
                 box.oninput=(e)=>{ 
-                    const cleanHTML = Utils.cleanRichContentToTex(box.innerHTML); 
+                    const cleanHTML = Utils.cleanRichContentToTexPreserveRaw(box.innerHTML); 
                     Actions.updateBlockContent(block.id, cleanHTML, false);
                     const inputType = e && e.inputType ? e.inputType : '';
                     const isDelete = typeof inputType === 'string' && inputType.startsWith('delete');
@@ -701,7 +701,7 @@ export const Renderer = {
     syncBlock(id, recordHistory = false) {
         const wrap = document.querySelector(`.block-wrapper[data-id="${id}"]`); if (!wrap) return;
         const box = wrap.querySelector('.editable-box');
-        if (box) Actions.updateBlockContent(id, Utils.cleanRichContentToTex(box.innerHTML), recordHistory);
+        if (box) Actions.updateBlockContent(id, Utils.cleanRichContentToTexPreserveRaw(box.innerHTML), recordHistory);
     },
 
     syncAllBlocks() { 
@@ -711,7 +711,7 @@ export const Renderer = {
             const block = State.docData.blocks.find(b => b.id === id);
             if(block) {
                 const box = wrap.querySelector('.editable-box');
-                if(box) block.content = Utils.cleanRichContentToTex(box.innerHTML);
+                if(box) block.content = Utils.cleanRichContentToTexPreserveRaw(box.innerHTML);
                 newBlocks.push(block);
             }
         });
