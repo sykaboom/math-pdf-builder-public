@@ -1,6 +1,6 @@
 // Filename: js/utils.js
 import { choiceLayoutGrid, normalizeChoiceLayout, getChoiceLayoutGrid, getChoiceColumnCount } from './choice-layout.js';
-import { normalizeLlmOutput, protectMathEnvironments } from './math-logic.js';
+import { normalizeLlmOutput, protectMathEnvironments, normalizeMathTex } from './math-logic.js';
 import { escapeTokenValue, serializeEditorTable, serializeChoiceTable } from './table-serialize.js';
 export const Utils = {
     preservedClasses: ['custom-box', 'labeled-box', 'simple-box', 'box-label', 'box-content', 'rect-box', 'rect-box-content'],
@@ -72,8 +72,11 @@ export const Utils = {
         });
         div.querySelectorAll('mjx-container').forEach(mjx => {
             const tex = mjx.getAttribute('data-tex');
-            const isDisplay = mjx.getAttribute('display') === 'true'; 
-            if (tex) mjx.replaceWith(document.createTextNode(isDisplay ? `$$${tex}$$` : `$${tex}$`));
+            const isDisplay = mjx.getAttribute('display') === 'true';
+            if (tex) {
+                const normalizedTex = normalizeMathTex(tex);
+                mjx.replaceWith(document.createTextNode(isDisplay ? `$$${normalizedTex}$$` : `$${normalizedTex}$`));
+            }
         });
         const decodeHtml = (value = '') => {
             const tmp = document.createElement('div');

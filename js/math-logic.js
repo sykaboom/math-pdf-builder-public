@@ -1,4 +1,6 @@
 // Filename: js/math-logic.js
+import { applyMathDisplayRules } from './math-tokenize.js';
+
 export const protectMathEnvironments = (rawInput = '') => {
     let text = String(rawInput || '');
     const envs = ['matrix', 'pmatrix', 'bmatrix', 'vmatrix', 'Vmatrix', 'array', 'aligned', 'align', 'cases'];
@@ -33,6 +35,22 @@ export const protectMathEnvironments = (rawInput = '') => {
     return result;
 };
 
+export const normalizeMathTex = (tex = '') => {
+    if (!tex) return tex;
+    return applyMathDisplayRules(String(tex));
+};
+
+export const normalizeMathInText = (value = '') => {
+    const text = String(value || '');
+    const mathRegex = /(\$\$[\s\S]+?\$\$|\$[\s\S]+?\$)/g;
+    return text.replace(mathRegex, (match) => {
+        const isDisplay = match.startsWith('$$');
+        const body = isDisplay ? match.slice(2, -2) : match.slice(1, -1);
+        const normalized = normalizeMathTex(body);
+        return isDisplay ? `$$${normalized}$$` : `$${normalized}$`;
+    });
+};
+
 export const normalizeLlmOutput = (rawInput = '') => {
     let text = String(rawInput || '').trim();
     const fenced = text.match(/^```[^\n]*\n([\s\S]*?)\n```$/);
@@ -42,6 +60,7 @@ export const normalizeLlmOutput = (rawInput = '') => {
     text = text.replace(/\$\$([\s\S]*?)\$\$/g, (match, body) => `$${body}$`);
     text = text.replace(/\\cdot(?:\s*\\cdot){2}/g, '\\cdots');
     text = protectMathEnvironments(text);
+    text = normalizeMathInText(text);
     text = text.replace(/\[선지_([^\]]+)\]\s*:?\s*/g, (match, layout) => {
         const normalized = String(layout || '').trim();
         if (normalized === '1행' || normalized === '2행' || normalized === '5행') return match;
