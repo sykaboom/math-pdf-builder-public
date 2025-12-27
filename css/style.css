@@ -154,6 +154,7 @@ body.modal-open .modal-content * { user-select: text; -webkit-user-select: text;
 .editable-box:focus { box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.35); border-radius: 4px; }
 .editable-box:empty::before { content: attr(data-placeholder); color: #999; font-family: 'Noto Sans KR', sans-serif; pointer-events: none; }
 .editable-box:focus:empty::before { color: #bbb; }
+body.rendering-off .editable-box { white-space: pre-wrap; }
 .editable-box.bordered-box { border: 1px solid #333; padding: 8px 10px; border-radius: 6px; background: #fff; }
 .editable-box img { max-width: 100%; cursor: pointer; } 
 .editable-box img[src=""]::before { content: '❌ 이미지 없음'; color: red; border: 1px dashed red; padding: 10px; display: block; }

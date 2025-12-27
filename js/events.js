@@ -158,6 +158,9 @@ export const Events = {
     async toggleRenderingMode(forceState) {
         const next = (typeof forceState === 'boolean') ? forceState : !State.renderingEnabled;
         State.renderingEnabled = next;
+        if (document.body) {
+            document.body.classList.toggle('rendering-off', !next);
+        }
         if (next) {
             State.docData.blocks.forEach(block => {
                 if (typeof block.content !== 'string' || !block.content.includes('raw-edit')) return;
@@ -174,9 +177,10 @@ export const Events = {
                     Utils.replaceTablesWithTokensInDom(box);
                     Utils.replaceBlockBoxesWithTokensInDom(box);
                     const cleaned = Utils.cleanRichContentToTex(box.innerHTML);
-                    box.innerHTML = cleaned;
+                    const formatted = Utils.formatMathForEditing(cleaned);
+                    box.innerHTML = formatted;
                     const wrap = box.closest('.block-wrapper');
-                    if (wrap) Actions.updateBlockContent(wrap.dataset.id, cleaned, false);
+                    if (wrap) Actions.updateBlockContent(wrap.dataset.id, formatted, false);
                 });
                 State.saveHistory();
             }

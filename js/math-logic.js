@@ -53,6 +53,33 @@ export const normalizeMathInText = (value = '') => {
     });
 };
 
+export const formatMathForEditing = (value = '') => {
+    const text = String(value || '');
+    const envs = ['cases', 'aligned', 'align', 'array', 'matrix', 'pmatrix', 'bmatrix', 'vmatrix', 'Vmatrix'];
+    const envPattern = `(?:${envs.join('|')})`;
+    const envRegex = new RegExp(`\\\\begin\\{(${envPattern})\\}[\\s\\S]*?\\\\end\\{\\1\\}`, 'g');
+    const formatEnvBlock = (block) => {
+        let next = block;
+        next = next.replace(/\\begin\{([^\}]+)\}(?!\s*\n)/g, (match) => `${match}\n`);
+        next = next.replace(/\\end\{([^\}]+)\}/g, (match, name, offset, full) => {
+            if (offset > 0 && full[offset - 1] === '\n') return match;
+            return `\n${match}`;
+        });
+        next = next.replace(/\\\\(\s*\[[^\]]*?\])?(?!\n)/g, (match) => `${match}\n`);
+        next = next.replace(/\\&|[ \t]*&[ \t]*/g, (match) => (match === '\\&' ? match : ' & '));
+        next = next.replace(/[ \t]+\n/g, '\n');
+        return next;
+    };
+    const formatMathBody = (body) => body.replace(envRegex, formatEnvBlock);
+    const mathRegex = /(\$\$[\s\S]+?\$\$|\$[\s\S]+?\$)/g;
+    return text.replace(mathRegex, (match) => {
+        const isDisplay = match.startsWith('$$');
+        const body = isDisplay ? match.slice(2, -2) : match.slice(1, -1);
+        const formatted = formatMathBody(body);
+        return isDisplay ? `$$${formatted}$$` : `$${formatted}$`;
+    });
+};
+
 export const normalizeLlmOutput = (rawInput = '') => {
     let text = String(rawInput || '').trim();
     const fenced = text.match(/^```[^\n]*\n([\s\S]*?)\n```$/);

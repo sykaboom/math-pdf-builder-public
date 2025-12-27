@@ -1,6 +1,6 @@
 // Filename: js/utils.js
 import { choiceLayoutGrid, normalizeChoiceLayout, getChoiceLayoutGrid, getChoiceColumnCount } from './choice-layout.js';
-import { normalizeLlmOutput, protectMathEnvironments, normalizeMathTex, normalizeMathInText } from './math-logic.js';
+import { normalizeLlmOutput, protectMathEnvironments, normalizeMathTex, normalizeMathInText, formatMathForEditing } from './math-logic.js';
 import { escapeTokenValue, serializeEditorTable, serializeChoiceTable } from './table-serialize.js';
 export const Utils = {
     preservedClasses: ['custom-box', 'labeled-box', 'simple-box', 'box-label', 'box-content', 'rect-box', 'rect-box-content'],
@@ -49,6 +49,9 @@ export const Utils = {
         div.innerHTML = String(htmlContent || '');
         Utils.normalizeMathTextNodes(div);
         return div.innerHTML;
+    },
+    formatMathForEditing(value = '') {
+        return formatMathForEditing(value);
     },
 
     cleanRichContentToTex(htmlContent, options = {}) {
