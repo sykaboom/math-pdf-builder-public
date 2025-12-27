@@ -113,7 +113,7 @@ export const normalizeSettings = (rawSettings) => {
 };
 
 export const normalizeBlock = (rawBlock, index, usedIds, options = {}) => {
-    const opts = { sanitize: false, sanitizeHtml: null, ...options };
+    const opts = { sanitize: false, sanitizeHtml: null, normalizeMathHtml: null, ...options };
     const block = isPlainObject(rawBlock) ? { ...rawBlock } : {};
     let id = typeof block.id === 'string' ? block.id.trim() : '';
     if (!id || usedIds.has(id)) {
@@ -127,6 +127,9 @@ export const normalizeBlock = (rawBlock, index, usedIds, options = {}) => {
     if (typeof block.content !== 'string') block.content = '';
     if (opts.sanitize && typeof opts.sanitizeHtml === 'function') {
         block.content = opts.sanitizeHtml(block.content);
+    }
+    if (typeof opts.normalizeMathHtml === 'function') {
+        block.content = opts.normalizeMathHtml(block.content);
     }
 
     if (block.type === 'spacer') {

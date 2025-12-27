@@ -1,6 +1,6 @@
 // Filename: js/utils.js
 import { choiceLayoutGrid, normalizeChoiceLayout, getChoiceLayoutGrid, getChoiceColumnCount } from './choice-layout.js';
-import { normalizeLlmOutput, protectMathEnvironments, normalizeMathTex } from './math-logic.js';
+import { normalizeLlmOutput, protectMathEnvironments, normalizeMathTex, normalizeMathInText } from './math-logic.js';
 import { escapeTokenValue, serializeEditorTable, serializeChoiceTable } from './table-serialize.js';
 export const Utils = {
     preservedClasses: ['custom-box', 'labeled-box', 'simple-box', 'box-label', 'box-content', 'rect-box', 'rect-box-content'],
@@ -17,6 +17,26 @@ export const Utils = {
             clearTimeout(timeout);
             timeout = setTimeout(() => func.apply(context, args), wait);
         };
+    },
+
+    normalizeMathTextNodes(root) {
+        if (!root) return;
+        const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null, false);
+        const nodes = [];
+        while (walker.nextNode()) nodes.push(walker.currentNode);
+        nodes.forEach(node => {
+            const raw = node.nodeValue;
+            if (!raw || raw.indexOf('$') === -1) return;
+            const normalized = normalizeMathInText(raw);
+            if (normalized !== raw) node.nodeValue = normalized;
+        });
+    },
+
+    normalizeMathHtml(htmlContent = '') {
+        const div = document.createElement('div');
+        div.innerHTML = String(htmlContent || '');
+        Utils.normalizeMathTextNodes(div);
+        return div.innerHTML;
     },
 
     cleanRichContentToTex(htmlContent) {
@@ -105,6 +125,7 @@ export const Utils = {
             const current = div.querySelector(`span[data-table-placeholder="${idx}"]`);
             if (current) current.replaceWith(table);
         });
+        Utils.normalizeMathTextNodes(div);
         return div.innerHTML;
     },
 

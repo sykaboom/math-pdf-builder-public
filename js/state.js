@@ -17,17 +17,20 @@ import {
 
 const normalizeBlocks = (rawBlocks, options = {}) => normalizeBlocksCore(rawBlocks, {
     ...options,
-    sanitizeHtml: Utils.sanitizeHtml
+    sanitizeHtml: Utils.sanitizeHtml,
+    normalizeMathHtml: Utils.normalizeMathHtml
 });
 
 const normalizeDocData = (raw, options = {}) => normalizeDocDataCore(raw, {
     ...options,
-    sanitizeHtml: Utils.sanitizeHtml
+    sanitizeHtml: Utils.sanitizeHtml,
+    normalizeMathHtml: Utils.normalizeMathHtml
 });
 
 const normalizeProjectData = (raw, options = {}) => normalizeProjectDataCore(raw, {
     ...options,
-    sanitizeHtml: Utils.sanitizeHtml
+    sanitizeHtml: Utils.sanitizeHtml,
+    normalizeMathHtml: Utils.normalizeMathHtml
 });
 
 const normalizeSettings = (rawSettings) => normalizeSettingsCore(rawSettings);
