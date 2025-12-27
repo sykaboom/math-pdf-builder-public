@@ -250,11 +250,15 @@ export const Events = {
         if (!path) return;
         const promptName = (btn && btn.dataset ? btn.dataset.promptName : '') || '';
         const promptDate = (btn && btn.dataset ? btn.dataset.promptDate : '') || '';
+        const promptIndex = (btn && btn.dataset ? btn.dataset.promptIndex : '') || '';
         const fallbackName = path.split('/').pop() || 'prompt.txt';
         const baseName = promptName || fallbackName.replace(/\.txt$/i, '');
         const cleanedBaseName = baseName.replace(/\s*다운로드\s*/g, ' ').replace(/\s+/g, ' ').trim();
         const safeBaseName = cleanedBaseName || baseName;
-        const filename = promptDate ? `${safeBaseName} (${promptDate}).txt` : `${safeBaseName}.txt`;
+        const hasPrefix = /^\[\d+\]\s+/.test(safeBaseName);
+        const prefix = promptIndex ? `[${promptIndex}] ` : '';
+        const numberedBaseName = hasPrefix ? safeBaseName : `${prefix}${safeBaseName}`.trim();
+        const filename = promptDate ? `${numberedBaseName} (${promptDate}).txt` : `${numberedBaseName}.txt`;
         const triggerDownload = (url, useNewTab = false) => {
             const link = document.createElement('a');
             link.href = url;
@@ -964,8 +968,9 @@ export const Events = {
             let labelText = '';
             const labelEl = customBox.querySelector('.box-label');
             if (labelEl) labelText = labelEl.textContent.replace(/[<>]/g, '').trim();
+            const normalizedLabel = Utils.normalizeBoxLabel(labelText);
             const bodyText = extractBoxBodyText(customBox.querySelector('.box-content'));
-            const startToken = labelText ? `[블록박스_${labelText}]` : `[블록박스_]`;
+            const startToken = normalizedLabel.text ? `[블록박스_${normalizedLabel.text}]` : `[블록박스_]`;
             const endToken = '[/블록박스]';
             return {
                 text: buildBoxTokenText(startToken, bodyText, endToken),

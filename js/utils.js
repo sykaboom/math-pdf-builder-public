@@ -6,6 +6,18 @@ export const Utils = {
     preservedClasses: ['custom-box', 'labeled-box', 'simple-box', 'box-label', 'box-content', 'rect-box', 'rect-box-content'],
     choiceLabels: ['①', '②', '③', '④', '⑤'],
     confirmResolver: null,
+    normalizeBoxLabel(rawLabel = '') {
+        const trimmed = String(rawLabel || '').replace(/\s+/g, ' ').trim();
+        if (!trimmed) return { text: '', compact: '', isViewLabel: false };
+        const compact = trimmed.replace(/\s+/g, '');
+        if (compact === '보기') {
+            return { text: '보 기', compact, isViewLabel: true };
+        }
+        if (compact === '조건') {
+            return { text: '조 건', compact, isViewLabel: false };
+        }
+        return { text: trimmed, compact, isViewLabel: false };
+    },
     choiceLayoutGrid,
     normalizeChoiceLayout,
     getChoiceLayoutGrid,
@@ -260,9 +272,10 @@ export const Utils = {
         Array.from(root.querySelectorAll('.custom-box')).forEach(customBox => {
             const labelEl = customBox.querySelector('.box-label');
             const labelText = labelEl ? labelEl.textContent.replace(/[<>]/g, '').trim() : '';
+            const normalizedLabel = Utils.normalizeBoxLabel(labelText);
             const contentEl = customBox.querySelector('.box-content');
             const bodyText = getBodyText(contentEl);
-            const startToken = labelText ? `[블록박스_${labelText}]` : '[블록박스_]';
+            const startToken = normalizedLabel.text ? `[블록박스_${normalizedLabel.text}]` : '[블록박스_]';
             const frag = buildTokenFragment(startToken, '[/블록박스]', bodyText);
             customBox.replaceWith(frag);
         });

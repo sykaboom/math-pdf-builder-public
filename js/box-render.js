@@ -1,17 +1,18 @@
 // Filename: js/box-render.js
+import { Utils } from './utils.js';
+
 export const buildBoxHtml = (label, bodyHtml) => {
     let body = (bodyHtml || '').trim();
     body = body.replace(/^(<br\s*\/?>)+/gi, '').replace(/(<br\s*\/?>)+$/gi, '');
     body = body.replace(/\n/g, '<br>');
-    if (label) {
-        const rawLabel = (label || '').trim();
-        const safeLabel = rawLabel
+    const normalizedLabel = Utils.normalizeBoxLabel(label);
+    if (normalizedLabel.text) {
+        const safeLabel = normalizedLabel.text
             .replace(/&/g, '&amp;')
             .replace(/</g, '&lt;')
             .replace(/>/g, '&gt;')
             .replace(/"/g, '&quot;');
-        const isViewLabel = rawLabel === '보기';
-        const labelHtml = isViewLabel
+        const labelHtml = normalizedLabel.isViewLabel
             ? `<div class="box-label view-label" contenteditable="false">${safeLabel}</div>`
             : `<div class="box-label" contenteditable="false">${safeLabel}</div>`;
         return `<div class="custom-box labeled-box" contenteditable="false">${labelHtml}<div class="box-content" contenteditable="true">${body}</div></div>`;

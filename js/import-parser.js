@@ -1,6 +1,7 @@
 // Filename: js/import-parser.js
 import { parseChoiceData, parseTableCellData } from './table-parse.js';
 import { buildChoiceTableElement, buildEditorTableElement } from './table-elements.js';
+import { Utils } from './utils.js';
 
 const HEADER_TOKENS = [
     { token: '머릿말_과정', key: 'title' },
@@ -76,12 +77,11 @@ export const ImportParser = {
 
             const renderBox = (label, body) => {
                 const bodyText = (body || '').trim().replace(/\n/g, '<br>');
-                const safeLabel = (label || '').trim();
-                if (safeLabel) {
-                    const isViewLabel = safeLabel === '보기';
-                    const labelHtml = isViewLabel
-                        ? `<div class="box-label view-label" contenteditable="false">${safeLabel}</div>`
-                        : `<div class="box-label" contenteditable="false">${safeLabel}</div>`;
+                const normalizedLabel = Utils.normalizeBoxLabel(label);
+                if (normalizedLabel.text) {
+                    const labelHtml = normalizedLabel.isViewLabel
+                        ? `<div class="box-label view-label" contenteditable="false">${normalizedLabel.text}</div>`
+                        : `<div class="box-label" contenteditable="false">${normalizedLabel.text}</div>`;
                     return `<div class="custom-box labeled-box" contenteditable="false">${labelHtml}<div class="box-content" contenteditable="true">${bodyText}</div></div>`;
                 }
                 return `<div class="custom-box simple-box" contenteditable="false"><div class="box-content" contenteditable="true">${bodyText}</div></div>`;
