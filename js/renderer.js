@@ -312,10 +312,15 @@ export const Renderer = {
             
             if (!isConceptAnswer) {
                 box.addEventListener('blur', async () => {
-                    const cleaned = Utils.cleanRichContentToTexPreserveRaw(box.innerHTML);
-                    if (cleaned === block.content) return;
+                    const hasRawEdit = !!box.querySelector('.raw-edit');
+                    const shouldStripRawEdit = hasRawEdit && State.renderingEnabled;
+                    const cleaned = shouldStripRawEdit
+                        ? Utils.cleanRichContentToTex(box.innerHTML)
+                        : Utils.cleanRichContentToTexPreserveRaw(box.innerHTML);
+                    const contentChanged = cleaned !== block.content;
+                    if (!contentChanged && !shouldStripRawEdit) return;
 
-                    Actions.updateBlockContent(block.id, cleaned, true);
+                    if (contentChanged) Actions.updateBlockContent(block.id, cleaned, true);
                     if (!State.renderingEnabled) {
                         this.debouncedRebalance();
                         this.updatePreflightPanel();
@@ -326,6 +331,8 @@ export const Renderer = {
                         this.updatePreflightPanel();
                         return;
                     }
+
+                    if (shouldStripRawEdit) box.innerHTML = cleaned;
 
                     const hasConceptBlank = /\[개념빈칸[:_]/.test(cleaned);
                     const needsTypeset = /\[빈칸[:_]/.test(cleaned)

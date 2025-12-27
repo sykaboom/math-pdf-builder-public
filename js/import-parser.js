@@ -108,6 +108,27 @@ export const ImportParser = {
                 span.textContent = '(#)';
                 return span.outerHTML;
             };
+            const replaceConceptBlanksOutsideMath = (input = '') => {
+                const mathRegex = /(\$\$[\s\S]+?\$\$|\$[\s\S]+?\$)/g;
+                const conceptRegex = /\[개념빈칸([:_])([^\]]*?)\]([\s\S]*?)\[\/개념빈칸\]/g;
+                const replaceConcept = (segment = '') => {
+                    return segment.replace(conceptRegex, (m, delim, label, body) => {
+                        const rawLabel = label !== undefined ? label : '#';
+                        return getConceptBlankPlaceholderHTML(rawLabel, body || '', delim);
+                    });
+                };
+                let output = '';
+                let lastIndex = 0;
+                mathRegex.lastIndex = 0;
+                let match;
+                while ((match = mathRegex.exec(input)) !== null) {
+                    output += replaceConcept(input.slice(lastIndex, match.index));
+                    output += match[0];
+                    lastIndex = mathRegex.lastIndex;
+                }
+                output += replaceConcept(input.slice(lastIndex));
+                return output;
+            };
 
             const convertBlockBoxes = (input) => {
                 const lines = input.split('\n');
@@ -203,10 +224,7 @@ export const ImportParser = {
                 const tag = style === '밑줄' ? 'u' : 'strong';
                 return `<${tag}>${body}</${tag}>`;
             });
-            content = content.replace(/\[개념빈칸([:_])([^\]]*?)\]([\s\S]*?)\[\/개념빈칸\]/g, (m, delim, label, body) => {
-                const rawLabel = label !== undefined ? label : '#';
-                return getConceptBlankPlaceholderHTML(rawLabel, body || '', delim);
-            });
+            content = replaceConceptBlanksOutsideMath(content);
             content = content.replace(/\[이미지\s*:\s*(.*?)\]/g, (m, label) => getEscapedImagePlaceholderHTML(label));
             content = content.replace(/\[빈칸([:_])(.*?)\]/g, (m, delim, label) => `<span class="blank-box" data-delim="${delim || ':'}" contenteditable="false">${label}</span>`);
             content = content.replace(/\n/g, '<br>');

@@ -35,9 +35,11 @@ export const protectMathEnvironments = (rawInput = '') => {
     return result;
 };
 
-export const normalizeMathTex = (tex = '') => {
+export const normalizeMathTex = (tex = '', options = {}) => {
     if (!tex) return tex;
-    return applyMathDisplayRules(String(tex));
+    const { applyDisplayRules = false } = options;
+    const normalized = String(tex);
+    return applyDisplayRules ? applyMathDisplayRules(normalized) : normalized;
 };
 
 export const normalizeMathInText = (value = '') => {
@@ -46,7 +48,7 @@ export const normalizeMathInText = (value = '') => {
     return text.replace(mathRegex, (match) => {
         const isDisplay = match.startsWith('$$');
         const body = isDisplay ? match.slice(2, -2) : match.slice(1, -1);
-        const normalized = normalizeMathTex(body);
+        const normalized = normalizeMathTex(body, { applyDisplayRules: false });
         return isDisplay ? `$$${normalized}$$` : `$${normalized}$`;
     });
 };

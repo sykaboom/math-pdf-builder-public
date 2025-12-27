@@ -1814,7 +1814,7 @@ export const Events = {
                             return;
                         }
                         const isDisplay = targetMath.getAttribute('display') === 'true';
-                        const normalizedTex = normalizeMathTex(tex);
+                        const normalizedTex = normalizeMathTex(tex, { applyDisplayRules: false });
                         const mathSource = isDisplay ? `$$${normalizedTex}$$` : `$${normalizedTex}$`;
                         replaceWithRawEditWrapper(targetMath, mathSource);
                         if (id) Renderer.syncBlock(id, true);

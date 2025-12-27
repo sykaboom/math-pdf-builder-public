@@ -118,7 +118,7 @@ export const Utils = {
             const tex = mjx.getAttribute('data-tex');
             const isDisplay = mjx.getAttribute('display') === 'true';
             if (tex) {
-                const normalizedTex = normalizeMathTex(tex);
+                const normalizedTex = normalizeMathTex(tex, { applyDisplayRules: false });
                 mjx.replaceWith(document.createTextNode(isDisplay ? `$$${normalizedTex}$$` : `$${normalizedTex}$`));
             }
         });
