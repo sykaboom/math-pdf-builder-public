@@ -43,7 +43,7 @@ export const normalizeMathTex = (tex = '', options = {}) => {
 };
 
 export const normalizeMathInText = (value = '') => {
-    const text = String(value || '');
+    const text = String(value || '').replace(/\\(?:displaystyle|textstyle|scriptstyle|scriptscriptstyle)\b\s*/g, '');
     const mathRegex = /(\$\$[\s\S]+?\$\$|\$[\s\S]+?\$)/g;
     return text.replace(mathRegex, (match) => {
         const isDisplay = match.startsWith('$$');
