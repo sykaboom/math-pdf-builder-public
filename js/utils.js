@@ -50,6 +50,14 @@ export const Utils = {
         Utils.normalizeMathTextNodes(div);
         return div.innerHTML;
     },
+    extractTextWithBreaks(htmlContent = '') {
+        const cleaned = Utils.cleanRichContentToTex(htmlContent);
+        const withBreaks = cleaned.replace(/<br\s*\/?>/gi, '\n');
+        const tmp = document.createElement('div');
+        tmp.innerHTML = withBreaks;
+        const text = (tmp.textContent || '').replace(/\u00A0/g, ' ').replace(/\r\n/g, '\n');
+        return text.replace(/^\n+/, '').replace(/\n+$/, '');
+    },
     formatMathForEditing(value = '') {
         return formatMathForEditing(value);
     },
@@ -266,10 +274,7 @@ export const Utils = {
 
         const getBodyText = (contentEl) => {
             if (!contentEl) return '';
-            const cleaned = Utils.cleanRichContentToTex(contentEl.innerHTML);
-            const tmp = document.createElement('div');
-            tmp.innerHTML = cleaned;
-            return (tmp.innerText || '').replace(/\u00A0/g, ' ').trim();
+            return Utils.extractTextWithBreaks(contentEl.innerHTML);
         };
 
         Array.from(root.querySelectorAll('.custom-box')).forEach(customBox => {

@@ -928,10 +928,7 @@ export const Events = {
         };
         const extractBoxBodyText = (contentEl) => {
             if (!contentEl) return '';
-            const cleaned = Utils.cleanRichContentToTex(contentEl.innerHTML);
-            const tmp = document.createElement('div');
-            tmp.innerHTML = cleaned;
-            return (tmp.innerText || '').replace(/\u00A0/g, ' ').trim();
+            return Utils.extractTextWithBreaks(contentEl.innerHTML);
         };
         const buildBoxTokenFragment = (startToken, bodyText, endToken) => {
             const frag = document.createDocumentFragment();
