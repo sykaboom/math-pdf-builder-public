@@ -633,6 +633,70 @@ export const Events = {
         }
     },
 
+    extractConceptAnswerSeparators(box) {
+        if (!box) return null;
+        const items = Array.from(box.querySelectorAll('.concept-answer-item'));
+        if (!items.length) return null;
+        const label = box.querySelector('.q-label');
+        const encodeText = (value = '') => {
+            return String(value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;')
+                .replace(/\u00A0/g, '&nbsp;');
+        };
+        const serializeNodes = (start, end) => {
+            let html = '';
+            let node = start;
+            while (node && node !== end) {
+                if (node.nodeType === Node.TEXT_NODE) {
+                    html += encodeText(node.nodeValue || '');
+                } else if (node.nodeType === Node.ELEMENT_NODE) {
+                    const tag = node.tagName ? node.tagName.toLowerCase() : '';
+                    if (tag === 'br') {
+                        html += '<br>';
+                    } else if (tag === 'div' || tag === 'p') {
+                        const text = node.textContent || '';
+                        html += '<br>' + encodeText(text);
+                    } else {
+                        html += encodeText(node.textContent || '');
+                    }
+                }
+                node = node.nextSibling;
+            }
+            return html;
+        };
+        const firstItem = items[0];
+        const leadingStart = label ? label.nextSibling : box.firstChild;
+        const leading = serializeNodes(leadingStart, firstItem);
+        const between = [];
+        for (let i = 0; i < items.length - 1; i++) {
+            between.push(serializeNodes(items[i].nextSibling, items[i + 1]));
+        }
+        const trailing = serializeNodes(items[items.length - 1].nextSibling, null);
+        return { leading, between, trailing };
+    },
+
+    handleConceptAnswerInput(e, id, box, options = {}) {
+        const block = State.docData.blocks.find(item => item.id === id && item.derived === 'concept-answers');
+        if (!block || !box) return;
+        const separators = this.extractConceptAnswerSeparators(box);
+        if (!separators) return;
+        const prevHash = JSON.stringify(block.conceptAnswerSeparators || {});
+        const nextHash = JSON.stringify(separators);
+        const cleaned = Utils.cleanRichContentToTexPreserveRaw(box.innerHTML);
+        const contentChanged = cleaned !== block.content;
+        const separatorsChanged = prevHash !== nextHash;
+        if (!contentChanged && !separatorsChanged) return;
+        block.conceptAnswerSeparators = separators;
+        if (contentChanged) block.content = cleaned;
+        Renderer.debouncedRebalance();
+        const immediate = options && options.immediate === true;
+        State.saveHistory(immediate ? 0 : 500, { reason: 'concept-answer-layout', blockId: id, coalesceMs: 1500 });
+    },
+
     splitConceptAnswerBlock(id, box) {
         const block = State.docData.blocks.find(item => item.id === id && item.derived === 'concept-answers');
         if (!block || !box) return false;

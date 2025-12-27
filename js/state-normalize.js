@@ -159,6 +159,24 @@ export const normalizeBlock = (rawBlock, index, usedIds, options = {}) => {
         if (value === null) delete block.conceptAnswerAssigned;
         else block.conceptAnswerAssigned = value;
     }
+    if ('conceptAnswerSeparators' in block) {
+        if (!isPlainObject(block.conceptAnswerSeparators)) {
+            delete block.conceptAnswerSeparators;
+        } else {
+            const raw = block.conceptAnswerSeparators;
+            const next = {};
+            if (Object.prototype.hasOwnProperty.call(raw, 'leading') && typeof raw.leading === 'string') {
+                next.leading = raw.leading;
+            }
+            if (Object.prototype.hasOwnProperty.call(raw, 'trailing') && typeof raw.trailing === 'string') {
+                next.trailing = raw.trailing;
+            }
+            if (Array.isArray(raw.between)) {
+                next.between = raw.between.filter(value => typeof value === 'string');
+            }
+            block.conceptAnswerSeparators = next;
+        }
+    }
 
     if ('style' in block) {
         if (!isPlainObject(block.style)) {

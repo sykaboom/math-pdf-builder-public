@@ -285,9 +285,9 @@ export const Renderer = {
             if(block.type==='concept') box.classList.add('concept-box');
             if(block.bordered) box.classList.add('bordered-box');
             box.innerHTML=block.content;
-            const isReadOnly = isConceptDerived;
-            box.contentEditable = !isReadOnly;
-            if (isReadOnly) {
+            const isConceptAnswer = isConceptDerived;
+            box.contentEditable = true;
+            if (isConceptAnswer) {
                 box.classList.add('concept-answer-box');
                 box.tabIndex = 0;
                 if (block.conceptAnswerStart) box.dataset.answerStart = String(block.conceptAnswerStart);
@@ -298,7 +298,7 @@ export const Renderer = {
                 example: "내용 입력… (수식: $...$ / 줄바꿈: Shift+Enter)",
                 answer: "해설 입력… (수식: $...$ / 줄바꿈: Shift+Enter)"
             };
-            if (!isReadOnly) box.dataset.placeholder = placeholderMap[block.type] || placeholderMap.example;
+            if (!isConceptAnswer) box.dataset.placeholder = placeholderMap[block.type] || placeholderMap.example;
 
             const familyKey = block.fontFamily || State.settings.fontFamily || 'serif';
             const sizePt = block.fontSizePt || State.settings.fontSizePt || 10.5;
@@ -310,7 +310,7 @@ export const Renderer = {
             box.style.fontFamily = familyMap[familyKey] || familyMap.serif;
             box.style.fontSize = sizePt + 'pt';
             
-            if (!isReadOnly) {
+            if (!isConceptAnswer) {
                 box.addEventListener('blur', async () => {
                     const cleaned = Utils.cleanRichContentToTexPreserveRaw(box.innerHTML);
                     if (cleaned === block.content) return;
@@ -363,6 +363,8 @@ export const Renderer = {
             } else {
                 box.onkeydown = (e) => Events.handleConceptAnswerKeydown(e, block.id, box);
                 box.onmousedown = () => { box.focus(); };
+                box.addEventListener('input', (e) => Events.handleConceptAnswerInput(e, block.id, box));
+                box.addEventListener('blur', (e) => Events.handleConceptAnswerInput(e, block.id, box, { immediate: true }));
             }
             wrap.appendChild(box);
         }
@@ -441,21 +443,61 @@ export const Renderer = {
             if (normalized.includes('$')) return normalized;
             return `$${normalized}$`;
         };
-        const buildContent = (slice, startIndex, includeLabel) => {
+        const sanitizeSeparatorHtml = (value = '') => {
+            if (typeof value !== 'string' || !value) return '';
+            const container = document.createElement('div');
+            container.innerHTML = value;
+            const nodes = Array.from(container.querySelectorAll('*'));
+            nodes.forEach((node) => {
+                const tag = node.tagName ? node.tagName.toLowerCase() : '';
+                if (tag === 'br') return;
+                node.replaceWith(document.createTextNode(node.textContent || ''));
+            });
+            return container.innerHTML;
+        };
+        const buildSeparatorConfig = (block, itemCount, includeLabel) => {
+            const stored = block && typeof block === 'object' ? block.conceptAnswerSeparators : null;
+            const hasLeading = stored && Object.prototype.hasOwnProperty.call(stored, 'leading');
+            const hasTrailing = stored && Object.prototype.hasOwnProperty.call(stored, 'trailing');
+            const leadingDefault = includeLabel ? ' ' : '';
+            const leading = sanitizeSeparatorHtml(hasLeading ? stored.leading : leadingDefault);
+            const trailing = sanitizeSeparatorHtml(hasTrailing ? stored.trailing : '');
+            let between = Array.isArray(stored && stored.between)
+                ? stored.between.map(sanitizeSeparatorHtml)
+                : [];
+            const needed = Math.max(0, itemCount - 1);
+            if (between.length > needed) between = between.slice(0, needed);
+            if (between.length < needed) {
+                const fill = between.length ? between[between.length - 1] : '&nbsp;&nbsp;';
+                while (between.length < needed) between.push(fill);
+            }
+            const normalized = { leading, between, trailing };
+            if (block) block.conceptAnswerSeparators = normalized;
+            return normalized;
+        };
+        const buildContent = (slice, startIndex, includeLabel, block) => {
             const items = slice.map((answer, idx) => {
                 const index = startIndex + idx + 1;
                 const isMath = !!answersIsMath[index - 1];
                 const displayAnswer = wrapMathAnswer(answer, isMath);
                 const cleaned = escapeHtml(displayAnswer);
-                return `<span class="concept-answer-item" data-answer-index="${index}">(${index}) ${cleaned}</span>`;
+                return `<span class="concept-answer-item" data-answer-index="${index}" contenteditable="false">(${index}) ${cleaned}</span>`;
             });
-            const labelHtml = includeLabel ? `<span class="q-label">개념 빈칸 정답</span> ` : '';
-            return labelHtml + items.join('&nbsp;&nbsp;');
+            const separators = buildSeparatorConfig(block, items.length, includeLabel);
+            const labelHtml = includeLabel ? `<span class="q-label" contenteditable="false">개념 빈칸 정답</span>` : '';
+            let html = labelHtml;
+            html += separators.leading || '';
+            items.forEach((item, idx) => {
+                html += item;
+                if (idx < items.length - 1) html += separators.between[idx] || '&nbsp;&nbsp;';
+            });
+            html += separators.trailing || '';
+            return html;
         };
 
         if (conceptBlocks.length === 1) {
             const block = conceptBlocks[0];
-            const nextContent = buildContent(answers, 0, true);
+            const nextContent = buildContent(answers, 0, true, block);
             if (block.content !== nextContent) {
                 block.content = nextContent;
                 contentChanged = true;
@@ -510,7 +552,7 @@ export const Renderer = {
         }
         if (assignments.length === 1) {
             const onlyBlock = assignments[0].block;
-            const nextContent = buildContent(answers, 0, true);
+            const nextContent = buildContent(answers, 0, true, onlyBlock);
             if (onlyBlock.content !== nextContent) {
                 onlyBlock.content = nextContent;
                 contentChanged = true;
@@ -528,7 +570,7 @@ export const Renderer = {
         assignments.forEach((assignment, idx) => {
             const includeLabel = idx === 0;
             const slice = answers.slice(assignment.startIndex, assignment.startIndex + assignment.count);
-            const nextContent = buildContent(slice, assignment.startIndex, includeLabel);
+            const nextContent = buildContent(slice, assignment.startIndex, includeLabel, assignment.block);
             if (assignment.block.content !== nextContent) {
                 assignment.block.content = nextContent;
                 contentChanged = true;
