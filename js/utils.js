@@ -309,8 +309,19 @@ export const Utils = {
         textarea.remove();
         return ok;
     },
-    openModal(id) { document.getElementById(id).style.display = 'flex'; },
-    closeModal(id) { document.getElementById(id).style.display = 'none'; },
+    openModal(id) {
+        const modal = document.getElementById(id);
+        if (!modal) return;
+        modal.style.display = 'flex';
+        document.body.classList.add('modal-open');
+    },
+    closeModal(id) {
+        const modal = document.getElementById(id);
+        if (modal) modal.style.display = 'none';
+        const anyOpen = Array.from(document.querySelectorAll('.modal-overlay'))
+            .some((el) => window.getComputedStyle(el).display !== 'none');
+        if (!anyOpen) document.body.classList.remove('modal-open');
+    },
     confirmDialog(message) {
         const modal = document.getElementById('confirm-modal');
         const msgEl = document.getElementById('confirm-modal-message');
