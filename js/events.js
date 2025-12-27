@@ -158,9 +158,6 @@ export const Events = {
     async toggleRenderingMode(forceState) {
         const next = (typeof forceState === 'boolean') ? forceState : !State.renderingEnabled;
         State.renderingEnabled = next;
-        if (document.body) {
-            document.body.classList.toggle('rendering-off', !next);
-        }
         if (next) {
             State.docData.blocks.forEach(block => {
                 if (typeof block.content !== 'string' || !block.content.includes('raw-edit')) return;
@@ -177,10 +174,9 @@ export const Events = {
                     Utils.replaceTablesWithTokensInDom(box);
                     Utils.replaceBlockBoxesWithTokensInDom(box);
                     const cleaned = Utils.cleanRichContentToTex(box.innerHTML);
-                    const formatted = Utils.formatMathForEditing(cleaned);
-                    box.innerHTML = formatted;
+                    box.innerHTML = cleaned;
                     const wrap = box.closest('.block-wrapper');
-                    if (wrap) Actions.updateBlockContent(wrap.dataset.id, formatted, false);
+                    if (wrap) Actions.updateBlockContent(wrap.dataset.id, cleaned, false);
                 });
                 State.saveHistory();
             }
@@ -1060,10 +1056,13 @@ export const Events = {
             const selector = getElementSelector(kind);
             const index = getElementIndex(target, selector);
             const blockId = target.closest('.block-wrapper')?.dataset?.id || null;
-            const token = buildEditToken(kind, target);
+            let token = buildEditToken(kind, target);
             if (!token) {
                 Utils.showToast('편집할 내용을 찾지 못했습니다.', 'info');
                 return;
+            }
+            if (kind === 'math') {
+                token = Utils.formatMathForEditing(token);
             }
             activeEdit = { kind, blockId, selector, index, node: target };
             if (elementEditTitle) {
@@ -1172,7 +1171,10 @@ export const Events = {
                 activeEdit = null;
                 return;
             }
-            const frag = buildTokenFragmentFromLines(String(rawValue).split(/\r?\n/));
+            const valueForInsert = activeEdit.kind === 'math'
+                ? rawValue.replace(/\r?\n/g, ' ')
+                : rawValue;
+            const frag = buildTokenFragmentFromLines(String(valueForInsert).split(/\r?\n/));
             target.replaceWith(frag);
 
             const blockId = activeEdit.blockId;
@@ -1180,7 +1182,7 @@ export const Events = {
 
             const wrap = blockId ? document.querySelector(`.block-wrapper[data-id="${blockId}"]`) : null;
             const box = wrap ? wrap.querySelector('.editable-box') : null;
-            const needsConceptSync = /\[개념빈칸[:_]/.test(rawValue) || activeEdit.kind === 'concept-blank' || activeEdit.kind === 'math';
+            const needsConceptSync = /\[개념빈칸[:_]/.test(valueForInsert) || activeEdit.kind === 'concept-blank' || activeEdit.kind === 'math';
 
             if (State.renderingEnabled && box) {
                 if (needsConceptSync) {

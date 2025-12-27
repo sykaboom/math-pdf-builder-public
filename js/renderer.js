@@ -311,7 +311,7 @@ export const Renderer = {
             box.style.fontSize = sizePt + 'pt';
             
             if (!isConceptAnswer) {
-                box.addEventListener('blur', async () => {
+                const handleBlockExit = async () => {
                     const hasRawEdit = !!box.querySelector('.raw-edit');
                     const shouldStripRawEdit = hasRawEdit && State.renderingEnabled;
                     const cleaned = shouldStripRawEdit
@@ -352,6 +352,11 @@ export const Renderer = {
                     }
                     this.debouncedRebalance(); 
                     this.updatePreflightPanel();
+                };
+                box.addEventListener('focusout', async (e) => {
+                    if (box.contains(e.relatedTarget)) return;
+                    if (box.contains(document.activeElement)) return;
+                    await handleBlockExit();
                 });
                 box.oninput=(e)=>{ 
                     const cleanHTML = Utils.cleanRichContentToTexPreserveRaw(box.innerHTML); 
