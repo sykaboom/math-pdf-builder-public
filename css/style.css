@@ -7,7 +7,7 @@ body { margin: 0; padding: 0; height: 100vh; overflow: hidden; display: flex; fo
 :focus-visible { outline: 2px solid #007bff; outline-offset: 2px; }
 
 /* [수식 Atom 스타일] */
-mjx-container { display: inline-block !important; vertical-align: middle !important; margin: 0 2px; cursor: text; user-select: text; -webkit-user-select: text; color: inherit !important; }
+mjx-container { display: inline-block !important; vertical-align: baseline !important; margin: 0 2px; cursor: text; user-select: text; -webkit-user-select: text; color: inherit !important; }
 mjx-container[display="false"] { padding-right: 0.1em; }
 mjx-container svg { overflow: visible; }
 mjx-assistive-mml { display: none !important; }

@@ -40,7 +40,6 @@ export const normalizeLlmOutput = (rawInput = '') => {
     text = text.replace(/^\s*```[^\n]*\n?/gm, '').replace(/\n?\s*```[\s]*$/gm, '');
     text = text.replace(/\*\*([^*]+?)\*\*/g, '$1').replace(/\*\*/g, '');
     text = text.replace(/\$\$([\s\S]*?)\$\$/g, (match, body) => `$${body}$`);
-    text = text.replace(/\\frac/g, '\\dfrac');
     text = text.replace(/\\cdot(?:\s*\\cdot){2}/g, '\\cdots');
     text = protectMathEnvironments(text);
     text = text.replace(/\[선지_([^\]]+)\]\s*:?\s*/g, (match, layout) => {

@@ -3,7 +3,7 @@ import { State } from './state.js';
 import { Utils } from './utils.js';
 import { parseChoiceData, parseTableCellData } from './table-parse.js';
 import { buildChoiceTableElement, buildEditorTableElement } from './table-elements.js';
-import { decodeMathEntities, sanitizeMathTokens } from './math-tokenize.js';
+import { decodeMathEntities, sanitizeMathTokens, applyMathDisplayRules } from './math-tokenize.js';
 import { buildBoxHtml, buildRectBoxHtml, replaceBoxTokensInHtml } from './box-render.js';
 import { replaceTokensOutsideMath } from './token-replace.js';
 import { buildMathFragmentFromText } from './math-render.js';
@@ -169,6 +169,7 @@ export const ManualRenderer = {
             const fragment = await buildMathFragmentFromText(text, {
                 decodeMathEntities,
                 sanitizeMathTokens,
+                applyMathDisplayRules,
                 trackConceptBlanks,
                 getConceptBlankIndex: getConceptBlankIndexForMath,
                 mathCache: this.mathCache,

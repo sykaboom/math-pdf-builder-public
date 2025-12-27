@@ -51,6 +51,54 @@ export const sanitizeMathTokens = (tex, options = {}) => {
     return nextTex;
 };
 
+// Force displaystyle and upgrade fractions outside scripts for consistent sizing.
+export const applyMathDisplayRules = (tex) => {
+    if (!tex) return tex;
+    const needsDisplay = !/^\s*\\(?:displaystyle|textstyle|scriptstyle|scriptscriptstyle)\b/.test(tex);
+    let nextTex = needsDisplay ? `\\displaystyle ${tex}` : tex;
+    const replaceOutsideScripts = (input) => {
+        let out = '';
+        let i = 0;
+        let scriptDepth = 0;
+        while (i < input.length) {
+            const ch = input[i];
+            if ((ch === '_' || ch === '^') && i + 1 < input.length) {
+                out += ch;
+                i++;
+                scriptDepth++;
+                if (input[i] === '{') {
+                    out += '{';
+                    i++;
+                    let depth = 1;
+                    while (i < input.length && depth > 0) {
+                        const c = input[i];
+                        out += c;
+                        if (c === '{') depth++;
+                        else if (c === '}') depth--;
+                        i++;
+                    }
+                    scriptDepth = Math.max(0, scriptDepth - 1);
+                    continue;
+                }
+                out += input[i];
+                i++;
+                scriptDepth = Math.max(0, scriptDepth - 1);
+                continue;
+            }
+            if (scriptDepth === 0 && input.startsWith('\\frac', i)) {
+                out += '\\dfrac';
+                i += 5;
+                continue;
+            }
+            out += ch;
+            i++;
+        }
+        return out;
+    };
+    nextTex = replaceOutsideScripts(nextTex);
+    return nextTex;
+};
+
 /**
  * Strip concept blank tokens from math and keep only the raw answer text.
  * @param {string} tex

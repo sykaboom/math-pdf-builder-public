@@ -3,6 +3,7 @@ export const buildMathFragmentFromText = async (text, options = {}) => {
     const {
         decodeMathEntities,
         sanitizeMathTokens,
+        applyMathDisplayRules,
         trackConceptBlanks = true,
         getConceptBlankIndex,
         mathCache,
@@ -25,14 +26,17 @@ export const buildMathFragmentFromText = async (text, options = {}) => {
         const preparedTex = typeof sanitizeMathTokens === 'function'
             ? sanitizeMathTokens(decodedTex, { trackConceptBlanks, getConceptBlankIndex })
             : decodedTex;
-        const cacheKey = `${preparedTex}${isDisplay ? '_D' : '_I'}`;
+        const finalTex = typeof applyMathDisplayRules === 'function'
+            ? applyMathDisplayRules(preparedTex)
+            : preparedTex;
+        const cacheKey = `${finalTex}${isDisplay ? '_D' : '_I'}`;
         let mjxNode = null;
 
         if (mathCache && mathCache.has(cacheKey)) {
             mjxNode = mathCache.get(cacheKey).cloneNode(true);
         } else if (typeof tex2svgPromise === 'function') {
             try {
-                mjxNode = await tex2svgPromise(preparedTex, { display: isDisplay });
+                mjxNode = await tex2svgPromise(finalTex, { display: isDisplay });
                 if (mjxNode) {
                     mjxNode.setAttribute('data-tex', decodedTex);
                     mjxNode.setAttribute('display', isDisplay);
