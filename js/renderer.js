@@ -104,12 +104,30 @@ export const Renderer = {
         const height = Number.isFinite(toc.headerHeightMm) ? toc.headerHeightMm : 80;
         header.style.height = `${height}mm`;
 
+        const applyTocImageStyle = (img, style) => {
+            if (!img || !style) return;
+            const left = Number.isFinite(style.leftPct) ? style.leftPct : null;
+            const top = Number.isFinite(style.topPct) ? style.topPct : null;
+            const width = Number.isFinite(style.widthPct) ? style.widthPct : null;
+            const heightPct = Number.isFinite(style.heightPct) ? style.heightPct : null;
+            if ([left, top, width, heightPct].some(value => value === null)) return;
+            img.style.left = `${left}%`;
+            img.style.top = `${top}%`;
+            img.style.width = `${width}%`;
+            img.style.height = `${heightPct}%`;
+            img.style.right = 'auto';
+            img.style.bottom = 'auto';
+        };
+
         const headerImage = toc.headerImage;
         if (headerImage && (headerImage.src || headerImage.path)) {
             const img = document.createElement('img');
             img.className = 'toc-bg-image';
             img.src = headerImage.src || headerImage.path;
             if (headerImage.path) img.dataset.path = headerImage.path;
+            img.dataset.tocImageKey = 'headerImage';
+            img.draggable = false;
+            applyTocImageStyle(img, headerImage.style);
             header.appendChild(img);
         }
 
@@ -119,6 +137,9 @@ export const Renderer = {
             img.className = 'toc-overlay-image';
             img.src = overlayImage.src || overlayImage.path;
             if (overlayImage.path) img.dataset.path = overlayImage.path;
+            img.dataset.tocImageKey = 'headerOverlayImage';
+            img.draggable = false;
+            applyTocImageStyle(img, overlayImage.style);
             header.appendChild(img);
         }
 

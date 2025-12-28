@@ -89,6 +89,22 @@ const normalizeColor = (value, fallback) => {
     return fallback;
 };
 
+const normalizePercent = (value, min, max) => {
+    const num = toNumber(value);
+    if (num === null) return null;
+    return Math.min(max, Math.max(min, num));
+};
+
+const normalizeImageStyle = (rawStyle) => {
+    if (!isPlainObject(rawStyle)) return null;
+    const leftPct = normalizePercent(rawStyle.leftPct, -200, 200);
+    const topPct = normalizePercent(rawStyle.topPct, -200, 200);
+    const widthPct = normalizePercent(rawStyle.widthPct, 1, 300);
+    const heightPct = normalizePercent(rawStyle.heightPct, 1, 300);
+    if ([leftPct, topPct, widthPct, heightPct].some(value => value === null)) return null;
+    return { leftPct, topPct, widthPct, heightPct };
+};
+
 const normalizeTocItem = (rawItem) => {
     const item = isPlainObject(rawItem) ? { ...rawItem } : {};
     let id = typeof item.id === 'string' ? item.id.trim() : '';
@@ -105,8 +121,7 @@ const normalizeTocItem = (rawItem) => {
 export const normalizeToc = (rawToc) => {
     if (!isPlainObject(rawToc)) return null;
     const toc = { ...DEFAULT_TOC, ...rawToc };
-    const hasEnabled = Object.prototype.hasOwnProperty.call(rawToc, 'enabled');
-    toc.enabled = hasEnabled ? rawToc.enabled === true : true;
+    toc.enabled = rawToc.enabled === true;
     toc.title = typeof toc.title === 'string' ? toc.title : DEFAULT_TOC.title;
     toc.subtitle = typeof toc.subtitle === 'string' ? toc.subtitle : DEFAULT_TOC.subtitle;
     const height = toNumber(toc.headerHeightMm);
@@ -115,7 +130,11 @@ export const normalizeToc = (rawToc) => {
         if (!isPlainObject(rawImage)) return null;
         const src = typeof rawImage.src === 'string' ? rawImage.src : '';
         const path = typeof rawImage.path === 'string' ? rawImage.path : '';
-        return (src || path) ? { src, path } : null;
+        const style = normalizeImageStyle(rawImage.style);
+        if (!src && !path) return null;
+        const next = { src, path };
+        if (style) next.style = style;
+        return next;
     };
     toc.headerImage = normalizeImageRef(toc.headerImage);
     toc.headerOverlayImage = normalizeImageRef(toc.headerOverlayImage);

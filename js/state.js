@@ -49,6 +49,7 @@ export const State = {
     dragSrcId: null,
     selectedPlaceholder: null,
     selectedImage: null,
+    selectedImageContext: null,
     lastFocusId: null,
     lastEditableId: null,
     renderingEnabled: true,
