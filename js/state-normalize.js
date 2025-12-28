@@ -15,6 +15,22 @@ export const DEFAULT_TOC = {
     items: []
 };
 
+export const DEFAULT_CHAPTER_COVER = {
+    number: "01",
+    titleKo: "대단원 제목",
+    titleEn: "Chapter Title",
+    points: [
+        "정의(Definition): 핵심 개념 요약",
+        "그래프(Graph): 개념 시각화",
+        "접선(Tangent): 주요 성질 정리"
+    ],
+    parts: ["Part 1. 내용 입력", "Part 2. 내용 입력"]
+};
+
+export const DEFAULT_PAGE_PLAN = [
+    { id: 'pg_1', kind: 'content', columns: 2 }
+];
+
 export const DEFAULT_SETTINGS = {
     zoom: 1.0,
     columns: 2,
@@ -55,10 +71,24 @@ export const buildDefaultSettings = () => ({
 
 export const buildDefaultBlock = () => ({ ...DEFAULT_BLOCK });
 
+export const buildDefaultChapterCover = () => ({
+    id: `cc_${Date.now()}_${Math.random().toString(16).slice(2, 6)}`,
+    ...DEFAULT_CHAPTER_COVER,
+    points: [...DEFAULT_CHAPTER_COVER.points],
+    parts: [...DEFAULT_CHAPTER_COVER.parts]
+});
+
+export const buildDefaultPagePlan = () => DEFAULT_PAGE_PLAN.map((item, idx) => ({
+    ...item,
+    id: item.id || `pg_${Date.now()}_${idx}_${Math.random().toString(16).slice(2, 6)}`
+}));
+
 export const buildDefaultDocData = () => ({
     meta: buildDefaultDocMeta(),
     blocks: [buildDefaultBlock()],
-    toc: null
+    toc: null,
+    pagePlan: buildDefaultPagePlan(),
+    chapterCovers: []
 });
 
 export const isPlainObject = (value) => value && typeof value === 'object' && !Array.isArray(value);
@@ -105,6 +135,62 @@ const normalizeImageStyle = (rawStyle) => {
     const heightPct = normalizePercent(rawStyle.heightPct, 1, 300);
     if ([leftPct, topPct, widthPct, heightPct].some(value => value === null)) return null;
     return { leftPct, topPct, widthPct, heightPct };
+};
+
+const normalizeChapterCover = (rawCover) => {
+    const cover = isPlainObject(rawCover) ? { ...rawCover } : {};
+    let id = typeof cover.id === 'string' ? cover.id.trim() : '';
+    if (!id) id = `cc_${Date.now()}_${Math.random().toString(16).slice(2, 6)}`;
+    cover.id = id;
+    cover.number = typeof cover.number === 'string' ? cover.number : DEFAULT_CHAPTER_COVER.number;
+    cover.titleKo = typeof cover.titleKo === 'string' ? cover.titleKo : DEFAULT_CHAPTER_COVER.titleKo;
+    cover.titleEn = typeof cover.titleEn === 'string' ? cover.titleEn : DEFAULT_CHAPTER_COVER.titleEn;
+    cover.points = Array.isArray(cover.points)
+        ? cover.points.filter(value => typeof value === 'string')
+        : [...DEFAULT_CHAPTER_COVER.points];
+    cover.parts = Array.isArray(cover.parts)
+        ? cover.parts.filter(value => typeof value === 'string')
+        : [...DEFAULT_CHAPTER_COVER.parts];
+    return cover;
+};
+
+const normalizeChapterCovers = (rawCovers) => {
+    if (!Array.isArray(rawCovers)) return [];
+    return rawCovers.map(normalizeChapterCover);
+};
+
+const normalizePagePlan = (rawPlan, covers) => {
+    const plan = Array.isArray(rawPlan) ? rawPlan : [];
+    const normalized = [];
+    const coverMap = new Map((covers || []).map(cover => [cover.id, cover]));
+    const ensureCover = (coverId) => {
+        let id = typeof coverId === 'string' ? coverId : '';
+        if (id && coverMap.has(id)) return id;
+        const newCover = buildDefaultChapterCover();
+        coverMap.set(newCover.id, newCover);
+        covers.push(newCover);
+        return newCover.id;
+    };
+    plan.forEach((rawItem, index) => {
+        const item = isPlainObject(rawItem) ? { ...rawItem } : {};
+        let id = typeof item.id === 'string' ? item.id.trim() : '';
+        if (!id) id = `pg_${Date.now()}_${index}_${Math.random().toString(16).slice(2, 6)}`;
+        const kind = typeof item.kind === 'string' ? item.kind : 'content';
+        const normalizedKind = ['content', 'toc', 'chapter-cover', 'blank'].includes(kind) ? kind : 'content';
+        const entry = { id, kind: normalizedKind };
+        if (normalizedKind === 'content') {
+            const columns = toNumber(item.columns);
+            entry.columns = columns === 1 ? 1 : 2;
+        }
+        if (normalizedKind === 'chapter-cover') {
+            entry.coverId = ensureCover(item.coverId);
+        }
+        normalized.push(entry);
+    });
+    if (!normalized.length) {
+        normalized.push({ id: `pg_${Date.now()}_${Math.random().toString(16).slice(2, 6)}`, kind: 'content', columns: 2 });
+    }
+    return normalized;
 };
 
 const normalizeTocItem = (rawItem) => {
@@ -308,6 +394,9 @@ export const normalizeDocData = (raw, options = {}) => {
     normalized.meta = normalizeDocMeta(base.meta);
     normalized.blocks = normalizeBlocks(base.blocks, opts);
     normalized.toc = normalizeToc(base.toc);
+    const chapterCovers = normalizeChapterCovers(base.chapterCovers);
+    normalized.chapterCovers = chapterCovers;
+    normalized.pagePlan = normalizePagePlan(base.pagePlan, chapterCovers);
     return normalized;
 };
 

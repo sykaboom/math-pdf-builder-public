@@ -4,6 +4,7 @@ import { Actions } from './actions.js';
 import { ManualRenderer } from './services.js';
 import { Utils } from './utils.js';
 import { Events } from './events.js';
+import { buildDefaultChapterCover, buildDefaultToc } from './state-normalize.js';
 
 export const Renderer = {
     conceptBlankSyncing: false,
@@ -45,7 +46,9 @@ export const Renderer = {
         return [pageEl.querySelector('.column.left'), pageEl.querySelector('.column.right')];
     },
 
-    createPage(num) {
+    createPage(num, options = {}) {
+        const { mode = 'exam', planEntry = null } = options;
+        const isTextbook = mode === 'textbook';
         const div = document.createElement('div'); div.className = 'page'; if(num === 1) div.classList.add('page-first');
         const meta = State.docData.meta;
         const settings = State.settings;
@@ -53,7 +56,9 @@ export const Renderer = {
             `<table class="header-table"><colgroup><col class="col-title"><col class="col-label"><col class="col-input-wide"><col class="col-label"><col class="col-input-narrow"></colgroup><tr><td rowspan="2" class="col-title">TEST</td><td class="col-label">과정</td><td><input class="header-input meta-title" value="${meta.title}"></td><td class="col-label">성명</td><td><input class="header-input"></td></tr><tr><td class="col-label">단원</td><td><input class="header-input meta-subtitle" value="${meta.subtitle}"></td><td class="col-label">점수</td><td></td></tr></table>` : `<div class="header-line"></div>`;
         const footerText = meta.footerText ? `<div class="footer-text">${meta.footerText}</div>` : '';
         const footerHTML = num === 1 ? `<div class="footer-content-first">${footerText}<div>- ${num} -</div></div>` : `<div class="footer-line"></div>${footerText}<div>- ${num} -</div>`;
-        const columnsCount = this.getPageColumnsCount(num);
+        const columnsCount = isTextbook && planEntry && (planEntry.columns === 1 || planEntry.columns === 2)
+            ? planEntry.columns
+            : this.getPageColumnsCount(num);
         const columnsHTML = columnsCount === 1 ? `<div class="column single"></div>` : `<div class="column left"></div><div class="column right"></div>`;
         const bodyClass = columnsCount === 1 ? 'body-container single-column' : 'body-container';
         div.innerHTML=`<div class="header-area">${headerHTML}</div><div class="${bodyClass}">${columnsHTML}</div><div class="page-footer">${footerHTML}</div><div class="page-layout-control"><span class="page-layout-label">단 구성</span><select class="page-layout-select"><option value="1">1단</option><option value="2">2단</option></select></div>`;
@@ -67,7 +72,7 @@ export const Renderer = {
         }
 
         const layoutSelect = div.querySelector('.page-layout-select');
-        if (layoutSelect) {
+        if (layoutSelect && !isTextbook) {
             layoutSelect.value = String(columnsCount);
             layoutSelect.addEventListener('change', async (e) => {
                 const next = parseInt(e.target.value, 10) === 1 ? 1 : 2;
@@ -433,6 +438,246 @@ export const Renderer = {
         return page;
     },
 
+    createChapterCoverPage(cover) {
+        const page = document.createElement('div');
+        page.className = 'page chapter-cover-page';
+        page.style.padding = '0';
+
+        const design = State.settings.designConfig || {};
+        page.style.setProperty('--chapter-main-color', design.themeMain || '#1a1a2e');
+        page.style.setProperty('--chapter-sub-color', design.themeSub || '#333333');
+        page.style.setProperty('--chapter-text-color', design.textColor || '#000000');
+
+        const bar = document.createElement('div');
+        bar.className = 'chapter-bar';
+
+        const inner = document.createElement('div');
+        inner.className = 'chapter-inner';
+
+        const titleBlock = document.createElement('div');
+        titleBlock.className = 'chapter-title-block';
+
+        const numberEl = document.createElement('div');
+        numberEl.className = 'chapter-number';
+        numberEl.contentEditable = 'true';
+        numberEl.textContent = cover.number || '';
+        numberEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') e.preventDefault(); });
+        numberEl.addEventListener('input', () => {
+            cover.number = numberEl.textContent || '';
+            State.saveHistory(500);
+        });
+
+        const titleKoEl = document.createElement('div');
+        titleKoEl.className = 'chapter-title-ko';
+        titleKoEl.contentEditable = 'true';
+        titleKoEl.textContent = cover.titleKo || '';
+        titleKoEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') e.preventDefault(); });
+        titleKoEl.addEventListener('input', () => {
+            cover.titleKo = titleKoEl.textContent || '';
+            State.saveHistory(500);
+        });
+
+        const titleEnEl = document.createElement('div');
+        titleEnEl.className = 'chapter-title-en';
+        titleEnEl.contentEditable = 'true';
+        titleEnEl.textContent = cover.titleEn || '';
+        titleEnEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') e.preventDefault(); });
+        titleEnEl.addEventListener('input', () => {
+            cover.titleEn = titleEnEl.textContent || '';
+            State.saveHistory(500);
+        });
+
+        titleBlock.appendChild(numberEl);
+        titleBlock.appendChild(titleKoEl);
+        titleBlock.appendChild(titleEnEl);
+
+        const pointsCard = document.createElement('div');
+        pointsCard.className = 'chapter-points-card';
+
+        const pointsHeader = document.createElement('div');
+        pointsHeader.className = 'chapter-points-header';
+        pointsHeader.textContent = 'LEARNING POINTS';
+
+        const pointsBody = document.createElement('div');
+        pointsBody.className = 'chapter-points-body';
+
+        const updatePoints = () => {
+            cover.points = Array.from(pointsBody.querySelectorAll('.chapter-point-item'))
+                .map(item => (item.textContent || '').trim())
+                .filter(Boolean);
+            State.saveHistory(500);
+        };
+
+        const pointItems = Array.isArray(cover.points) && cover.points.length ? cover.points : [''];
+        pointItems.forEach((text) => {
+            const item = document.createElement('div');
+            item.className = 'chapter-point-item';
+            item.contentEditable = 'true';
+            item.textContent = text || '';
+            item.addEventListener('keydown', (e) => { if (e.key === 'Enter') e.preventDefault(); });
+            item.addEventListener('input', updatePoints);
+            pointsBody.appendChild(item);
+        });
+
+        pointsCard.appendChild(pointsHeader);
+        pointsCard.appendChild(pointsBody);
+
+        const partsBox = document.createElement('div');
+        partsBox.className = 'chapter-parts';
+
+        const updateParts = () => {
+            cover.parts = Array.from(partsBox.querySelectorAll('.chapter-part-item'))
+                .map(item => (item.textContent || '').trim())
+                .filter(Boolean);
+            State.saveHistory(500);
+        };
+
+        const partItems = Array.isArray(cover.parts) && cover.parts.length ? cover.parts : [''];
+        partItems.forEach((text) => {
+            const item = document.createElement('div');
+            item.className = 'chapter-part-item';
+            item.contentEditable = 'true';
+            item.textContent = text || '';
+            item.addEventListener('keydown', (e) => { if (e.key === 'Enter') e.preventDefault(); });
+            item.addEventListener('input', updateParts);
+            partsBox.appendChild(item);
+        });
+
+        inner.appendChild(titleBlock);
+        inner.appendChild(pointsCard);
+        inner.appendChild(partsBox);
+
+        page.appendChild(bar);
+        page.appendChild(inner);
+        return page;
+    },
+
+    createBlankPage() {
+        const page = document.createElement('div');
+        page.className = 'page blank-page';
+        page.style.padding = '0';
+        return page;
+    },
+
+    attachPagePlanControl(pageEl, entry, index) {
+        if (!pageEl || !entry) return;
+        pageEl.dataset.planId = entry.id;
+        const control = pageEl.querySelector('.page-layout-control') || (() => {
+            const div = document.createElement('div');
+            div.className = 'page-layout-control';
+            pageEl.appendChild(div);
+            return div;
+        })();
+        control.classList.add('page-plan-control');
+        control.innerHTML = '';
+
+        const typeLabel = document.createElement('span');
+        typeLabel.className = 'page-layout-label';
+        typeLabel.textContent = '페이지';
+
+        const typeSelect = document.createElement('select');
+        typeSelect.className = 'page-layout-select page-type-select';
+        typeSelect.innerHTML = '<option value="content">본문</option><option value="toc">목차</option><option value="chapter-cover">대단원</option><option value="blank">빈페이지</option>';
+        typeSelect.value = entry.kind;
+
+        control.appendChild(typeLabel);
+        control.appendChild(typeSelect);
+
+        if (entry.kind === 'content') {
+            const layoutLabel = document.createElement('span');
+            layoutLabel.className = 'page-layout-label';
+            layoutLabel.textContent = '단';
+            const layoutSelect = document.createElement('select');
+            layoutSelect.className = 'page-layout-select page-columns-select';
+            layoutSelect.innerHTML = '<option value="1">1단</option><option value="2">2단</option>';
+            layoutSelect.value = String(entry.columns === 1 ? 1 : 2);
+            layoutSelect.addEventListener('change', async (e) => {
+                const next = parseInt(e.target.value, 10) === 1 ? 1 : 2;
+                entry.columns = next;
+                State.saveHistory();
+                this.renderPages();
+                await ManualRenderer.renderAll();
+            });
+            control.appendChild(layoutLabel);
+            control.appendChild(layoutSelect);
+        }
+
+        const addBtn = document.createElement('button');
+        addBtn.type = 'button';
+        addBtn.className = 'page-plan-btn';
+        addBtn.textContent = '+';
+        addBtn.title = '페이지 추가';
+        addBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            const plan = Array.isArray(State.docData.pagePlan) ? State.docData.pagePlan : [];
+            const insertIndex = Math.min(Math.max(index + 1, 0), plan.length);
+            plan.splice(insertIndex, 0, {
+                id: `pg_${Date.now()}_${Math.random().toString(16).slice(2, 6)}`,
+                kind: 'content',
+                columns: parseInt(State.settings.columns) === 1 ? 1 : 2
+            });
+            State.docData.pagePlan = plan;
+            State.saveHistory();
+            this.renderPages();
+            await ManualRenderer.renderAll();
+        });
+
+        const removeBtn = document.createElement('button');
+        removeBtn.type = 'button';
+        removeBtn.className = 'page-plan-btn';
+        removeBtn.textContent = '–';
+        removeBtn.title = '페이지 삭제';
+        removeBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            const plan = Array.isArray(State.docData.pagePlan) ? State.docData.pagePlan : [];
+            if (plan.length <= 1) return;
+            const removeIndex = plan.findIndex(item => item.id === entry.id);
+            if (removeIndex === -1) return;
+            plan.splice(removeIndex, 1);
+            if (!plan.some(item => item.kind === 'content')) {
+                plan.unshift({
+                    id: `pg_${Date.now()}_${Math.random().toString(16).slice(2, 6)}`,
+                    kind: 'content',
+                    columns: parseInt(State.settings.columns) === 1 ? 1 : 2
+                });
+            }
+            State.docData.pagePlan = plan;
+            State.saveHistory();
+            this.renderPages();
+            await ManualRenderer.renderAll();
+        });
+
+        control.appendChild(addBtn);
+        control.appendChild(removeBtn);
+
+        typeSelect.addEventListener('change', async (e) => {
+            const nextKind = e.target.value;
+            if (entry.kind === nextKind) return;
+            entry.kind = nextKind;
+            if (nextKind === 'content') {
+                entry.columns = entry.columns === 1 ? 1 : 2;
+                delete entry.coverId;
+            } else if (nextKind === 'chapter-cover') {
+                const covers = Array.isArray(State.docData.chapterCovers) ? State.docData.chapterCovers : [];
+                const newCover = buildDefaultChapterCover();
+                covers.push(newCover);
+                State.docData.chapterCovers = covers;
+                entry.coverId = newCover.id;
+                delete entry.columns;
+            } else if (nextKind === 'toc') {
+                if (!State.docData.toc) State.docData.toc = buildDefaultToc();
+                delete entry.columns;
+                delete entry.coverId;
+            } else {
+                delete entry.columns;
+                delete entry.coverId;
+            }
+            State.saveHistory();
+            this.renderPages();
+            await ManualRenderer.renderAll();
+        });
+    },
+
     renderPages() {
         const workspace = document.getElementById('workspace');
         const scrollTop = workspace ? workspace.scrollTop : 0;
@@ -466,35 +711,122 @@ export const Renderer = {
 
         let pageNum = 1;
         const isTextbook = State.settings.documentMode === 'textbook';
-        const toc = State.docData.toc;
-        if (isTextbook && toc && toc.enabled) {
-            const tocPage = this.createTocPage(toc);
-            container.appendChild(tocPage);
-            pageNum = 2;
-        }
-        let currentPage = this.createPage(pageNum);
-        container.appendChild(currentPage);
-        let columns = this.getPageColumns(pageNum, currentPage);
-        let colIndex = 0; let curCol = columns[colIndex];
+        let planExpanded = false;
 
-        const moveToNextColumn = () => {
-            colIndex++;
-            if (colIndex >= columns.length) {
-                pageNum++; currentPage = this.createPage(pageNum); container.appendChild(currentPage);
-                columns = this.getPageColumns(pageNum, currentPage);
-                colIndex = 0;
-            }
-            curCol = columns[colIndex];
+        const getColumnsForEntry = (entry, pageEl) => {
+            const count = entry && entry.columns === 1 ? 1 : 2;
+            if (count === 1) return [pageEl.querySelector('.column.single')];
+            return [pageEl.querySelector('.column.left'), pageEl.querySelector('.column.right')];
         };
 
-        State.docData.blocks.forEach((block) => { 
-            if (block.type === 'break') { curCol.appendChild(this.createBlock(block)); moveToNextColumn(); return; } 
-            const el = this.createBlock(block); curCol.appendChild(el); 
-            if (curCol.scrollHeight > curCol.clientHeight + 5) { 
-                if (curCol.children.length === 1) { moveToNextColumn(); } 
-                else { curCol.removeChild(el); moveToNextColumn(); curCol.appendChild(el); } 
-            } 
-        });
+        if (isTextbook) {
+            const plan = Array.isArray(State.docData.pagePlan) ? State.docData.pagePlan : [];
+            const covers = Array.isArray(State.docData.chapterCovers) ? State.docData.chapterCovers : [];
+            const coverMap = new Map(covers.map(item => [item.id, item]));
+            const contentPages = [];
+
+            const addContentEntry = () => {
+                const entry = {
+                    id: `pg_${Date.now()}_${Math.random().toString(16).slice(2, 6)}`,
+                    kind: 'content',
+                    columns: parseInt(State.settings.columns) === 1 ? 1 : 2
+                };
+                plan.push(entry);
+                planExpanded = true;
+                return entry;
+            };
+
+            const createPageFromEntry = (entry, index) => {
+                let page = null;
+                if (entry.kind === 'toc') {
+                    if (!State.docData.toc) State.docData.toc = buildDefaultToc();
+                    page = this.createTocPage(State.docData.toc);
+                } else if (entry.kind === 'chapter-cover') {
+                    const cover = coverMap.get(entry.coverId) || buildDefaultChapterCover();
+                    if (!coverMap.has(cover.id)) {
+                        coverMap.set(cover.id, cover);
+                        covers.push(cover);
+                        entry.coverId = cover.id;
+                        planExpanded = true;
+                    }
+                    page = this.createChapterCoverPage(cover);
+                } else if (entry.kind === 'blank') {
+                    page = this.createBlankPage();
+                } else {
+                    page = this.createPage(pageNum, { mode: 'textbook', planEntry: entry });
+                    contentPages.push({ page, entry });
+                }
+                container.appendChild(page);
+                this.attachPagePlanControl(page, entry, index);
+                pageNum += 1;
+            };
+
+            plan.forEach((entry, index) => createPageFromEntry(entry, index));
+            if (!contentPages.length) {
+                const entry = addContentEntry();
+                createPageFromEntry(entry, plan.length - 1);
+            }
+
+            let contentIndex = 0;
+            let currentPage = contentPages[contentIndex].page;
+            let columns = getColumnsForEntry(contentPages[contentIndex].entry, currentPage);
+            let colIndex = 0;
+            let curCol = columns[colIndex];
+
+            const moveToNextColumn = () => {
+                colIndex++;
+                if (colIndex >= columns.length) {
+                    contentIndex++;
+                    if (contentIndex >= contentPages.length) {
+                        const entry = addContentEntry();
+                        createPageFromEntry(entry, plan.length - 1);
+                        contentIndex = contentPages.length - 1;
+                    }
+                    currentPage = contentPages[contentIndex].page;
+                    columns = getColumnsForEntry(contentPages[contentIndex].entry, currentPage);
+                    colIndex = 0;
+                }
+                curCol = columns[colIndex];
+            };
+
+            State.docData.blocks.forEach((block) => { 
+                if (block.type === 'break') { curCol.appendChild(this.createBlock(block)); moveToNextColumn(); return; } 
+                const el = this.createBlock(block); curCol.appendChild(el); 
+                if (curCol.scrollHeight > curCol.clientHeight + 5) { 
+                    if (curCol.children.length === 1) { moveToNextColumn(); } 
+                    else { curCol.removeChild(el); moveToNextColumn(); curCol.appendChild(el); } 
+                } 
+            });
+        } else {
+            let currentPage = this.createPage(pageNum);
+            container.appendChild(currentPage);
+            let columns = this.getPageColumns(pageNum, currentPage);
+            let colIndex = 0; let curCol = columns[colIndex];
+
+            const moveToNextColumn = () => {
+                colIndex++;
+                if (colIndex >= columns.length) {
+                    pageNum++; currentPage = this.createPage(pageNum); container.appendChild(currentPage);
+                    columns = this.getPageColumns(pageNum, currentPage);
+                    colIndex = 0;
+                }
+                curCol = columns[colIndex];
+            };
+
+            State.docData.blocks.forEach((block) => { 
+                if (block.type === 'break') { curCol.appendChild(this.createBlock(block)); moveToNextColumn(); return; } 
+                const el = this.createBlock(block); curCol.appendChild(el); 
+                if (curCol.scrollHeight > curCol.clientHeight + 5) { 
+                    if (curCol.children.length === 1) { moveToNextColumn(); } 
+                    else { curCol.removeChild(el); moveToNextColumn(); curCol.appendChild(el); } 
+                } 
+            });
+        }
+
+        if (planExpanded && isTextbook) {
+            State.docData.chapterCovers = Array.isArray(State.docData.chapterCovers) ? State.docData.chapterCovers : [];
+            State.saveHistory(0, { reason: 'page-plan-auto', coalesceMs: 1500 });
+        }
 
         if (workspace) workspace.scrollTop = scrollTop;
         this.updatePreflightPanel();
