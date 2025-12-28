@@ -139,6 +139,74 @@ window.addEventListener('DOMContentLoaded', () => {
         await updateDesignConfig({ tocTextColor: e.target.value || '#000000' });
     });
 
+    const typographyGrids = document.querySelectorAll('.font-config-grid');
+    const syncTypographyControls = () => {
+        typographyGrids.forEach((grid) => {
+            const groupKey = grid.dataset.typographyGroup;
+            if (!groupKey) return;
+            const group = settings.designConfig?.[groupKey] || {};
+            grid.querySelectorAll('.font-config-row[data-typography-key]').forEach((row) => {
+                const itemKey = row.dataset.typographyKey;
+                const config = group[itemKey];
+                if (!config) return;
+                const familySel = row.querySelector('[data-typography-field="fontFamily"]');
+                if (familySel) familySel.value = config.fontFamily || 'serif';
+                const sizeInp = row.querySelector('[data-typography-field="fontSizePt"]');
+                if (sizeInp) sizeInp.value = config.fontSizePt || '';
+                const boldChk = row.querySelector('[data-typography-field="bold"]');
+                if (boldChk) boldChk.checked = Number(config.fontWeight) >= 600;
+                const italicChk = row.querySelector('[data-typography-field="italic"]');
+                if (italicChk) italicChk.checked = config.italic === true;
+                const underlineChk = row.querySelector('[data-typography-field="underline"]');
+                if (underlineChk) underlineChk.checked = config.underline === true;
+                const colorInp = row.querySelector('[data-typography-field="color"]');
+                if (colorInp) colorInp.value = config.color || '#000000';
+            });
+        });
+    };
+    if (typographyGrids.length) syncTypographyControls();
+    const updateTypographyConfig = async (groupKey, itemKey, patch) => {
+        const current = State.settings.designConfig || {};
+        const group = current[groupKey] || {};
+        const item = group[itemKey] || {};
+        const nextGroup = { ...group, [itemKey]: { ...item, ...patch } };
+        await updateDesignConfig({ [groupKey]: nextGroup });
+    };
+    typographyGrids.forEach((grid) => {
+        grid.addEventListener('change', async (e) => {
+            const target = e.target;
+            const field = target?.dataset?.typographyField;
+            if (!field) return;
+            const row = target.closest('.font-config-row');
+            if (!row) return;
+            const groupKey = grid.dataset.typographyGroup;
+            const itemKey = row.dataset.typographyKey;
+            if (!groupKey || !itemKey) return;
+            const group = State.settings.designConfig?.[groupKey] || {};
+            const currentItem = group[itemKey] || {};
+            const patch = {};
+            if (field === 'fontFamily') {
+                patch.fontFamily = target.value || currentItem.fontFamily;
+            } else if (field === 'fontSizePt') {
+                const value = parseFloat(target.value);
+                if (!Number.isFinite(value) || value <= 0) {
+                    target.value = currentItem.fontSizePt || '';
+                    return;
+                }
+                patch.fontSizePt = value;
+            } else if (field === 'bold') {
+                patch.fontWeight = target.checked ? 700 : 400;
+            } else if (field === 'italic') {
+                patch.italic = target.checked;
+            } else if (field === 'underline') {
+                patch.underline = target.checked;
+            } else if (field === 'color') {
+                patch.color = target.value;
+            }
+            await updateTypographyConfig(groupKey, itemKey, patch);
+        });
+    });
+
     const fontFamilySel = document.getElementById('setting-font-family');
     const fontSizeInp = document.getElementById('setting-font-size');
     const labelFontFamilySel = document.getElementById('setting-label-font-family');

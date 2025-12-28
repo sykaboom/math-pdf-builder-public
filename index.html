@@ -125,6 +125,7 @@
     <button class="ft-btn" data-cmd="foreColor" data-value="#dc3545" style="color:#dc3545">●</button>
     <button class="ft-btn" data-cmd="foreColor" data-value="#007bff" style="color:#007bff">●</button>
     <button class="ft-btn" data-cmd="foreColor" data-value="#000000">●</button>
+    <input id="ft-font-color" class="ft-color" type="color" title="글씨 색상">
     <div class="ft-sep"></div>
     <select id="ft-font-family" class="ft-select">
         <option value="">폰트</option>
@@ -394,28 +395,209 @@
         <details class="sidebar-folder">
             <summary>교재 제작 (공사중)</summary>
             <div class="sidebar-folder-body">
-                <div class="settings-panel">
-                    <div style="font-size:11px; font-weight:bold; margin-bottom:5px; border-bottom:1px solid #ddd; padding-bottom:3px;">문서 모드</div>
-                    <div class="settings-row"><label>모드</label>
-                        <select id="setting-document-mode">
-                            <option value="exam">시험지 (기본)</option>
-                            <option value="textbook">교재 (공사중)</option>
-                        </select>
+                <div class="sidebar-section">
+                    <div class="sidebar-section-title">공통</div>
+                    <div class="settings-panel">
+                        <div style="font-size:11px; font-weight:bold; margin-bottom:5px; border-bottom:1px solid #ddd; padding-bottom:3px;">문서 모드</div>
+                        <div class="settings-row"><label>모드</label>
+                            <select id="setting-document-mode">
+                                <option value="exam">시험지 (기본)</option>
+                                <option value="textbook">교재 (공사중)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="settings-panel" style="margin-bottom:0;">
+                        <div style="font-size:11px; font-weight:bold; margin-bottom:5px; border-bottom:1px solid #ddd; padding-bottom:3px;">테마 색상</div>
+                        <div class="settings-row"><label>주색</label><input type="color" id="setting-theme-main"></div>
+                        <div class="settings-row"><label>보조색</label><input type="color" id="setting-theme-sub"></div>
+                        <div class="settings-row"><label>본문색</label><input type="color" id="setting-theme-text"></div>
+                        <div class="settings-row"><label>헤더 글씨</label><input type="color" id="setting-theme-header-text"></div>
+                        <div class="settings-row"><label>목차 글씨</label><input type="color" id="setting-theme-toc-text"></div>
                     </div>
                 </div>
 
-                <div class="settings-panel">
-                    <div style="font-size:11px; font-weight:bold; margin-bottom:5px; border-bottom:1px solid #ddd; padding-bottom:3px;">목차 페이지</div>
-                    <div class="settings-row"><label>헤더 높이(mm)</label><input type="number" id="setting-toc-header-height" min="50" max="140" step="1"></div>
+                <div class="sidebar-section">
+                    <div class="sidebar-section-title">목차</div>
+                    <div class="settings-panel">
+                        <div style="font-size:11px; font-weight:bold; margin-bottom:5px; border-bottom:1px solid #ddd; padding-bottom:3px;">목차 페이지</div>
+                        <div class="settings-row"><label>헤더 높이(mm)</label><input type="number" id="setting-toc-header-height" min="50" max="140" step="1"></div>
+                    </div>
+                    <div class="settings-panel font-config-panel" style="margin-bottom:0;">
+                        <div class="font-config-title">서체 설정</div>
+                        <div class="font-config-grid" data-typography-group="tocTypography">
+                            <div class="font-config-row font-config-header">
+                                <div>항목</div>
+                                <div>글씨체</div>
+                                <div>크기</div>
+                                <div>B</div>
+                                <div>I</div>
+                                <div>U</div>
+                                <div>색상</div>
+                            </div>
+                            <div class="font-config-row" data-typography-key="title">
+                                <div class="font-config-label">타이틀</div>
+                                <select class="font-config-select" data-typography-field="fontFamily">
+                                    <option value="serif">명조</option>
+                                    <option value="gothic">나눔고딕</option>
+                                    <option value="gulim">굴림</option>
+                                </select>
+                                <input class="font-config-input" type="number" min="6" max="60" step="0.5" data-typography-field="fontSizePt">
+                                <label class="font-config-toggle font-config-bold"><input type="checkbox" data-typography-field="bold"><span>B</span></label>
+                                <label class="font-config-toggle font-config-italic"><input type="checkbox" data-typography-field="italic"><span>I</span></label>
+                                <label class="font-config-toggle font-config-underline"><input type="checkbox" data-typography-field="underline"><span>U</span></label>
+                                <input class="font-config-color" type="color" data-typography-field="color">
+                            </div>
+                            <div class="font-config-row" data-typography-key="subtitle">
+                                <div class="font-config-label">부제</div>
+                                <select class="font-config-select" data-typography-field="fontFamily">
+                                    <option value="serif">명조</option>
+                                    <option value="gothic">나눔고딕</option>
+                                    <option value="gulim">굴림</option>
+                                </select>
+                                <input class="font-config-input" type="number" min="6" max="60" step="0.5" data-typography-field="fontSizePt">
+                                <label class="font-config-toggle font-config-bold"><input type="checkbox" data-typography-field="bold"><span>B</span></label>
+                                <label class="font-config-toggle font-config-italic"><input type="checkbox" data-typography-field="italic"><span>I</span></label>
+                                <label class="font-config-toggle font-config-underline"><input type="checkbox" data-typography-field="underline"><span>U</span></label>
+                                <input class="font-config-color" type="color" data-typography-field="color">
+                            </div>
+                            <div class="font-config-row" data-typography-key="section">
+                                <div class="font-config-label">대단원 제목</div>
+                                <select class="font-config-select" data-typography-field="fontFamily">
+                                    <option value="serif">명조</option>
+                                    <option value="gothic">나눔고딕</option>
+                                    <option value="gulim">굴림</option>
+                                </select>
+                                <input class="font-config-input" type="number" min="6" max="60" step="0.5" data-typography-field="fontSizePt">
+                                <label class="font-config-toggle font-config-bold"><input type="checkbox" data-typography-field="bold"><span>B</span></label>
+                                <label class="font-config-toggle font-config-italic"><input type="checkbox" data-typography-field="italic"><span>I</span></label>
+                                <label class="font-config-toggle font-config-underline"><input type="checkbox" data-typography-field="underline"><span>U</span></label>
+                                <input class="font-config-color" type="color" data-typography-field="color">
+                            </div>
+                            <div class="font-config-row" data-typography-key="part">
+                                <div class="font-config-label">Part 제목</div>
+                                <select class="font-config-select" data-typography-field="fontFamily">
+                                    <option value="serif">명조</option>
+                                    <option value="gothic">나눔고딕</option>
+                                    <option value="gulim">굴림</option>
+                                </select>
+                                <input class="font-config-input" type="number" min="6" max="60" step="0.5" data-typography-field="fontSizePt">
+                                <label class="font-config-toggle font-config-bold"><input type="checkbox" data-typography-field="bold"><span>B</span></label>
+                                <label class="font-config-toggle font-config-italic"><input type="checkbox" data-typography-field="italic"><span>I</span></label>
+                                <label class="font-config-toggle font-config-underline"><input type="checkbox" data-typography-field="underline"><span>U</span></label>
+                                <input class="font-config-color" type="color" data-typography-field="color">
+                            </div>
+                            <div class="font-config-row" data-typography-key="sub">
+                                <div class="font-config-label">Sub 항목</div>
+                                <select class="font-config-select" data-typography-field="fontFamily">
+                                    <option value="serif">명조</option>
+                                    <option value="gothic">나눔고딕</option>
+                                    <option value="gulim">굴림</option>
+                                </select>
+                                <input class="font-config-input" type="number" min="6" max="60" step="0.5" data-typography-field="fontSizePt">
+                                <label class="font-config-toggle font-config-bold"><input type="checkbox" data-typography-field="bold"><span>B</span></label>
+                                <label class="font-config-toggle font-config-italic"><input type="checkbox" data-typography-field="italic"><span>I</span></label>
+                                <label class="font-config-toggle font-config-underline"><input type="checkbox" data-typography-field="underline"><span>U</span></label>
+                                <input class="font-config-color" type="color" data-typography-field="color">
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
-                <div class="settings-panel" style="margin-bottom:0;">
-                    <div style="font-size:11px; font-weight:bold; margin-bottom:5px; border-bottom:1px solid #ddd; padding-bottom:3px;">테마 색상</div>
-                    <div class="settings-row"><label>주색</label><input type="color" id="setting-theme-main"></div>
-                    <div class="settings-row"><label>보조색</label><input type="color" id="setting-theme-sub"></div>
-                    <div class="settings-row"><label>본문색</label><input type="color" id="setting-theme-text"></div>
-                    <div class="settings-row"><label>헤더 글씨</label><input type="color" id="setting-theme-header-text"></div>
-                    <div class="settings-row"><label>목차 글씨</label><input type="color" id="setting-theme-toc-text"></div>
+                <div class="sidebar-section">
+                    <div class="sidebar-section-title">대단원</div>
+                    <div class="settings-panel font-config-panel" style="margin-bottom:0;">
+                        <div class="font-config-title">서체 설정</div>
+                        <div class="font-config-grid" data-typography-group="chapterTypography">
+                            <div class="font-config-row font-config-header">
+                                <div>항목</div>
+                                <div>글씨체</div>
+                                <div>크기</div>
+                                <div>B</div>
+                                <div>I</div>
+                                <div>U</div>
+                                <div>색상</div>
+                            </div>
+                            <div class="font-config-row" data-typography-key="number">
+                                <div class="font-config-label">대단원 번호</div>
+                                <select class="font-config-select" data-typography-field="fontFamily">
+                                    <option value="serif">명조</option>
+                                    <option value="gothic">나눔고딕</option>
+                                    <option value="gulim">굴림</option>
+                                </select>
+                                <input class="font-config-input" type="number" min="6" max="60" step="0.5" data-typography-field="fontSizePt">
+                                <label class="font-config-toggle font-config-bold"><input type="checkbox" data-typography-field="bold"><span>B</span></label>
+                                <label class="font-config-toggle font-config-italic"><input type="checkbox" data-typography-field="italic"><span>I</span></label>
+                                <label class="font-config-toggle font-config-underline"><input type="checkbox" data-typography-field="underline"><span>U</span></label>
+                                <input class="font-config-color" type="color" data-typography-field="color">
+                            </div>
+                            <div class="font-config-row" data-typography-key="titleKo">
+                                <div class="font-config-label">대단원 제목</div>
+                                <select class="font-config-select" data-typography-field="fontFamily">
+                                    <option value="serif">명조</option>
+                                    <option value="gothic">나눔고딕</option>
+                                    <option value="gulim">굴림</option>
+                                </select>
+                                <input class="font-config-input" type="number" min="6" max="60" step="0.5" data-typography-field="fontSizePt">
+                                <label class="font-config-toggle font-config-bold"><input type="checkbox" data-typography-field="bold"><span>B</span></label>
+                                <label class="font-config-toggle font-config-italic"><input type="checkbox" data-typography-field="italic"><span>I</span></label>
+                                <label class="font-config-toggle font-config-underline"><input type="checkbox" data-typography-field="underline"><span>U</span></label>
+                                <input class="font-config-color" type="color" data-typography-field="color">
+                            </div>
+                            <div class="font-config-row" data-typography-key="titleEn">
+                                <div class="font-config-label">영문 부제</div>
+                                <select class="font-config-select" data-typography-field="fontFamily">
+                                    <option value="serif">명조</option>
+                                    <option value="gothic">나눔고딕</option>
+                                    <option value="gulim">굴림</option>
+                                </select>
+                                <input class="font-config-input" type="number" min="6" max="60" step="0.5" data-typography-field="fontSizePt">
+                                <label class="font-config-toggle font-config-bold"><input type="checkbox" data-typography-field="bold"><span>B</span></label>
+                                <label class="font-config-toggle font-config-italic"><input type="checkbox" data-typography-field="italic"><span>I</span></label>
+                                <label class="font-config-toggle font-config-underline"><input type="checkbox" data-typography-field="underline"><span>U</span></label>
+                                <input class="font-config-color" type="color" data-typography-field="color">
+                            </div>
+                            <div class="font-config-row" data-typography-key="pointsHeader">
+                                <div class="font-config-label">러닝포인트 헤더</div>
+                                <select class="font-config-select" data-typography-field="fontFamily">
+                                    <option value="serif">명조</option>
+                                    <option value="gothic">나눔고딕</option>
+                                    <option value="gulim">굴림</option>
+                                </select>
+                                <input class="font-config-input" type="number" min="6" max="60" step="0.5" data-typography-field="fontSizePt">
+                                <label class="font-config-toggle font-config-bold"><input type="checkbox" data-typography-field="bold"><span>B</span></label>
+                                <label class="font-config-toggle font-config-italic"><input type="checkbox" data-typography-field="italic"><span>I</span></label>
+                                <label class="font-config-toggle font-config-underline"><input type="checkbox" data-typography-field="underline"><span>U</span></label>
+                                <input class="font-config-color" type="color" data-typography-field="color">
+                            </div>
+                            <div class="font-config-row" data-typography-key="pointsBody">
+                                <div class="font-config-label">학습 포인트 본문</div>
+                                <select class="font-config-select" data-typography-field="fontFamily">
+                                    <option value="serif">명조</option>
+                                    <option value="gothic">나눔고딕</option>
+                                    <option value="gulim">굴림</option>
+                                </select>
+                                <input class="font-config-input" type="number" min="6" max="60" step="0.5" data-typography-field="fontSizePt">
+                                <label class="font-config-toggle font-config-bold"><input type="checkbox" data-typography-field="bold"><span>B</span></label>
+                                <label class="font-config-toggle font-config-italic"><input type="checkbox" data-typography-field="italic"><span>I</span></label>
+                                <label class="font-config-toggle font-config-underline"><input type="checkbox" data-typography-field="underline"><span>U</span></label>
+                                <input class="font-config-color" type="color" data-typography-field="color">
+                            </div>
+                            <div class="font-config-row" data-typography-key="parts">
+                                <div class="font-config-label">파트 목록</div>
+                                <select class="font-config-select" data-typography-field="fontFamily">
+                                    <option value="serif">명조</option>
+                                    <option value="gothic">나눔고딕</option>
+                                    <option value="gulim">굴림</option>
+                                </select>
+                                <input class="font-config-input" type="number" min="6" max="60" step="0.5" data-typography-field="fontSizePt">
+                                <label class="font-config-toggle font-config-bold"><input type="checkbox" data-typography-field="bold"><span>B</span></label>
+                                <label class="font-config-toggle font-config-italic"><input type="checkbox" data-typography-field="italic"><span>I</span></label>
+                                <label class="font-config-toggle font-config-underline"><input type="checkbox" data-typography-field="underline"><span>U</span></label>
+                                <input class="font-config-color" type="color" data-typography-field="color">
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 <div class="sidebar-hint">교재 모드에서는 각 페이지 우측 상단에서 목차/대단원/빈페이지를 선택해 구성합니다.</div>
             </div>

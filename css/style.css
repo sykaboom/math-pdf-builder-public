@@ -134,8 +134,8 @@ body.modal-open .modal-content * { user-select: text; -webkit-user-select: text;
 .toc-bg-image,
 .toc-overlay-image { cursor: move; user-select: none; }
 .toc-title-box { position: absolute; left: 0; top: 22mm; z-index: 2; color: var(--toc-header-text-color, #fff); text-align: left; }
-.toc-title { font-family: 'Noto Sans KR', sans-serif; font-weight: 900; font-size: 40pt; letter-spacing: 1.8px; line-height: 1.05; }
-.toc-subtitle { font-family: 'Noto Serif KR', serif; font-weight: 500; font-size: 13pt; color: var(--toc-header-text-color, #dddddd); margin-top: 8px; opacity: 0.85; }
+.toc-title { font-family: var(--toc-title-font-family, 'Noto Sans KR', sans-serif); font-weight: var(--toc-title-font-weight, 900); font-size: var(--toc-title-font-size, 40pt); font-style: var(--toc-title-font-style, normal); text-decoration: var(--toc-title-text-decoration, none); color: var(--toc-title-color, var(--toc-header-text-color, #fff)); letter-spacing: 1.8px; line-height: 1.05; }
+.toc-subtitle { font-family: var(--toc-subtitle-font-family, 'Noto Serif KR', serif); font-weight: var(--toc-subtitle-font-weight, 500); font-size: var(--toc-subtitle-font-size, 13pt); font-style: var(--toc-subtitle-font-style, normal); text-decoration: var(--toc-subtitle-text-decoration, none); color: var(--toc-subtitle-color, var(--toc-header-text-color, #dddddd)); margin-top: 8px; opacity: 0.85; }
 .toc-title[contenteditable="true"]:focus,
 .toc-subtitle[contenteditable="true"]:focus,
 .toc-section-text[contenteditable="true"]:focus,
@@ -153,18 +153,18 @@ body.modal-open .modal-content * { user-select: text; -webkit-user-select: text;
 .toc-empty { font-size: 11px; color: #777; border: 1px dashed #ddd; padding: 6px 8px; border-radius: 4px; display: inline-block; margin-bottom: 10px; }
 
 .toc-section { display: flex; flex-direction: column; gap: 4mm; }
-.toc-section-title { display: flex; align-items: baseline; gap: 6px; font-size: 12pt; font-weight: 700; color: var(--toc-body-text-color, #111); }
+.toc-section-title { display: flex; align-items: baseline; gap: 6px; font-size: var(--toc-section-font-size, 12pt); font-weight: var(--toc-section-font-weight, 700); font-family: var(--toc-section-font-family, 'Noto Sans KR', sans-serif); font-style: var(--toc-section-font-style, normal); text-decoration: var(--toc-section-text-decoration, none); color: var(--toc-section-color, var(--toc-body-text-color, #111)); }
 .toc-section-index { min-width: 14mm; text-align: right; color: var(--toc-sub-color, #1a1a2e); }
 .toc-section-text { flex: 1; }
 .toc-section-card { border: 1px solid #dedede; border-radius: 10px; padding: 5mm 6mm; background: #fff; width: 100%; box-sizing: border-box; }
 
-.toc-part-title { display: flex; align-items: baseline; gap: 4px; margin-top: 3mm; font-size: 10pt; font-weight: 700; color: var(--toc-body-text-color, #333); }
+.toc-part-title { display: flex; align-items: baseline; gap: 4px; margin-top: 3mm; font-size: var(--toc-part-font-size, 10pt); font-weight: var(--toc-part-font-weight, 700); font-family: var(--toc-part-font-family, 'Noto Sans KR', sans-serif); font-style: var(--toc-part-font-style, normal); text-decoration: var(--toc-part-text-decoration, none); color: var(--toc-part-color, var(--toc-body-text-color, #333)); }
 .toc-part-title:first-child { margin-top: 0; }
 .toc-part-index { color: var(--toc-sub-color, #333); }
 .toc-part-text { flex: 1; }
 
 .toc-sub-list { margin-top: 2mm; display: flex; flex-direction: column; gap: 2mm; }
-.toc-sub-item { display: flex; align-items: baseline; gap: 4mm; font-size: 9pt; color: var(--toc-body-text-color, #444); padding-left: 6mm; font-family: 'Noto Serif KR', serif; }
+.toc-sub-item { display: flex; align-items: baseline; gap: 4mm; font-size: var(--toc-sub-font-size, 9pt); font-weight: var(--toc-sub-font-weight, 400); font-family: var(--toc-sub-font-family, 'Noto Serif KR', serif); font-style: var(--toc-sub-font-style, normal); text-decoration: var(--toc-sub-text-decoration, none); color: var(--toc-sub-color, var(--toc-body-text-color, #444)); padding-left: 6mm; }
 .toc-sub-index { width: 10mm; text-align: right; color: #5b647a; font-variant-numeric: tabular-nums; }
 .toc-sub-text { flex: 1; }
 
@@ -189,16 +189,16 @@ body.modal-open .modal-content * { user-select: text; -webkit-user-select: text;
 .chapter-bar { position: absolute; left: 0; top: 0; bottom: 0; width: var(--chapter-bar-width); background: var(--chapter-main-color, #1a1a2e); }
 .chapter-inner { position: relative; width: min(var(--chapter-content-width), calc(100% - 36mm)); margin-left: var(--chapter-left-offset); margin-right: auto; height: 100%; }
 .chapter-title-block { position: absolute; left: 0; top: var(--chapter-title-top); color: var(--chapter-text-color, #000); text-align: left; }
-.chapter-number { font-family: 'Noto Serif KR', serif; font-size: 40pt; font-weight: 700; line-height: 1; color: var(--chapter-main-color, #1a1a2e); }
-.chapter-title-ko { font-family: 'Noto Serif KR', serif; font-size: 30pt; font-weight: 600; margin-top: 3.5mm; color: var(--chapter-text-color, #000); }
-.chapter-title-en { font-family: 'Noto Serif KR', serif; font-size: 25pt; color: var(--chapter-sub-color, #6b7280); margin-top: 2mm; }
+.chapter-number { font-family: var(--chapter-number-font-family, 'Noto Serif KR', serif); font-size: var(--chapter-number-font-size, 40pt); font-weight: var(--chapter-number-font-weight, 700); font-style: var(--chapter-number-font-style, normal); text-decoration: var(--chapter-number-text-decoration, none); line-height: 1; color: var(--chapter-number-color, var(--chapter-main-color, #1a1a2e)); }
+.chapter-title-ko { font-family: var(--chapter-title-ko-font-family, 'Noto Serif KR', serif); font-size: var(--chapter-title-ko-font-size, 30pt); font-weight: var(--chapter-title-ko-font-weight, 600); font-style: var(--chapter-title-ko-font-style, normal); text-decoration: var(--chapter-title-ko-text-decoration, none); margin-top: 3.5mm; color: var(--chapter-title-ko-color, var(--chapter-text-color, #000)); }
+.chapter-title-en { font-family: var(--chapter-title-en-font-family, 'Noto Serif KR', serif); font-size: var(--chapter-title-en-font-size, 25pt); font-weight: var(--chapter-title-en-font-weight, 400); font-style: var(--chapter-title-en-font-style, normal); text-decoration: var(--chapter-title-en-text-decoration, none); color: var(--chapter-title-en-color, var(--chapter-sub-color, #6b7280)); margin-top: 2mm; }
 .chapter-points-card { position: absolute; left: 0; top: var(--chapter-points-top); width: var(--chapter-points-width); border: 1px solid var(--chapter-main-color, #1a1a2e); background: #fff; }
-.chapter-points-header { background: var(--chapter-main-color, #1a1a2e); color: #fff; font-size: 14pt; font-weight: 700; padding: 4mm 5.5mm; letter-spacing: 1.4px; font-family: 'Noto Sans KR', sans-serif; }
-.chapter-points-body { padding: 6mm 6mm 7mm; display: flex; flex-direction: column; gap: 3.5mm; font-size: 11pt; color: var(--chapter-text-color, #333); line-height: 1.6; font-family: 'Noto Serif KR', serif; }
+.chapter-points-header { background: var(--chapter-main-color, #1a1a2e); color: var(--chapter-points-header-color, #fff); font-size: var(--chapter-points-header-font-size, 14pt); font-weight: var(--chapter-points-header-font-weight, 700); font-style: var(--chapter-points-header-font-style, normal); text-decoration: var(--chapter-points-header-text-decoration, none); padding: 4mm 5.5mm; letter-spacing: 1.4px; font-family: var(--chapter-points-header-font-family, 'Noto Sans KR', sans-serif); }
+.chapter-points-body { padding: 6mm 6mm 7mm; display: flex; flex-direction: column; gap: 3.5mm; font-size: var(--chapter-points-body-font-size, 11pt); font-weight: var(--chapter-points-body-font-weight, 400); font-style: var(--chapter-points-body-font-style, normal); text-decoration: var(--chapter-points-body-text-decoration, none); color: var(--chapter-points-body-color, var(--chapter-text-color, #333)); line-height: 1.6; font-family: var(--chapter-points-body-font-family, 'Noto Serif KR', serif); }
 .chapter-point-item { position: relative; padding-left: 3.8mm; }
 .chapter-point-item::before { content: '•'; position: absolute; left: 0; top: 0; }
-.chapter-parts { position: absolute; right: 0; bottom: var(--chapter-parts-bottom); display: flex; flex-direction: column; gap: 2mm; font-size: 25pt; font-weight: 700; color: var(--chapter-main-color, #1a1a2e); text-align: right; font-family: 'Noto Serif KR', serif; }
-.chapter-part-item { text-align: right; font-size: 25pt; }
+.chapter-parts { position: absolute; right: 0; bottom: var(--chapter-parts-bottom); display: flex; flex-direction: column; gap: 2mm; font-size: var(--chapter-parts-font-size, 25pt); font-weight: var(--chapter-parts-font-weight, 700); font-style: var(--chapter-parts-font-style, normal); text-decoration: var(--chapter-parts-text-decoration, none); color: var(--chapter-parts-color, var(--chapter-main-color, #1a1a2e)); text-align: right; font-family: var(--chapter-parts-font-family, 'Noto Serif KR', serif); }
+.chapter-part-item { text-align: right; font-size: inherit; }
 .chapter-cover-page [contenteditable="true"]:focus { outline: 2px solid #007bff; outline-offset: 2px; border-radius: 4px; }
 
 /* [블록] */
@@ -321,7 +321,8 @@ table.choice-table .choice-text { display: inline-block; min-width: 0; }
 .ft-btn { background: transparent; border: none; color: white; cursor: pointer; padding: 4px 8px; border-radius: 4px; font-size: 14px; font-weight: bold; }
 .ft-btn:hover { background: rgba(255,255,255,0.2); }
 .ft-sep { width: 1px; background: rgba(255,255,255,0.3); margin: 0 2px; height: 20px; align-self: center; }
-.ft-select, .ft-input { height: 24px; border-radius: 4px; border: 1px solid #555; font-size: 11px; padding: 2px 6px; }
+.ft-select, .ft-input, .ft-color { height: 24px; border-radius: 4px; border: 1px solid #555; font-size: 11px; padding: 2px 6px; }
+.ft-color { width: 26px; padding: 0; background: transparent; }
 .ft-select { min-width: 72px; }
 .ft-input { width: 52px; }
 
@@ -366,6 +367,24 @@ table.choice-table .choice-text { display: inline-block; min-width: 0; }
 .settings-row select { width: 80px; padding: 2px; text-align: center; border:1px solid #ddd; border-radius:3px; background:#fff; font-size:11px; }
 #folder-status { font-size: 11px; color: #666; font-weight: bold; display: block; margin-bottom: 5px; }
 #folder-status.active { color: #28a745; }
+
+/* [교재 모드: 서체 설정 UI] */
+.font-config-title { font-size: 11px; font-weight: 800; margin-bottom: 6px; color: #333; }
+.font-config-grid { display: flex; flex-direction: column; gap: 4px; }
+.font-config-row { display: grid; grid-template-columns: 1.4fr 1fr 0.8fr repeat(3, 0.5fr) 0.8fr; align-items: center; gap: 4px; }
+.font-config-header { font-size: 10px; font-weight: 700; color: #666; }
+.font-config-header div { text-align: center; }
+.font-config-header div:first-child { text-align: left; }
+.font-config-label { font-size: 10px; font-weight: 700; color: #333; }
+.font-config-select { width: 100%; padding: 2px 4px; font-size: 10px; border: 1px solid #ddd; border-radius: 4px; background: #fff; }
+.font-config-input { width: 100%; padding: 2px 4px; font-size: 10px; border: 1px solid #ddd; border-radius: 4px; }
+.font-config-toggle { display: flex; align-items: center; justify-content: center; }
+.font-config-toggle input { display: none; }
+.font-config-toggle span { width: 22px; height: 22px; border: 1px solid #ddd; border-radius: 4px; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; color: #333; background: #fff; }
+.font-config-toggle input:checked + span { background: #333; color: #fff; border-color: #333; }
+.font-config-italic span { font-style: italic; }
+.font-config-underline span { text-decoration: underline; }
+.font-config-color { width: 100%; height: 22px; border: 1px solid #ddd; border-radius: 4px; padding: 0; background: #fff; }
 
 .shortcut-guide { margin-top: 15px; background: #fff; border: 1px solid #ddd; border-radius: 6px; padding: 0; font-size: 11px; color: #333; height: 220px; overflow-y: auto; }
 .shortcut-header { background: #f1f3f5; padding: 8px; font-weight: bold; font-size: 12px; border-bottom: 1px solid #ddd; position: sticky; top:0; }

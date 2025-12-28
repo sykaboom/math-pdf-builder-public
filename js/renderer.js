@@ -105,6 +105,29 @@ export const Renderer = {
         page.style.setProperty('--toc-text-color', design.textColor || '#000000');
         page.style.setProperty('--toc-header-text-color', design.headerTextColor || '#ffffff');
         page.style.setProperty('--toc-body-text-color', design.tocTextColor || design.textColor || '#000000');
+        const fontFamilyMap = {
+            serif: "'Noto Serif KR', serif",
+            gothic: "'Nanum Gothic', 'Noto Sans KR', sans-serif",
+            gulim: "Gulim, 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif"
+        };
+        const tocTypography = design.tocTypography || {};
+        const applyTypographyVars = (key, prefix) => {
+            const config = tocTypography[key];
+            if (!config) return;
+            const familyKey = config.fontFamily || 'serif';
+            const familyValue = fontFamilyMap[familyKey] || familyKey;
+            page.style.setProperty(`--${prefix}-font-family`, familyValue);
+            page.style.setProperty(`--${prefix}-font-size`, `${config.fontSizePt}pt`);
+            page.style.setProperty(`--${prefix}-font-weight`, config.fontWeight);
+            page.style.setProperty(`--${prefix}-font-style`, config.italic ? 'italic' : 'normal');
+            page.style.setProperty(`--${prefix}-text-decoration`, config.underline ? 'underline' : 'none');
+            page.style.setProperty(`--${prefix}-color`, config.color);
+        };
+        applyTypographyVars('title', 'toc-title');
+        applyTypographyVars('subtitle', 'toc-subtitle');
+        applyTypographyVars('section', 'toc-section');
+        applyTypographyVars('part', 'toc-part');
+        applyTypographyVars('sub', 'toc-sub');
 
         const header = document.createElement('div');
         header.className = 'toc-header-container';
@@ -467,6 +490,30 @@ export const Renderer = {
         page.style.setProperty('--chapter-sub-color', themeSub);
         page.style.setProperty('--chapter-text-color', themeText);
         page.style.setProperty('--chapter-bg-color', bgColor);
+        const fontFamilyMap = {
+            serif: "'Noto Serif KR', serif",
+            gothic: "'Nanum Gothic', 'Noto Sans KR', sans-serif",
+            gulim: "Gulim, 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif"
+        };
+        const chapterTypography = design.chapterTypography || {};
+        const applyChapterTypographyVars = (key, prefix) => {
+            const config = chapterTypography[key];
+            if (!config) return;
+            const familyKey = config.fontFamily || 'serif';
+            const familyValue = fontFamilyMap[familyKey] || familyKey;
+            page.style.setProperty(`--${prefix}-font-family`, familyValue);
+            page.style.setProperty(`--${prefix}-font-size`, `${config.fontSizePt}pt`);
+            page.style.setProperty(`--${prefix}-font-weight`, config.fontWeight);
+            page.style.setProperty(`--${prefix}-font-style`, config.italic ? 'italic' : 'normal');
+            page.style.setProperty(`--${prefix}-text-decoration`, config.underline ? 'underline' : 'none');
+            page.style.setProperty(`--${prefix}-color`, config.color);
+        };
+        applyChapterTypographyVars('number', 'chapter-number');
+        applyChapterTypographyVars('titleKo', 'chapter-title-ko');
+        applyChapterTypographyVars('titleEn', 'chapter-title-en');
+        applyChapterTypographyVars('pointsHeader', 'chapter-points-header');
+        applyChapterTypographyVars('pointsBody', 'chapter-points-body');
+        applyChapterTypographyVars('parts', 'chapter-parts');
 
         const bar = document.createElement('div');
         bar.className = 'chapter-bar';

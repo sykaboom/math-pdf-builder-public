@@ -1409,6 +1409,10 @@ export const Events = {
                 }
                 if (target.id === 'ft-font-size') {
                     eventsApi.applyInlineFontSize(target.value);
+                    return;
+                }
+                if (target.id === 'ft-font-color') {
+                    eventsApi.applyInlineStyleToSelection({ color: target.value });
                 }
             });
         }

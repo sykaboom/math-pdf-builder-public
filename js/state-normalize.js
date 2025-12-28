@@ -28,6 +28,23 @@ export const DEFAULT_CHAPTER_COVER = {
     parts: ["Part 1. 내용 입력", "Part 2. 내용 입력"]
 };
 
+export const DEFAULT_TOC_TYPOGRAPHY = {
+    title: { fontFamily: 'gothic', fontSizePt: 40, fontWeight: 900, italic: false, underline: false, color: '#ffffff' },
+    subtitle: { fontFamily: 'serif', fontSizePt: 13, fontWeight: 500, italic: false, underline: false, color: '#dddddd' },
+    section: { fontFamily: 'gothic', fontSizePt: 12, fontWeight: 700, italic: false, underline: false, color: '#111111' },
+    part: { fontFamily: 'gothic', fontSizePt: 10, fontWeight: 700, italic: false, underline: false, color: '#333333' },
+    sub: { fontFamily: 'serif', fontSizePt: 9, fontWeight: 400, italic: false, underline: false, color: '#444444' }
+};
+
+export const DEFAULT_CHAPTER_TYPOGRAPHY = {
+    number: { fontFamily: 'serif', fontSizePt: 40, fontWeight: 700, italic: false, underline: false, color: '#1a1a2e' },
+    titleKo: { fontFamily: 'serif', fontSizePt: 30, fontWeight: 600, italic: false, underline: false, color: '#000000' },
+    titleEn: { fontFamily: 'serif', fontSizePt: 25, fontWeight: 400, italic: false, underline: false, color: '#6b7280' },
+    pointsHeader: { fontFamily: 'gothic', fontSizePt: 14, fontWeight: 700, italic: false, underline: false, color: '#ffffff' },
+    pointsBody: { fontFamily: 'serif', fontSizePt: 11, fontWeight: 400, italic: false, underline: false, color: '#333333' },
+    parts: { fontFamily: 'serif', fontSizePt: 25, fontWeight: 700, italic: false, underline: false, color: '#1a1a2e' }
+};
+
 export const DEFAULT_PAGE_PLAN = [
     { id: 'pg_1', kind: 'content', columns: 2 }
 ];
@@ -52,7 +69,9 @@ export const DEFAULT_SETTINGS = {
         textColor: '#000000',
         headerTextColor: '#ffffff',
         tocTextColor: '#000000',
-        fontFamily: ''
+        fontFamily: '',
+        tocTypography: DEFAULT_TOC_TYPOGRAPHY,
+        chapterTypography: DEFAULT_CHAPTER_TYPOGRAPHY
     }
 };
 
@@ -67,7 +86,13 @@ export const buildDefaultDocMeta = () => ({ ...DEFAULT_DOC_META });
 export const buildDefaultSettings = () => ({
     ...DEFAULT_SETTINGS,
     pageLayouts: {},
-    designConfig: { ...DEFAULT_SETTINGS.designConfig }
+    designConfig: {
+        ...DEFAULT_SETTINGS.designConfig,
+        tocTypography: Object.fromEntries(Object.entries(DEFAULT_SETTINGS.designConfig.tocTypography)
+            .map(([key, value]) => [key, { ...value }])),
+        chapterTypography: Object.fromEntries(Object.entries(DEFAULT_SETTINGS.designConfig.chapterTypography)
+            .map(([key, value]) => [key, { ...value }]))
+    }
 });
 
 export const buildDefaultBlock = () => ({ ...DEFAULT_BLOCK });
@@ -284,6 +309,25 @@ export const normalizeSettings = (rawSettings) => {
     }
 
     settings.documentMode = settings.documentMode === 'textbook' ? 'textbook' : 'exam';
+    const normalizeTypographyGroup = (rawGroup, fallbackGroup) => {
+        const source = isPlainObject(rawGroup) ? rawGroup : {};
+        const result = {};
+        Object.entries(fallbackGroup).forEach(([key, fallback]) => {
+            const rawItem = isPlainObject(source[key]) ? source[key] : {};
+            const fontFamily = typeof rawItem.fontFamily === 'string' && rawItem.fontFamily.trim()
+                ? rawItem.fontFamily
+                : fallback.fontFamily;
+            const size = toNumber(rawItem.fontSizePt);
+            const fontSizePt = size && size > 0 ? size : fallback.fontSizePt;
+            const weight = toNumber(rawItem.fontWeight);
+            const fontWeight = weight && weight > 0 ? weight : fallback.fontWeight;
+            const italic = typeof rawItem.italic === 'boolean' ? rawItem.italic : fallback.italic;
+            const underline = typeof rawItem.underline === 'boolean' ? rawItem.underline : fallback.underline;
+            const color = normalizeColor(rawItem.color, fallback.color);
+            result[key] = { fontFamily, fontSizePt, fontWeight, italic, underline, color };
+        });
+        return result;
+    };
     if (isPlainObject(settings.designConfig)) {
         const design = settings.designConfig;
         settings.designConfig = {
@@ -292,10 +336,16 @@ export const normalizeSettings = (rawSettings) => {
             textColor: normalizeColor(design.textColor, defaults.designConfig.textColor),
             headerTextColor: normalizeColor(design.headerTextColor, defaults.designConfig.headerTextColor),
             tocTextColor: normalizeColor(design.tocTextColor, defaults.designConfig.tocTextColor),
-            fontFamily: typeof design.fontFamily === 'string' ? design.fontFamily : defaults.designConfig.fontFamily
+            fontFamily: typeof design.fontFamily === 'string' ? design.fontFamily : defaults.designConfig.fontFamily,
+            tocTypography: normalizeTypographyGroup(design.tocTypography, defaults.designConfig.tocTypography),
+            chapterTypography: normalizeTypographyGroup(design.chapterTypography, defaults.designConfig.chapterTypography)
         };
     } else {
-        settings.designConfig = { ...defaults.designConfig };
+        settings.designConfig = {
+            ...defaults.designConfig,
+            tocTypography: normalizeTypographyGroup(null, defaults.designConfig.tocTypography),
+            chapterTypography: normalizeTypographyGroup(null, defaults.designConfig.chapterTypography)
+        };
     }
 
     return settings;
