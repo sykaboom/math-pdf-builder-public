@@ -98,6 +98,8 @@ export const Renderer = {
         page.style.setProperty('--toc-main-color', design.themeMain || '#1a1a2e');
         page.style.setProperty('--toc-sub-color', design.themeSub || '#333333');
         page.style.setProperty('--toc-text-color', design.textColor || '#000000');
+        page.style.setProperty('--toc-header-text-color', design.headerTextColor || '#ffffff');
+        page.style.setProperty('--toc-body-text-color', design.tocTextColor || design.textColor || '#000000');
 
         const header = document.createElement('div');
         header.className = 'toc-header-container';
@@ -270,14 +272,14 @@ export const Renderer = {
         const addBtn = document.createElement('button');
         addBtn.type = 'button';
         addBtn.className = 'btn toc-add-item toc-edit-control';
-        addBtn.textContent = '+ 목차 항목 추가';
+        addBtn.textContent = '+ 항목';
         addBtn.addEventListener('click', async (e) => {
             e.preventDefault();
             toc.items.push({ id: createItemId(), level: 3, text: '', page: '' });
             State.saveHistory();
             await rerender();
         });
-        listInner.appendChild(addBtn);
+        imageControls.appendChild(addBtn);
 
         const emptyNote = document.createElement('div');
         emptyNote.className = 'toc-empty toc-edit-control';

@@ -43,6 +43,8 @@ window.addEventListener('DOMContentLoaded', () => {
     const themeMainInp = document.getElementById('setting-theme-main');
     const themeSubInp = document.getElementById('setting-theme-sub');
     const themeTextInp = document.getElementById('setting-theme-text');
+    const themeHeaderTextInp = document.getElementById('setting-theme-header-text');
+    const themeTocTextInp = document.getElementById('setting-theme-toc-text');
     const meta = State.docData.meta;
     const settings = State.settings;
     const toc = State.docData.toc;
@@ -60,6 +62,8 @@ window.addEventListener('DOMContentLoaded', () => {
     if (themeMainInp) themeMainInp.value = settings.designConfig?.themeMain || '#1a1a2e';
     if (themeSubInp) themeSubInp.value = settings.designConfig?.themeSub || '#333333';
     if (themeTextInp) themeTextInp.value = settings.designConfig?.textColor || '#000000';
+    if (themeHeaderTextInp) themeHeaderTextInp.value = settings.designConfig?.headerTextColor || '#ffffff';
+    if (themeTocTextInp) themeTocTextInp.value = settings.designConfig?.tocTextColor || '#000000';
 
     if (columnsSel) columnsSel.addEventListener('change', async (e) => {
         State.settings.columns = parseInt(e.target.value) === 1 ? 1 : 2;
@@ -142,6 +146,12 @@ window.addEventListener('DOMContentLoaded', () => {
     });
     if (themeTextInp) themeTextInp.addEventListener('change', async (e) => {
         await updateDesignConfig({ textColor: e.target.value || '#000000' });
+    });
+    if (themeHeaderTextInp) themeHeaderTextInp.addEventListener('change', async (e) => {
+        await updateDesignConfig({ headerTextColor: e.target.value || '#ffffff' });
+    });
+    if (themeTocTextInp) themeTocTextInp.addEventListener('change', async (e) => {
+        await updateDesignConfig({ tocTextColor: e.target.value || '#000000' });
     });
 
     const fontFamilySel = document.getElementById('setting-font-family');

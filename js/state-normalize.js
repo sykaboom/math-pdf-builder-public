@@ -33,6 +33,8 @@ export const DEFAULT_SETTINGS = {
         themeMain: '#1a1a2e',
         themeSub: '#333333',
         textColor: '#000000',
+        headerTextColor: '#ffffff',
+        tocTextColor: '#000000',
         fontFamily: ''
     }
 };
@@ -200,6 +202,8 @@ export const normalizeSettings = (rawSettings) => {
             themeMain: normalizeColor(design.themeMain, defaults.designConfig.themeMain),
             themeSub: normalizeColor(design.themeSub, defaults.designConfig.themeSub),
             textColor: normalizeColor(design.textColor, defaults.designConfig.textColor),
+            headerTextColor: normalizeColor(design.headerTextColor, defaults.designConfig.headerTextColor),
+            tocTextColor: normalizeColor(design.tocTextColor, defaults.designConfig.tocTextColor),
             fontFamily: typeof design.fontFamily === 'string' ? design.fontFamily : defaults.designConfig.fontFamily
         };
     } else {

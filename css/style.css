@@ -123,25 +123,26 @@ body.modal-open .modal-content * { user-select: text; -webkit-user-select: text;
 .column.single { width: 100%; padding-right: 0; padding-left: 0; }
 
 /* [교재 모드: 목차 페이지] */
-.toc-page { padding: 0; overflow: hidden; color: var(--toc-text-color, #000); font-family: 'Noto Sans KR', sans-serif; --toc-content-width: 125mm; }
+.toc-page { padding: 0; overflow: hidden; color: var(--toc-body-text-color, #000); font-family: 'Noto Sans KR', sans-serif; --toc-content-width: 125mm; }
 .toc-header-container { position: relative; width: 100%; flex-shrink: 0; background: var(--toc-main-color, #1a1a2e); }
 .toc-header-inner { position: relative; width: min(var(--toc-content-width), calc(100% - 40mm)); height: 100%; margin: 0 auto; }
 .toc-bg-image { position: absolute; left: 0; top: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0; }
 .toc-overlay-image { position: absolute; right: 20px; top: 20px; height: calc(100% - 40px); width: 45%; object-fit: contain; z-index: 1; }
 .toc-bg-image,
 .toc-overlay-image { cursor: move; user-select: none; }
-.toc-title-box { position: absolute; left: 0; top: 22mm; z-index: 2; color: #fff; text-align: left; }
+.toc-title-box { position: absolute; left: 0; top: 22mm; z-index: 2; color: var(--toc-header-text-color, #fff); text-align: left; }
 .toc-title { font-family: 'Noto Sans KR', sans-serif; font-weight: 900; font-size: 40pt; letter-spacing: 1.8px; line-height: 1.05; }
-.toc-subtitle { font-family: 'Noto Serif KR', serif; font-weight: 500; font-size: 13pt; color: #dddddd; margin-top: 8px; }
+.toc-subtitle { font-family: 'Noto Serif KR', serif; font-weight: 500; font-size: 13pt; color: var(--toc-header-text-color, #dddddd); margin-top: 8px; opacity: 0.85; }
 .toc-title[contenteditable="true"]:focus,
 .toc-subtitle[contenteditable="true"]:focus,
 .toc-section-text[contenteditable="true"]:focus,
 .toc-part-text[contenteditable="true"]:focus,
 .toc-sub-text[contenteditable="true"]:focus { outline: 2px solid #007bff; outline-offset: 2px; border-radius: 4px; }
 
-.toc-image-controls { position: absolute; right: 20px; bottom: 16px; display: flex; gap: 6px; z-index: 3; }
+.toc-image-controls { position: absolute; right: 20px; bottom: 16px; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; z-index: 3; }
 .toc-image-btn { font-size: 11px; padding: 4px 8px; border: 1px solid rgba(255,255,255,0.6); background: rgba(0,0,0,0.35); color: #fff; border-radius: 4px; cursor: pointer; }
 .toc-image-btn:hover { background: rgba(0,0,0,0.55); }
+.toc-image-controls .toc-add-item { width: auto; padding: 3px 6px; margin: 0; font-size: 10px; line-height: 1.2; }
 
 .toc-list-container { flex: 1; padding: 12mm 0 14mm; background: #fff; }
 .toc-list-inner { width: min(var(--toc-content-width), calc(100% - 40mm)); margin: 0 auto; display: flex; flex-direction: column; gap: 12mm; }
@@ -149,18 +150,18 @@ body.modal-open .modal-content * { user-select: text; -webkit-user-select: text;
 .toc-empty { font-size: 11px; color: #777; border: 1px dashed #ddd; padding: 6px 8px; border-radius: 4px; display: inline-block; margin-bottom: 10px; }
 
 .toc-section { display: flex; flex-direction: column; gap: 4mm; }
-.toc-section-title { display: flex; align-items: baseline; gap: 6px; font-size: 12pt; font-weight: 700; color: #111; }
+.toc-section-title { display: flex; align-items: baseline; gap: 6px; font-size: 12pt; font-weight: 700; color: var(--toc-body-text-color, #111); }
 .toc-section-index { min-width: 14mm; text-align: right; color: var(--toc-sub-color, #1a1a2e); }
 .toc-section-text { flex: 1; }
 .toc-section-card { border: 1px solid #dedede; border-radius: 10px; padding: 5mm 6mm; background: #fff; width: 100%; box-sizing: border-box; }
 
-.toc-part-title { display: flex; align-items: baseline; gap: 4px; margin-top: 3mm; font-size: 10pt; font-weight: 700; color: #333; }
+.toc-part-title { display: flex; align-items: baseline; gap: 4px; margin-top: 3mm; font-size: 10pt; font-weight: 700; color: var(--toc-body-text-color, #333); }
 .toc-part-title:first-child { margin-top: 0; }
 .toc-part-index { color: var(--toc-sub-color, #333); }
 .toc-part-text { flex: 1; }
 
 .toc-sub-list { margin-top: 2mm; display: flex; flex-direction: column; gap: 2mm; }
-.toc-sub-item { display: flex; align-items: baseline; gap: 4mm; font-size: 9pt; color: #444; padding-left: 6mm; font-family: 'Noto Serif KR', serif; }
+.toc-sub-item { display: flex; align-items: baseline; gap: 4mm; font-size: 9pt; color: var(--toc-body-text-color, #444); padding-left: 6mm; font-family: 'Noto Serif KR', serif; }
 .toc-sub-index { width: 10mm; text-align: right; color: #5b647a; font-variant-numeric: tabular-nums; }
 .toc-sub-text { flex: 1; }
 
@@ -344,7 +345,8 @@ table.choice-table .choice-text { display: inline-block; min-width: 0; }
 
 @media print {
     @page { size: A4 portrait; margin: 0; }
-    .sidebar, #floating-toolbar, #image-resizer, #context-menu, #table-menu, #table-menu-handle, #choice-menu, #choice-menu-handle, #math-menu, #element-menu, .block-handle, .block-actions, #loading-indicator, #drop-overlay, .modal-overlay, .page-layout-control, .toc-edit-control { display: none !important; }
+    .sidebar, #floating-toolbar, #image-resizer, #context-menu, #table-menu, #table-menu-handle, #choice-menu, #choice-menu-handle, #math-menu, #element-menu, .block-handle, .block-actions, #loading-indicator, #drop-overlay, .modal-overlay, .page-layout-control { display: none !important; }
+    .toc-edit-control { visibility: hidden !important; pointer-events: none !important; }
     body, .workspace { background: white; overflow: visible; display: block; margin: 0; padding: 0; }
     .page { display: flex !important; flex-direction: column !important; margin: 0; box-shadow: none; border: none; page-break-after: always; transform: none !important; width: 210mm; height: 297mm !important; overflow: hidden !important; }
     .page.page-first { height: 297mm !important; }
