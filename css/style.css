@@ -188,9 +188,9 @@ body.modal-open .modal-content * { user-select: text; -webkit-user-select: text;
 }
 .chapter-bar { position: absolute; left: 0; top: 0; bottom: 0; width: var(--chapter-bar-width); background: var(--chapter-main-color, #1a1a2e); }
 .chapter-inner { position: relative; width: min(var(--chapter-content-width), calc(100% - 36mm)); margin-left: var(--chapter-left-offset); margin-right: auto; height: 100%; }
-.chapter-title-block { position: absolute; left: 0; top: var(--chapter-title-top); color: var(--chapter-main-color, #1a1a2e); text-align: left; }
-.chapter-number { font-family: 'Noto Serif KR', serif; font-size: 40pt; font-weight: 700; line-height: 1; }
-.chapter-title-ko { font-family: 'Noto Serif KR', serif; font-size: 18.5pt; font-weight: 600; margin-top: 3.5mm; }
+.chapter-title-block { position: absolute; left: 0; top: var(--chapter-title-top); color: var(--chapter-text-color, #000); text-align: left; }
+.chapter-number { font-family: 'Noto Serif KR', serif; font-size: 40pt; font-weight: 700; line-height: 1; color: var(--chapter-main-color, #1a1a2e); }
+.chapter-title-ko { font-family: 'Noto Serif KR', serif; font-size: 18.5pt; font-weight: 600; margin-top: 3.5mm; color: var(--chapter-text-color, #000); }
 .chapter-title-en { font-family: 'Noto Serif KR', serif; font-size: 11pt; color: var(--chapter-sub-color, #6b7280); margin-top: 2mm; }
 .chapter-points-card { position: absolute; left: 0; top: var(--chapter-points-top); width: var(--chapter-points-width); border: 1px solid var(--chapter-main-color, #1a1a2e); background: #fff; }
 .chapter-points-header { background: var(--chapter-main-color, #1a1a2e); color: #fff; font-size: 9pt; font-weight: 700; padding: 4mm 5.5mm; letter-spacing: 1.4px; font-family: 'Noto Sans KR', sans-serif; }
