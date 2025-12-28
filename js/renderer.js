@@ -89,6 +89,168 @@ export const Renderer = {
         return div;
     },
 
+    createTocPage(toc) {
+        const page = document.createElement('div');
+        page.className = 'page toc-page';
+        page.style.padding = '0';
+
+        const design = State.settings.designConfig || {};
+        page.style.setProperty('--toc-main-color', design.themeMain || '#1a1a2e');
+        page.style.setProperty('--toc-sub-color', design.themeSub || '#333333');
+        page.style.setProperty('--toc-text-color', design.textColor || '#000000');
+
+        const header = document.createElement('div');
+        header.className = 'toc-header-container';
+        const height = Number.isFinite(toc.headerHeightMm) ? toc.headerHeightMm : 80;
+        header.style.height = `${height}mm`;
+
+        const headerImage = toc.headerImage;
+        if (headerImage && (headerImage.src || headerImage.path)) {
+            const img = document.createElement('img');
+            img.className = 'toc-bg-image';
+            img.src = headerImage.src || headerImage.path;
+            if (headerImage.path) img.dataset.path = headerImage.path;
+            header.appendChild(img);
+        }
+
+        const titleBox = document.createElement('div');
+        titleBox.className = 'toc-title-box';
+
+        const titleEl = document.createElement('div');
+        titleEl.className = 'toc-title';
+        titleEl.contentEditable = 'true';
+        titleEl.textContent = toc.title || 'CONTENTS';
+        titleEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') e.preventDefault(); });
+        titleEl.addEventListener('input', () => {
+            toc.title = titleEl.textContent || '';
+            State.saveHistory(500);
+        });
+
+        const subtitleEl = document.createElement('div');
+        subtitleEl.className = 'toc-subtitle';
+        subtitleEl.contentEditable = 'true';
+        subtitleEl.textContent = toc.subtitle || '';
+        subtitleEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') e.preventDefault(); });
+        subtitleEl.addEventListener('input', () => {
+            toc.subtitle = subtitleEl.textContent || '';
+            State.saveHistory(500);
+        });
+
+        titleBox.appendChild(titleEl);
+        titleBox.appendChild(subtitleEl);
+        header.appendChild(titleBox);
+
+        const imageBtn = document.createElement('button');
+        imageBtn.type = 'button';
+        imageBtn.className = 'toc-image-btn toc-edit-control';
+        imageBtn.dataset.action = 'toc-upload-image';
+        imageBtn.textContent = headerImage && (headerImage.src || headerImage.path) ? '이미지 변경' : '이미지 추가';
+        header.appendChild(imageBtn);
+
+        const list = document.createElement('div');
+        list.className = 'toc-list-container';
+
+        if (!Array.isArray(toc.items)) toc.items = [];
+
+        const createItemId = () => `toc_${Date.now()}_${Math.random().toString(16).slice(2, 6)}`;
+        const rerender = async () => {
+            this.renderPages();
+            if (State.renderingEnabled) await ManualRenderer.renderAll();
+        };
+        const updateItem = (id, patch) => {
+            const item = toc.items.find(entry => entry.id === id);
+            if (!item) return;
+            Object.assign(item, patch);
+            State.saveHistory(500);
+        };
+
+        const addBtn = document.createElement('button');
+        addBtn.type = 'button';
+        addBtn.className = 'btn toc-add-item toc-edit-control';
+        addBtn.textContent = '+ 목차 항목 추가';
+        addBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            toc.items.push({ id: createItemId(), level: 3, text: '', page: '' });
+            State.saveHistory();
+            await rerender();
+        });
+        list.appendChild(addBtn);
+
+        const emptyNote = document.createElement('div');
+        emptyNote.className = 'toc-empty toc-edit-control';
+        emptyNote.textContent = '목차 항목을 추가하세요.';
+
+        if (toc.items.length === 0) {
+            list.appendChild(emptyNote);
+        }
+
+        toc.items.forEach((item) => {
+            const row = document.createElement('div');
+            row.className = `toc-item toc-item-l${item.level || 3}`;
+            row.dataset.itemId = item.id;
+
+            const levelSelect = document.createElement('select');
+            levelSelect.className = 'toc-item-level toc-edit-control';
+            levelSelect.innerHTML = '<option value="1">L1</option><option value="2">L2</option><option value="3">L3</option>';
+            levelSelect.value = String(item.level || 3);
+            levelSelect.addEventListener('change', async (e) => {
+                updateItem(item.id, { level: parseInt(e.target.value, 10) || 3 });
+                await rerender();
+            });
+
+            const textSpan = document.createElement('span');
+            textSpan.className = 'toc-item-text';
+            textSpan.contentEditable = 'true';
+            textSpan.textContent = item.text || '';
+            textSpan.addEventListener('keydown', (e) => { if (e.key === 'Enter') e.preventDefault(); });
+            textSpan.addEventListener('input', () => {
+                updateItem(item.id, { text: textSpan.textContent || '' });
+            });
+
+            const leader = document.createElement('span');
+            leader.className = 'toc-item-leader';
+
+            const pageSpan = document.createElement('span');
+            pageSpan.className = 'toc-item-page';
+            pageSpan.contentEditable = 'true';
+            pageSpan.textContent = item.page || '';
+            pageSpan.setAttribute('inputmode', 'numeric');
+            pageSpan.addEventListener('keydown', (e) => { if (e.key === 'Enter') e.preventDefault(); });
+            pageSpan.addEventListener('input', () => {
+                const digits = pageSpan.textContent.replace(/\D/g, '');
+                if (digits !== pageSpan.textContent) pageSpan.textContent = digits;
+                updateItem(item.id, { page: digits });
+            });
+
+            const suffix = document.createElement('span');
+            suffix.className = 'toc-item-page-suffix';
+            suffix.textContent = 'p';
+
+            const removeBtn = document.createElement('button');
+            removeBtn.type = 'button';
+            removeBtn.className = 'toc-item-remove toc-edit-control';
+            removeBtn.textContent = '삭제';
+            removeBtn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                toc.items = toc.items.filter(entry => entry.id !== item.id);
+                State.saveHistory();
+                await rerender();
+            });
+
+            row.appendChild(levelSelect);
+            row.appendChild(textSpan);
+            row.appendChild(leader);
+            row.appendChild(pageSpan);
+            row.appendChild(suffix);
+            row.appendChild(removeBtn);
+            list.appendChild(row);
+        });
+
+        page.appendChild(header);
+        page.appendChild(list);
+        return page;
+    },
+
     renderPages() {
         const workspace = document.getElementById('workspace');
         const scrollTop = workspace ? workspace.scrollTop : 0;
@@ -120,7 +282,15 @@ export const Renderer = {
         container.innerHTML = ''; 
         if(State.settings.zoom) { container.style.transform = `scale(${State.settings.zoom})`; container.style.transformOrigin = 'top center'; document.getElementById('zoomRange').value = State.settings.zoom; }
 
-        let pageNum = 1; let currentPage = this.createPage(pageNum); container.appendChild(currentPage);
+        let pageNum = 1;
+        const isTextbook = State.settings.documentMode === 'textbook';
+        if (isTextbook && State.docData.toc) {
+            const tocPage = this.createTocPage(State.docData.toc);
+            container.appendChild(tocPage);
+            pageNum = 2;
+        }
+        let currentPage = this.createPage(pageNum);
+        container.appendChild(currentPage);
         let columns = this.getPageColumns(pageNum, currentPage);
         let colIndex = 0; let curCol = columns[colIndex];
 

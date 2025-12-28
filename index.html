@@ -16,6 +16,7 @@
 <div id="toast-container"></div>
 <div id="drop-overlay">📂 파일 놓기 (Import)</div>
 <input type="file" id="imgUpload" accept="image/*" style="display:none;">
+<input type="file" id="tocImageUpload" accept="image/*" style="display:none;">
 
 <div id="import-modal" class="modal-overlay">
     <div class="modal-content">
@@ -386,6 +387,34 @@
                     <div class="settings-row"><label>머릿말(단원)</label><input type="text" id="setting-meta-subtitle"></div>
                     <div class="settings-row"><label>꼬릿말(푸터)</label><input type="text" id="setting-footer-text"></div>
                 </div>
+            </div>
+        </details>
+
+        <details class="sidebar-folder">
+            <summary>교재 제작 (공사중)</summary>
+            <div class="sidebar-folder-body">
+                <div class="settings-panel">
+                    <div style="font-size:11px; font-weight:bold; margin-bottom:5px; border-bottom:1px solid #ddd; padding-bottom:3px;">문서 모드</div>
+                    <div class="settings-row"><label>모드</label>
+                        <select id="setting-document-mode">
+                            <option value="exam">시험지 (기본)</option>
+                            <option value="textbook">교재 (공사중)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="settings-panel">
+                    <div style="font-size:11px; font-weight:bold; margin-bottom:5px; border-bottom:1px solid #ddd; padding-bottom:3px;">목차 페이지</div>
+                    <div class="settings-row"><label>헤더 높이(mm)</label><input type="number" id="setting-toc-header-height" min="50" max="140" step="1"></div>
+                </div>
+
+                <div class="settings-panel" style="margin-bottom:0;">
+                    <div style="font-size:11px; font-weight:bold; margin-bottom:5px; border-bottom:1px solid #ddd; padding-bottom:3px;">테마 색상</div>
+                    <div class="settings-row"><label>주색</label><input type="color" id="setting-theme-main"></div>
+                    <div class="settings-row"><label>보조색</label><input type="color" id="setting-theme-sub"></div>
+                    <div class="settings-row"><label>본문색</label><input type="color" id="setting-theme-text"></div>
+                </div>
+                <div class="sidebar-hint">현재는 목차 페이지 설정만 지원합니다.</div>
             </div>
         </details>
 

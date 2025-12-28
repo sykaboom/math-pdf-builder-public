@@ -4,6 +4,7 @@ import { ManualRenderer, FileSystem } from './services.js';
 import { Renderer } from './renderer.js';
 import { Actions } from './actions.js';
 import { Events } from './events.js';
+import { buildDefaultToc } from './state-normalize.js';
 
 window.addEventListener('DOMContentLoaded', () => {
     const saved = localStorage.getItem('editorAutoSave');
@@ -36,8 +37,14 @@ window.addEventListener('DOMContentLoaded', () => {
     const metaTitleInp = document.getElementById('setting-meta-title');
     const metaSubtitleInp = document.getElementById('setting-meta-subtitle');
     const footerTextInp = document.getElementById('setting-footer-text');
+    const documentModeSel = document.getElementById('setting-document-mode');
+    const tocHeaderHeightInp = document.getElementById('setting-toc-header-height');
+    const themeMainInp = document.getElementById('setting-theme-main');
+    const themeSubInp = document.getElementById('setting-theme-sub');
+    const themeTextInp = document.getElementById('setting-theme-text');
     const meta = State.docData.meta;
     const settings = State.settings;
+    const toc = State.docData.toc;
 
     if (columnsSel) columnsSel.value = settings.columns || 2;
     if (marginTopInp) marginTopInp.value = settings.marginTopMm || 15;
@@ -46,6 +53,11 @@ window.addEventListener('DOMContentLoaded', () => {
     if (metaTitleInp) metaTitleInp.value = meta.title || '';
     if (metaSubtitleInp) metaSubtitleInp.value = meta.subtitle || '';
     if (footerTextInp) footerTextInp.value = meta.footerText || '';
+    if (documentModeSel) documentModeSel.value = settings.documentMode === 'textbook' ? 'textbook' : 'exam';
+    if (tocHeaderHeightInp) tocHeaderHeightInp.value = toc && toc.headerHeightMm ? toc.headerHeightMm : 80;
+    if (themeMainInp) themeMainInp.value = settings.designConfig?.themeMain || '#1a1a2e';
+    if (themeSubInp) themeSubInp.value = settings.designConfig?.themeSub || '#333333';
+    if (themeTextInp) themeTextInp.value = settings.designConfig?.textColor || '#000000';
 
     if (columnsSel) columnsSel.addEventListener('change', async (e) => {
         State.settings.columns = parseInt(e.target.value) === 1 ? 1 : 2;
@@ -80,6 +92,44 @@ window.addEventListener('DOMContentLoaded', () => {
         State.docData.meta.footerText = e.target.value;
         Renderer.renderPages();
         State.saveHistory(500);
+    });
+
+    if (documentModeSel) documentModeSel.addEventListener('change', async (e) => {
+        const mode = e.target.value === 'textbook' ? 'textbook' : 'exam';
+        State.settings.documentMode = mode;
+        if (mode === 'textbook' && !State.docData.toc) {
+            State.docData.toc = buildDefaultToc();
+        }
+        Renderer.renderPages();
+        if (State.renderingEnabled) await ManualRenderer.renderAll();
+        State.saveHistory();
+    });
+
+    if (tocHeaderHeightInp) tocHeaderHeightInp.addEventListener('change', async (e) => {
+        const value = parseInt(e.target.value, 10);
+        if (!State.docData.toc) State.docData.toc = buildDefaultToc();
+        State.docData.toc.headerHeightMm = value && value > 0 ? value : 80;
+        Renderer.renderPages();
+        if (State.renderingEnabled) await ManualRenderer.renderAll();
+        State.saveHistory();
+    });
+
+    const updateDesignConfig = async (patch) => {
+        const current = State.settings.designConfig || {};
+        State.settings.designConfig = { ...current, ...patch };
+        Renderer.renderPages();
+        if (State.renderingEnabled) await ManualRenderer.renderAll();
+        State.saveHistory();
+    };
+
+    if (themeMainInp) themeMainInp.addEventListener('change', async (e) => {
+        await updateDesignConfig({ themeMain: e.target.value || '#1a1a2e' });
+    });
+    if (themeSubInp) themeSubInp.addEventListener('change', async (e) => {
+        await updateDesignConfig({ themeSub: e.target.value || '#333333' });
+    });
+    if (themeTextInp) themeTextInp.addEventListener('change', async (e) => {
+        await updateDesignConfig({ textColor: e.target.value || '#000000' });
     });
 
     const fontFamilySel = document.getElementById('setting-font-family');
@@ -145,6 +195,29 @@ window.addEventListener('DOMContentLoaded', () => {
         if(FileSystem.dirHandle) FileSystem.saveImage(file).then(s => { if(s) cb(s.url, s.path); });
         else { const r=new FileReader(); r.onload=(ev)=>cb(ev.target.result, null); r.readAsDataURL(file); }
         e.target.value='';
+    });
+
+    const tocImageInput = document.getElementById('tocImageUpload');
+    if (tocImageInput) tocImageInput.addEventListener('change', (e) => {
+        if (!e.target.files[0]) return;
+        const file = e.target.files[0];
+        if (!State.docData.toc) State.docData.toc = buildDefaultToc();
+        const applyImage = (url, path) => {
+            State.docData.toc.headerImage = { src: url || '', path: path || '' };
+            Renderer.renderPages();
+            if (State.renderingEnabled) ManualRenderer.renderAll();
+            State.saveHistory();
+        };
+        if (FileSystem.dirHandle) {
+            FileSystem.saveImage(file).then((saved) => {
+                if (saved) applyImage(saved.url, saved.path);
+            });
+        } else {
+            const reader = new FileReader();
+            reader.onload = (ev) => applyImage(ev.target.result, '');
+            reader.readAsDataURL(file);
+        }
+        e.target.value = '';
     });
 
 });

@@ -199,7 +199,7 @@ export const FileSystem = {
                 statusEl.textContent = "✅ 폴더 연결됨 (저장: 폴더)";
             }
             Utils.showToast("폴더가 연결되었습니다.", "success"); 
-            this.loadImagesForDisplay(State.docData.blocks); 
+            this.loadImagesForDisplay(State.docData.blocks, State.docData.toc); 
         } catch (e) { }
     },
     async saveImage(file) {
@@ -214,7 +214,7 @@ export const FileSystem = {
             return { filename, url: URL.createObjectURL(savedFile), path: `./${folderName}/${filename}` };
         } catch (e) { alert("저장 실패: " + e.message); return null; }
     },
-    async loadImagesForDisplay(blocks) {
+    async loadImagesForDisplay(blocks, toc) {
         if (!this.dirHandle) return;
         const folderName = getImageFolderName();
         try {
@@ -229,6 +229,19 @@ export const FileSystem = {
                         }
                     });
                     block.content = div.innerHTML;
+                }
+            }
+            if (toc && toc.headerImage && toc.headerImage.path) {
+                const src = toc.headerImage.path;
+                if (src && src.startsWith(`./${folderName}/`)) {
+                    try {
+                        const fh = await imgDir.getFileHandle(src.split('/').pop());
+                        const f = await fh.getFile();
+                        const url = URL.createObjectURL(f);
+                        toc.headerImage.src = url;
+                        const tocImg = document.querySelector('.toc-bg-image');
+                        if (tocImg) tocImg.src = url;
+                    } catch (e) { }
                 }
             }
         } catch (e) { }

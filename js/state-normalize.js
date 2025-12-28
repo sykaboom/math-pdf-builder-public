@@ -5,6 +5,14 @@ export const DEFAULT_DOC_META = {
     footerText: "학원명"
 };
 
+export const DEFAULT_TOC = {
+    title: "CONTENTS",
+    subtitle: "2022 개정 교육과정 | 기하",
+    headerHeightMm: 80,
+    headerImage: null,
+    items: []
+};
+
 export const DEFAULT_SETTINGS = {
     zoom: 1.0,
     columns: 2,
@@ -17,7 +25,14 @@ export const DEFAULT_SETTINGS = {
     labelFontSizePt: null,
     labelBold: true,
     labelUnderline: false,
-    pageLayouts: {}
+    pageLayouts: {},
+    documentMode: 'exam',
+    designConfig: {
+        themeMain: '#1a1a2e',
+        themeSub: '#333333',
+        textColor: '#000000',
+        fontFamily: ''
+    }
 };
 
 export const DEFAULT_BLOCK = {
@@ -30,14 +45,16 @@ export const buildDefaultDocMeta = () => ({ ...DEFAULT_DOC_META });
 
 export const buildDefaultSettings = () => ({
     ...DEFAULT_SETTINGS,
-    pageLayouts: {}
+    pageLayouts: {},
+    designConfig: { ...DEFAULT_SETTINGS.designConfig }
 });
 
 export const buildDefaultBlock = () => ({ ...DEFAULT_BLOCK });
 
 export const buildDefaultDocData = () => ({
     meta: buildDefaultDocMeta(),
-    blocks: [buildDefaultBlock()]
+    blocks: [buildDefaultBlock()],
+    toc: null
 });
 
 export const isPlainObject = (value) => value && typeof value === 'object' && !Array.isArray(value);
@@ -56,6 +73,49 @@ export const normalizeDocMeta = (rawMeta) => {
     meta.footerText = typeof meta.footerText === 'string' ? meta.footerText : defaults.footerText;
 
     return meta;
+};
+
+export const buildDefaultToc = () => ({
+    ...DEFAULT_TOC,
+    items: []
+});
+
+const normalizeColor = (value, fallback) => {
+    if (typeof value !== 'string') return fallback;
+    const trimmed = value.trim();
+    if (/^#[0-9a-fA-F]{6}$/.test(trimmed)) return trimmed;
+    return fallback;
+};
+
+const normalizeTocItem = (rawItem) => {
+    const item = isPlainObject(rawItem) ? { ...rawItem } : {};
+    let id = typeof item.id === 'string' ? item.id.trim() : '';
+    if (!id) id = `toc_${Date.now()}_${Math.random().toString(16).slice(2, 6)}`;
+    item.id = id;
+    const level = toNumber(item.level);
+    item.level = level && [1, 2, 3].includes(level) ? level : 3;
+    item.text = typeof item.text === 'string' ? item.text : '';
+    const pageText = typeof item.page === 'string' ? item.page : '';
+    item.page = pageText.replace(/\D/g, '');
+    return item;
+};
+
+export const normalizeToc = (rawToc) => {
+    if (!isPlainObject(rawToc)) return null;
+    const toc = { ...DEFAULT_TOC, ...rawToc };
+    toc.title = typeof toc.title === 'string' ? toc.title : DEFAULT_TOC.title;
+    toc.subtitle = typeof toc.subtitle === 'string' ? toc.subtitle : DEFAULT_TOC.subtitle;
+    const height = toNumber(toc.headerHeightMm);
+    toc.headerHeightMm = height && height > 0 ? height : DEFAULT_TOC.headerHeightMm;
+    if (isPlainObject(toc.headerImage)) {
+        const src = typeof toc.headerImage.src === 'string' ? toc.headerImage.src : '';
+        const path = typeof toc.headerImage.path === 'string' ? toc.headerImage.path : '';
+        toc.headerImage = (src || path) ? { src, path } : null;
+    } else {
+        toc.headerImage = null;
+    }
+    toc.items = Array.isArray(toc.items) ? toc.items.map(normalizeTocItem) : [];
+    return toc;
 };
 
 export const normalizeSettings = (rawSettings) => {
@@ -107,6 +167,19 @@ export const normalizeSettings = (rawSettings) => {
         settings.pageLayouts = normalizedLayouts;
     } else {
         settings.pageLayouts = {};
+    }
+
+    settings.documentMode = settings.documentMode === 'textbook' ? 'textbook' : 'exam';
+    if (isPlainObject(settings.designConfig)) {
+        const design = settings.designConfig;
+        settings.designConfig = {
+            themeMain: normalizeColor(design.themeMain, defaults.designConfig.themeMain),
+            themeSub: normalizeColor(design.themeSub, defaults.designConfig.themeSub),
+            textColor: normalizeColor(design.textColor, defaults.designConfig.textColor),
+            fontFamily: typeof design.fontFamily === 'string' ? design.fontFamily : defaults.designConfig.fontFamily
+        };
+    } else {
+        settings.designConfig = { ...defaults.designConfig };
     }
 
     return settings;
@@ -206,6 +279,7 @@ export const normalizeDocData = (raw, options = {}) => {
     const normalized = { ...base };
     normalized.meta = normalizeDocMeta(base.meta);
     normalized.blocks = normalizeBlocks(base.blocks, opts);
+    normalized.toc = normalizeToc(base.toc);
     return normalized;
 };
 

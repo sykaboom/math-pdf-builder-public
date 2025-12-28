@@ -208,7 +208,7 @@ export const Events = {
                     throw new Error('지원하지 않는 파일 형식입니다.');
                 }
                 State.applyProjectData(parsed, { sanitize: true });
-                await FileSystem.loadImagesForDisplay(State.docData.blocks);
+                await FileSystem.loadImagesForDisplay(State.docData.blocks, State.docData.toc);
                 Renderer.renderPages();
                 ManualRenderer.renderAll();
                 State.saveHistory();
@@ -1363,6 +1363,12 @@ export const Events = {
                 }
                 return;
             }
+            if (action === 'toc-upload-image') {
+                e.preventDefault();
+                const input = document.getElementById('tocImageUpload');
+                if (input) input.click();
+                return;
+            }
             if (action === 'close-modal') {
                 e.preventDefault();
                 const modalId = actionEl.dataset.modal;
@@ -1577,7 +1583,7 @@ export const Events = {
                                 throw new Error('지원하지 않는 파일 형식입니다.');
                             }
                             State.applyProjectData(parsed, { sanitize: true });
-                            await FileSystem.loadImagesForDisplay(State.docData.blocks);
+                            await FileSystem.loadImagesForDisplay(State.docData.blocks, State.docData.toc);
                             Renderer.renderPages();
                             ManualRenderer.renderAll();
                             State.saveHistory();
