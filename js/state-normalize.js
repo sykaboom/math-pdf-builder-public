@@ -6,10 +6,12 @@ export const DEFAULT_DOC_META = {
 };
 
 export const DEFAULT_TOC = {
+    enabled: false,
     title: "CONTENTS",
     subtitle: "2022 개정 교육과정 | 기하",
     headerHeightMm: 80,
     headerImage: null,
+    headerOverlayImage: null,
     items: []
 };
 
@@ -103,17 +105,20 @@ const normalizeTocItem = (rawItem) => {
 export const normalizeToc = (rawToc) => {
     if (!isPlainObject(rawToc)) return null;
     const toc = { ...DEFAULT_TOC, ...rawToc };
+    const hasEnabled = Object.prototype.hasOwnProperty.call(rawToc, 'enabled');
+    toc.enabled = hasEnabled ? rawToc.enabled === true : true;
     toc.title = typeof toc.title === 'string' ? toc.title : DEFAULT_TOC.title;
     toc.subtitle = typeof toc.subtitle === 'string' ? toc.subtitle : DEFAULT_TOC.subtitle;
     const height = toNumber(toc.headerHeightMm);
     toc.headerHeightMm = height && height > 0 ? height : DEFAULT_TOC.headerHeightMm;
-    if (isPlainObject(toc.headerImage)) {
-        const src = typeof toc.headerImage.src === 'string' ? toc.headerImage.src : '';
-        const path = typeof toc.headerImage.path === 'string' ? toc.headerImage.path : '';
-        toc.headerImage = (src || path) ? { src, path } : null;
-    } else {
-        toc.headerImage = null;
-    }
+    const normalizeImageRef = (rawImage) => {
+        if (!isPlainObject(rawImage)) return null;
+        const src = typeof rawImage.src === 'string' ? rawImage.src : '';
+        const path = typeof rawImage.path === 'string' ? rawImage.path : '';
+        return (src || path) ? { src, path } : null;
+    };
+    toc.headerImage = normalizeImageRef(toc.headerImage);
+    toc.headerOverlayImage = normalizeImageRef(toc.headerOverlayImage);
     toc.items = Array.isArray(toc.items) ? toc.items.map(normalizeTocItem) : [];
     return toc;
 };

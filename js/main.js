@@ -38,6 +38,7 @@ window.addEventListener('DOMContentLoaded', () => {
     const metaSubtitleInp = document.getElementById('setting-meta-subtitle');
     const footerTextInp = document.getElementById('setting-footer-text');
     const documentModeSel = document.getElementById('setting-document-mode');
+    const tocEnabledChk = document.getElementById('setting-toc-enabled');
     const tocHeaderHeightInp = document.getElementById('setting-toc-header-height');
     const themeMainInp = document.getElementById('setting-theme-main');
     const themeSubInp = document.getElementById('setting-theme-sub');
@@ -54,6 +55,7 @@ window.addEventListener('DOMContentLoaded', () => {
     if (metaSubtitleInp) metaSubtitleInp.value = meta.subtitle || '';
     if (footerTextInp) footerTextInp.value = meta.footerText || '';
     if (documentModeSel) documentModeSel.value = settings.documentMode === 'textbook' ? 'textbook' : 'exam';
+    if (tocEnabledChk) tocEnabledChk.checked = toc ? toc.enabled === true : false;
     if (tocHeaderHeightInp) tocHeaderHeightInp.value = toc && toc.headerHeightMm ? toc.headerHeightMm : 80;
     if (themeMainInp) themeMainInp.value = settings.designConfig?.themeMain || '#1a1a2e';
     if (themeSubInp) themeSubInp.value = settings.designConfig?.themeSub || '#333333';
@@ -97,8 +99,18 @@ window.addEventListener('DOMContentLoaded', () => {
     if (documentModeSel) documentModeSel.addEventListener('change', async (e) => {
         const mode = e.target.value === 'textbook' ? 'textbook' : 'exam';
         State.settings.documentMode = mode;
-        if (mode === 'textbook' && !State.docData.toc) {
-            State.docData.toc = buildDefaultToc();
+        Renderer.renderPages();
+        if (State.renderingEnabled) await ManualRenderer.renderAll();
+        State.saveHistory();
+    });
+
+    if (tocEnabledChk) tocEnabledChk.addEventListener('change', async (e) => {
+        const enabled = e.target.checked === true;
+        if (enabled) {
+            if (!State.docData.toc) State.docData.toc = buildDefaultToc();
+            State.docData.toc.enabled = true;
+        } else if (State.docData.toc) {
+            State.docData.toc.enabled = false;
         }
         Renderer.renderPages();
         if (State.renderingEnabled) await ManualRenderer.renderAll();
@@ -198,25 +210,36 @@ window.addEventListener('DOMContentLoaded', () => {
     });
 
     const tocImageInput = document.getElementById('tocImageUpload');
-    if (tocImageInput) tocImageInput.addEventListener('change', (e) => {
-        if (!e.target.files[0]) return;
-        const file = e.target.files[0];
+    const tocOverlayImageInput = document.getElementById('tocOverlayImageUpload');
+    const applyTocImage = async (file, targetKey) => {
+        if (!file) return;
         if (!State.docData.toc) State.docData.toc = buildDefaultToc();
-        const applyImage = (url, path) => {
-            State.docData.toc.headerImage = { src: url || '', path: path || '' };
-            Renderer.renderPages();
-            if (State.renderingEnabled) ManualRenderer.renderAll();
-            State.saveHistory();
-        };
-        if (FileSystem.dirHandle) {
-            FileSystem.saveImage(file).then((saved) => {
-                if (saved) applyImage(saved.url, saved.path);
-            });
-        } else {
+        const fallbackDataUrl = (fileObj) => new Promise((resolve, reject) => {
             const reader = new FileReader();
-            reader.onload = (ev) => applyImage(ev.target.result, '');
-            reader.readAsDataURL(file);
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(fileObj);
+        });
+        if (FileSystem.dirHandle) {
+            const saved = await FileSystem.saveImage(file);
+            if (saved) {
+                State.docData.toc[targetKey] = { src: saved.url || '', path: saved.path || '' };
+            } else {
+                State.docData.toc[targetKey] = { src: await fallbackDataUrl(file), path: '' };
+            }
+        } else {
+            State.docData.toc[targetKey] = { src: await fallbackDataUrl(file), path: '' };
         }
+        Renderer.renderPages();
+        if (State.renderingEnabled) await ManualRenderer.renderAll();
+        State.saveHistory();
+    };
+    if (tocImageInput) tocImageInput.addEventListener('change', async (e) => {
+        await applyTocImage(e.target.files && e.target.files[0], 'headerImage');
+        e.target.value = '';
+    });
+    if (tocOverlayImageInput) tocOverlayImageInput.addEventListener('change', async (e) => {
+        await applyTocImage(e.target.files && e.target.files[0], 'headerOverlayImage');
         e.target.value = '';
     });
 

@@ -231,18 +231,22 @@ export const FileSystem = {
                     block.content = div.innerHTML;
                 }
             }
-            if (toc && toc.headerImage && toc.headerImage.path) {
-                const src = toc.headerImage.path;
-                if (src && src.startsWith(`./${folderName}/`)) {
-                    try {
-                        const fh = await imgDir.getFileHandle(src.split('/').pop());
-                        const f = await fh.getFile();
-                        const url = URL.createObjectURL(f);
-                        toc.headerImage.src = url;
-                        const tocImg = document.querySelector('.toc-bg-image');
-                        if (tocImg) tocImg.src = url;
-                    } catch (e) { }
-                }
+            const loadTocImage = async (imageRef, selector) => {
+                if (!imageRef || !imageRef.path) return;
+                const src = imageRef.path;
+                if (!src || !src.startsWith(`./${folderName}/`)) return;
+                try {
+                    const fh = await imgDir.getFileHandle(src.split('/').pop());
+                    const f = await fh.getFile();
+                    const url = URL.createObjectURL(f);
+                    imageRef.src = url;
+                    const tocImg = document.querySelector(selector);
+                    if (tocImg) tocImg.src = url;
+                } catch (e) { }
+            };
+            if (toc) {
+                await loadTocImage(toc.headerImage, '.toc-bg-image');
+                await loadTocImage(toc.headerOverlayImage, '.toc-overlay-image');
             }
         } catch (e) { }
     },

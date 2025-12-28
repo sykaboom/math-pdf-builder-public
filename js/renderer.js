@@ -113,6 +113,15 @@ export const Renderer = {
             header.appendChild(img);
         }
 
+        const overlayImage = toc.headerOverlayImage;
+        if (overlayImage && (overlayImage.src || overlayImage.path)) {
+            const img = document.createElement('img');
+            img.className = 'toc-overlay-image';
+            img.src = overlayImage.src || overlayImage.path;
+            if (overlayImage.path) img.dataset.path = overlayImage.path;
+            header.appendChild(img);
+        }
+
         const titleBox = document.createElement('div');
         titleBox.className = 'toc-title-box';
 
@@ -140,12 +149,24 @@ export const Renderer = {
         titleBox.appendChild(subtitleEl);
         header.appendChild(titleBox);
 
-        const imageBtn = document.createElement('button');
-        imageBtn.type = 'button';
-        imageBtn.className = 'toc-image-btn toc-edit-control';
-        imageBtn.dataset.action = 'toc-upload-image';
-        imageBtn.textContent = headerImage && (headerImage.src || headerImage.path) ? '이미지 변경' : '이미지 추가';
-        header.appendChild(imageBtn);
+        const imageControls = document.createElement('div');
+        imageControls.className = 'toc-image-controls toc-edit-control';
+
+        const bgBtn = document.createElement('button');
+        bgBtn.type = 'button';
+        bgBtn.className = 'toc-image-btn';
+        bgBtn.dataset.action = 'toc-upload-image';
+        bgBtn.textContent = headerImage && (headerImage.src || headerImage.path) ? '배경 이미지 변경' : '배경 이미지 추가';
+
+        const overlayBtn = document.createElement('button');
+        overlayBtn.type = 'button';
+        overlayBtn.className = 'toc-image-btn';
+        overlayBtn.dataset.action = 'toc-upload-overlay-image';
+        overlayBtn.textContent = overlayImage && (overlayImage.src || overlayImage.path) ? '오버레이 변경' : '오버레이 추가';
+
+        imageControls.appendChild(bgBtn);
+        imageControls.appendChild(overlayBtn);
+        header.appendChild(imageControls);
 
         const list = document.createElement('div');
         list.className = 'toc-list-container';
@@ -162,6 +183,61 @@ export const Renderer = {
             if (!item) return;
             Object.assign(item, patch);
             State.saveHistory(500);
+        };
+        const toRoman = (num) => {
+            const map = [
+                { value: 1000, symbol: 'M' },
+                { value: 900, symbol: 'CM' },
+                { value: 500, symbol: 'D' },
+                { value: 400, symbol: 'CD' },
+                { value: 100, symbol: 'C' },
+                { value: 90, symbol: 'XC' },
+                { value: 50, symbol: 'L' },
+                { value: 40, symbol: 'XL' },
+                { value: 10, symbol: 'X' },
+                { value: 9, symbol: 'IX' },
+                { value: 5, symbol: 'V' },
+                { value: 4, symbol: 'IV' },
+                { value: 1, symbol: 'I' }
+            ];
+            let value = Math.max(0, Math.floor(num));
+            if (!value) return '';
+            let result = '';
+            map.forEach((entry) => {
+                while (value >= entry.value) {
+                    result += entry.symbol;
+                    value -= entry.value;
+                }
+            });
+            return result;
+        };
+        const createItemControls = (item) => {
+            const controls = document.createElement('div');
+            controls.className = 'toc-item-controls toc-edit-control';
+
+            const levelSelect = document.createElement('select');
+            levelSelect.className = 'toc-item-level';
+            levelSelect.innerHTML = '<option value="1">L1</option><option value="2">L2</option><option value="3">L3</option>';
+            levelSelect.value = String(item.level || 3);
+            levelSelect.addEventListener('change', async (e) => {
+                updateItem(item.id, { level: parseInt(e.target.value, 10) || 3 });
+                await rerender();
+            });
+
+            const removeBtn = document.createElement('button');
+            removeBtn.type = 'button';
+            removeBtn.className = 'toc-item-remove';
+            removeBtn.textContent = '삭제';
+            removeBtn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                toc.items = toc.items.filter(entry => entry.id !== item.id);
+                State.saveHistory();
+                await rerender();
+            });
+
+            controls.appendChild(levelSelect);
+            controls.appendChild(removeBtn);
+            return controls;
         };
 
         const addBtn = document.createElement('button');
@@ -184,66 +260,142 @@ export const Renderer = {
             list.appendChild(emptyNote);
         }
 
+        const sections = [];
+        let currentSection = null;
+        let currentPart = null;
+        let l1Index = 0;
+        let l2Index = 0;
+        let l3Index = 0;
+
+        const ensureSection = () => {
+            if (currentSection) return;
+            l1Index += 1;
+            currentSection = { index: l1Index, item: null, parts: [] };
+            sections.push(currentSection);
+        };
+        const ensurePart = () => {
+            if (currentPart) return;
+            l2Index += 1;
+            l3Index = 0;
+            currentPart = { index: l2Index, item: null, subs: [] };
+            if (currentSection) currentSection.parts.push(currentPart);
+        };
+
         toc.items.forEach((item) => {
-            const row = document.createElement('div');
-            row.className = `toc-item toc-item-l${item.level || 3}`;
-            row.dataset.itemId = item.id;
+            const level = item.level || 3;
+            if (level === 1) {
+                l1Index += 1;
+                l2Index = 0;
+                l3Index = 0;
+                currentSection = { index: l1Index, item, parts: [] };
+                sections.push(currentSection);
+                currentPart = null;
+                return;
+            }
+            if (level === 2) {
+                ensureSection();
+                l2Index += 1;
+                l3Index = 0;
+                currentPart = { index: l2Index, item, subs: [] };
+                currentSection.parts.push(currentPart);
+                return;
+            }
+            ensureSection();
+            ensurePart();
+            l3Index += 1;
+            currentPart.subs.push({ index: l3Index, item });
+        });
 
-            const levelSelect = document.createElement('select');
-            levelSelect.className = 'toc-item-level toc-edit-control';
-            levelSelect.innerHTML = '<option value="1">L1</option><option value="2">L2</option><option value="3">L3</option>';
-            levelSelect.value = String(item.level || 3);
-            levelSelect.addEventListener('change', async (e) => {
-                updateItem(item.id, { level: parseInt(e.target.value, 10) || 3 });
-                await rerender();
-            });
+        sections.forEach((section) => {
+            const sectionEl = document.createElement('div');
+            sectionEl.className = 'toc-section';
 
-            const textSpan = document.createElement('span');
-            textSpan.className = 'toc-item-text';
-            textSpan.contentEditable = 'true';
-            textSpan.textContent = item.text || '';
-            textSpan.addEventListener('keydown', (e) => { if (e.key === 'Enter') e.preventDefault(); });
-            textSpan.addEventListener('input', () => {
-                updateItem(item.id, { text: textSpan.textContent || '' });
-            });
+            if (section.item) {
+                const titleRow = document.createElement('div');
+                titleRow.className = 'toc-section-title';
 
-            const leader = document.createElement('span');
-            leader.className = 'toc-item-leader';
+                const indexEl = document.createElement('span');
+                indexEl.className = 'toc-section-index';
+                indexEl.textContent = `${toRoman(section.index)}.`;
 
-            const pageSpan = document.createElement('span');
-            pageSpan.className = 'toc-item-page';
-            pageSpan.contentEditable = 'true';
-            pageSpan.textContent = item.page || '';
-            pageSpan.setAttribute('inputmode', 'numeric');
-            pageSpan.addEventListener('keydown', (e) => { if (e.key === 'Enter') e.preventDefault(); });
-            pageSpan.addEventListener('input', () => {
-                const digits = pageSpan.textContent.replace(/\D/g, '');
-                if (digits !== pageSpan.textContent) pageSpan.textContent = digits;
-                updateItem(item.id, { page: digits });
-            });
+                const textSpan = document.createElement('span');
+                textSpan.className = 'toc-section-text';
+                textSpan.contentEditable = 'true';
+                textSpan.textContent = section.item.text || '';
+                textSpan.addEventListener('keydown', (e) => { if (e.key === 'Enter') e.preventDefault(); });
+                textSpan.addEventListener('input', () => {
+                    updateItem(section.item.id, { text: textSpan.textContent || '' });
+                });
 
-            const suffix = document.createElement('span');
-            suffix.className = 'toc-item-page-suffix';
-            suffix.textContent = 'p';
+                titleRow.appendChild(indexEl);
+                titleRow.appendChild(textSpan);
+                titleRow.appendChild(createItemControls(section.item));
+                sectionEl.appendChild(titleRow);
+            }
 
-            const removeBtn = document.createElement('button');
-            removeBtn.type = 'button';
-            removeBtn.className = 'toc-item-remove toc-edit-control';
-            removeBtn.textContent = '삭제';
-            removeBtn.addEventListener('click', async (e) => {
-                e.preventDefault();
-                toc.items = toc.items.filter(entry => entry.id !== item.id);
-                State.saveHistory();
-                await rerender();
-            });
+            if (section.parts.length > 0) {
+                const card = document.createElement('div');
+                card.className = 'toc-section-card';
 
-            row.appendChild(levelSelect);
-            row.appendChild(textSpan);
-            row.appendChild(leader);
-            row.appendChild(pageSpan);
-            row.appendChild(suffix);
-            row.appendChild(removeBtn);
-            list.appendChild(row);
+                section.parts.forEach((part) => {
+                    if (part.item) {
+                        const partRow = document.createElement('div');
+                        partRow.className = 'toc-part-title';
+
+                        const partIndex = document.createElement('span');
+                        partIndex.className = 'toc-part-index';
+                        partIndex.textContent = `Part ${part.index}.`;
+
+                        const partText = document.createElement('span');
+                        partText.className = 'toc-part-text';
+                        partText.contentEditable = 'true';
+                        partText.textContent = part.item.text || '';
+                        partText.addEventListener('keydown', (e) => { if (e.key === 'Enter') e.preventDefault(); });
+                        partText.addEventListener('input', () => {
+                            updateItem(part.item.id, { text: partText.textContent || '' });
+                        });
+
+                        partRow.appendChild(partIndex);
+                        partRow.appendChild(partText);
+                        partRow.appendChild(createItemControls(part.item));
+                        card.appendChild(partRow);
+                    }
+
+                    if (part.subs.length > 0) {
+                        const subList = document.createElement('div');
+                        subList.className = 'toc-sub-list';
+
+                        part.subs.forEach((sub) => {
+                            const subRow = document.createElement('div');
+                            subRow.className = 'toc-sub-item';
+
+                            const subIndex = document.createElement('span');
+                            subIndex.className = 'toc-sub-index';
+                            subIndex.textContent = `${String(sub.index).padStart(2, '0')}.`;
+
+                            const subText = document.createElement('span');
+                            subText.className = 'toc-sub-text';
+                            subText.contentEditable = 'true';
+                            subText.textContent = sub.item.text || '';
+                            subText.addEventListener('keydown', (e) => { if (e.key === 'Enter') e.preventDefault(); });
+                            subText.addEventListener('input', () => {
+                                updateItem(sub.item.id, { text: subText.textContent || '' });
+                            });
+
+                            subRow.appendChild(subIndex);
+                            subRow.appendChild(subText);
+                            subRow.appendChild(createItemControls(sub.item));
+                            subList.appendChild(subRow);
+                        });
+
+                        card.appendChild(subList);
+                    }
+                });
+
+                sectionEl.appendChild(card);
+            }
+
+            list.appendChild(sectionEl);
         });
 
         page.appendChild(header);
@@ -284,8 +436,9 @@ export const Renderer = {
 
         let pageNum = 1;
         const isTextbook = State.settings.documentMode === 'textbook';
-        if (isTextbook && State.docData.toc) {
-            const tocPage = this.createTocPage(State.docData.toc);
+        const toc = State.docData.toc;
+        if (isTextbook && toc && toc.enabled) {
+            const tocPage = this.createTocPage(toc);
             container.appendChild(tocPage);
             pageNum = 2;
         }

@@ -1369,6 +1369,12 @@ export const Events = {
                 if (input) input.click();
                 return;
             }
+            if (action === 'toc-upload-overlay-image') {
+                e.preventDefault();
+                const input = document.getElementById('tocOverlayImageUpload');
+                if (input) input.click();
+                return;
+            }
             if (action === 'close-modal') {
                 e.preventDefault();
                 const modalId = actionEl.dataset.modal;
