@@ -9,10 +9,23 @@ export const resetConceptBlankTracking = (tracker) => {
 
 export const recordConceptBlank = (tracker, rawAnswer = '', options = {}) => {
     if (!tracker) return 0;
-    const isMath = options && options.isMath === true;
+    const isMathFlag = options && options.isMath === true;
     const tmp = document.createElement('div');
     tmp.innerHTML = String(rawAnswer);
     const normalized = (tmp.textContent || '').replace(/\u00A0/g, ' ');
+    const looksLikeMath = (value = '') => {
+        const text = String(value || '').trim();
+        if (!text) return false;
+        if (/\\[a-zA-Z]+/.test(text)) return true;
+        if (/[_^]/.test(text)) return true;
+        const hasDigits = /\d/.test(text);
+        const hasLetters = /[a-zA-Z]/.test(text);
+        const hasOps = /[=<>+\-*/]/.test(text);
+        if (hasDigits && (hasLetters || hasOps)) return true;
+        if (hasLetters && hasOps) return true;
+        return false;
+    };
+    const isMath = isMathFlag || looksLikeMath(normalized);
     tracker.conceptBlankCounter += 1;
     tracker.conceptBlankAnswers.push(normalized);
     tracker.conceptBlankAnswersIsMath.push(isMath);
