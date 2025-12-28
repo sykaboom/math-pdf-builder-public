@@ -6,6 +6,29 @@ import { Utils } from './utils.js';
 import { Events } from './events.js';
 import { buildDefaultChapterCover, buildDefaultToc } from './state-normalize.js';
 
+const INLINE_TAG_PATTERN = /<\/?(span|b|strong|i|em|u|br|font)\b/i;
+
+const decodeHtml = (value = '') => {
+    const tmp = document.createElement('div');
+    const raw = String(value || '');
+    const safe = raw.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    tmp.innerHTML = safe;
+    return tmp.textContent || '';
+};
+
+const setEditableContent = (el, value = '') => {
+    if (!el) return;
+    const raw = String(value ?? '');
+    if (INLINE_TAG_PATTERN.test(raw)) {
+        el.innerHTML = Utils.sanitizeHtml(raw);
+        return;
+    }
+    el.textContent = decodeHtml(raw);
+};
+
+const getEditableHtml = (el) => Utils.sanitizeHtml(el?.innerHTML || '');
+const getEditableText = (el) => (el?.textContent || '').replace(/\u00A0/g, ' ').trim();
+
 export const Renderer = {
     conceptBlankSyncing: false,
     conceptBlankPending: null,
@@ -182,20 +205,20 @@ export const Renderer = {
         const titleEl = document.createElement('div');
         titleEl.className = 'toc-title';
         titleEl.contentEditable = 'true';
-        titleEl.textContent = toc.title || 'CONTENTS';
+        setEditableContent(titleEl, toc.title || 'CONTENTS');
         titleEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') e.preventDefault(); });
         titleEl.addEventListener('input', () => {
-            toc.title = titleEl.textContent || '';
+            toc.title = getEditableHtml(titleEl);
             State.saveHistory(500);
         });
 
         const subtitleEl = document.createElement('div');
         subtitleEl.className = 'toc-subtitle';
         subtitleEl.contentEditable = 'true';
-        subtitleEl.textContent = toc.subtitle || '';
+        setEditableContent(subtitleEl, toc.subtitle || '');
         subtitleEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') e.preventDefault(); });
         subtitleEl.addEventListener('input', () => {
-            toc.subtitle = subtitleEl.textContent || '';
+            toc.subtitle = getEditableHtml(subtitleEl);
             State.saveHistory(500);
         });
 
@@ -238,7 +261,9 @@ export const Renderer = {
         const updateItem = (id, patch) => {
             const item = toc.items.find(entry => entry.id === id);
             if (!item) return;
-            Object.assign(item, patch);
+            const nextPatch = { ...patch };
+            if (typeof nextPatch.text === 'string') nextPatch.text = Utils.sanitizeHtml(nextPatch.text);
+            Object.assign(item, nextPatch);
             State.saveHistory(500);
         };
         const toRoman = (num) => {
@@ -378,10 +403,10 @@ export const Renderer = {
                 const textSpan = document.createElement('span');
                 textSpan.className = 'toc-section-text';
                 textSpan.contentEditable = 'true';
-                textSpan.textContent = section.item.text || '';
+                setEditableContent(textSpan, section.item.text || '');
                 textSpan.addEventListener('keydown', (e) => { if (e.key === 'Enter') e.preventDefault(); });
                 textSpan.addEventListener('input', () => {
-                    updateItem(section.item.id, { text: textSpan.textContent || '' });
+                    updateItem(section.item.id, { text: getEditableHtml(textSpan) });
                 });
 
                 titleRow.appendChild(indexEl);
@@ -406,10 +431,10 @@ export const Renderer = {
                         const partText = document.createElement('span');
                         partText.className = 'toc-part-text';
                         partText.contentEditable = 'true';
-                        partText.textContent = part.item.text || '';
+                        setEditableContent(partText, part.item.text || '');
                         partText.addEventListener('keydown', (e) => { if (e.key === 'Enter') e.preventDefault(); });
                         partText.addEventListener('input', () => {
-                            updateItem(part.item.id, { text: partText.textContent || '' });
+                            updateItem(part.item.id, { text: getEditableHtml(partText) });
                         });
 
                         partRow.appendChild(partIndex);
@@ -433,10 +458,10 @@ export const Renderer = {
                             const subText = document.createElement('span');
                             subText.className = 'toc-sub-text';
                             subText.contentEditable = 'true';
-                            subText.textContent = sub.item.text || '';
+                            setEditableContent(subText, sub.item.text || '');
                             subText.addEventListener('keydown', (e) => { if (e.key === 'Enter') e.preventDefault(); });
                             subText.addEventListener('input', () => {
-                                updateItem(sub.item.id, { text: subText.textContent || '' });
+                                updateItem(sub.item.id, { text: getEditableHtml(subText) });
                             });
 
                             subRow.appendChild(subIndex);
@@ -527,30 +552,30 @@ export const Renderer = {
         const numberEl = document.createElement('div');
         numberEl.className = 'chapter-number';
         numberEl.contentEditable = 'true';
-        numberEl.textContent = cover.number || '';
+        setEditableContent(numberEl, cover.number || '');
         numberEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') e.preventDefault(); });
         numberEl.addEventListener('input', () => {
-            cover.number = numberEl.textContent || '';
+            cover.number = getEditableHtml(numberEl);
             State.saveHistory(500);
         });
 
         const titleKoEl = document.createElement('div');
         titleKoEl.className = 'chapter-title-ko';
         titleKoEl.contentEditable = 'true';
-        titleKoEl.textContent = cover.titleKo || '';
+        setEditableContent(titleKoEl, cover.titleKo || '');
         titleKoEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') e.preventDefault(); });
         titleKoEl.addEventListener('input', () => {
-            cover.titleKo = titleKoEl.textContent || '';
+            cover.titleKo = getEditableHtml(titleKoEl);
             State.saveHistory(500);
         });
 
         const titleEnEl = document.createElement('div');
         titleEnEl.className = 'chapter-title-en';
         titleEnEl.contentEditable = 'true';
-        titleEnEl.textContent = cover.titleEn || '';
+        setEditableContent(titleEnEl, cover.titleEn || '');
         titleEnEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') e.preventDefault(); });
         titleEnEl.addEventListener('input', () => {
-            cover.titleEn = titleEnEl.textContent || '';
+            cover.titleEn = getEditableHtml(titleEnEl);
             State.saveHistory(500);
         });
 
@@ -564,10 +589,10 @@ export const Renderer = {
         const pointsHeader = document.createElement('div');
         pointsHeader.className = 'chapter-points-header';
         pointsHeader.contentEditable = 'true';
-        pointsHeader.textContent = cover.pointsTitle || 'LEARNING POINTS';
+        setEditableContent(pointsHeader, cover.pointsTitle || 'LEARNING POINTS');
         pointsHeader.addEventListener('keydown', (e) => { if (e.key === 'Enter') e.preventDefault(); });
         pointsHeader.addEventListener('input', () => {
-            cover.pointsTitle = pointsHeader.textContent || '';
+            cover.pointsTitle = getEditableHtml(pointsHeader);
             State.saveHistory(500);
         });
 
@@ -576,7 +601,10 @@ export const Renderer = {
 
         const updatePoints = () => {
             cover.points = Array.from(pointsBody.querySelectorAll('.chapter-point-item'))
-                .map(item => (item.textContent || '').trim())
+                .map(item => {
+                    const text = getEditableText(item);
+                    return text ? getEditableHtml(item) : '';
+                })
                 .filter(Boolean);
             State.saveHistory(500);
         };
@@ -586,7 +614,7 @@ export const Renderer = {
             const item = document.createElement('div');
             item.className = 'chapter-point-item';
             item.contentEditable = 'true';
-            item.textContent = text || '';
+            setEditableContent(item, text || '');
             item.addEventListener('keydown', (e) => { if (e.key === 'Enter') e.preventDefault(); });
             item.addEventListener('input', updatePoints);
             pointsBody.appendChild(item);
@@ -600,7 +628,10 @@ export const Renderer = {
 
         const updateParts = () => {
             cover.parts = Array.from(partsBox.querySelectorAll('.chapter-part-item'))
-                .map(item => (item.textContent || '').trim())
+                .map(item => {
+                    const text = getEditableText(item);
+                    return text ? getEditableHtml(item) : '';
+                })
                 .filter(Boolean);
             State.saveHistory(500);
         };
@@ -610,7 +641,7 @@ export const Renderer = {
             const item = document.createElement('div');
             item.className = 'chapter-part-item';
             item.contentEditable = 'true';
-            item.textContent = text || '';
+            setEditableContent(item, text || '');
             item.addEventListener('keydown', (e) => { if (e.key === 'Enter') e.preventDefault(); });
             item.addEventListener('input', updateParts);
             partsBox.appendChild(item);

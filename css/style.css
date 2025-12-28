@@ -178,9 +178,9 @@ body.modal-open .modal-content * { user-select: text; -webkit-user-select: text;
     position: relative;
     background: var(--chapter-bg-color, #f7f7fb);
     overflow: hidden;
-    --chapter-bar-width: 24mm;
+    --chapter-bar-width: 48mm;
     --chapter-content-width: 150mm;
-    --chapter-left-offset: 28mm;
+    --chapter-left-offset: 52mm;
     --chapter-title-top: 28mm;
     --chapter-points-top: 92mm;
     --chapter-points-width: 120mm;
@@ -316,15 +316,28 @@ table.choice-table .choice-text { display: inline-block; min-width: 0; }
 .menu-btn-danger:hover { background: #fdecee; border-color: #dc3545; color: #dc3545; }
 
 /* [도구] */
-#floating-toolbar { position: absolute; background: #333; border-radius: 6px; padding: 5px; display: none; gap: 5px; z-index: 10000; box-shadow: 0 4px 12px rgba(0,0,0,0.3); transform: translate(-50%, -120%); align-items: center; }
-#floating-toolbar::after { content: ''; position: absolute; bottom: -6px; left: 50%; margin-left: -6px; border-width: 6px; border-style: solid; border-color: #333 transparent transparent transparent; }
-.ft-btn { background: transparent; border: none; color: white; cursor: pointer; padding: 4px 8px; border-radius: 4px; font-size: 14px; font-weight: bold; }
-.ft-btn:hover { background: rgba(255,255,255,0.2); }
-.ft-sep { width: 1px; background: rgba(255,255,255,0.3); margin: 0 2px; height: 20px; align-self: center; }
-.ft-select, .ft-input, .ft-color { height: 24px; border-radius: 4px; border: 1px solid #555; font-size: 11px; padding: 2px 6px; }
-.ft-color { width: 26px; padding: 0; background: transparent; }
-.ft-select { min-width: 72px; }
-.ft-input { width: 52px; }
+#floating-toolbar { position: absolute; background: #fdfdfd; border-radius: 10px; padding: 8px 10px; display: none; flex-direction: column; gap: 6px; z-index: 10000; box-shadow: 0 12px 24px rgba(15,23,42,0.18); border: 1px solid rgba(15,23,42,0.14); transform: translate(-50%, -120%); font-size: 12px; color: #111827; }
+#floating-toolbar::before { content: ''; position: absolute; bottom: -7px; left: 50%; transform: translateX(-50%); border-width: 7px; border-style: solid; border-color: rgba(15,23,42,0.14) transparent transparent transparent; }
+#floating-toolbar::after { content: ''; position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%); border-width: 6px; border-style: solid; border-color: #fdfdfd transparent transparent transparent; }
+.ft-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.ft-row-actions { padding-top: 6px; border-top: 1px solid #e5e7eb; }
+#floating-toolbar[data-context="textbook"] .ft-row-actions { display: none; }
+.ft-btn { background: #f3f4f6; border: 1px solid #d1d5db; color: #111827; cursor: pointer; padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: 600; line-height: 1; }
+.ft-btn:hover { background: #e5e7eb; border-color: #cbd5e1; }
+.ft-btn.is-active { background: #111827; color: #fff; border-color: #111827; }
+.ft-sep { width: 1px; background: #d1d5db; margin: 0 2px; height: 20px; align-self: center; }
+.ft-select, .ft-input, .ft-color { height: 26px; border-radius: 6px; border: 1px solid #d1d5db; font-size: 12px; padding: 2px 6px; background: #fff; color: #111827; }
+.ft-select { min-width: 74px; }
+.ft-select-wide { min-width: 130px; }
+.ft-input { width: 56px; text-align: center; }
+.ft-color { width: 28px; padding: 0; }
+.ft-toggle-btn { width: 26px; padding: 4px 0; font-weight: 700; }
+.ft-italic { font-style: italic; }
+.ft-underline { text-decoration: underline; }
+.ft-color-group { display: flex; align-items: center; gap: 6px; }
+.ft-color-btn { width: 18px; height: 18px; border-radius: 5px; border: 1px solid #d1d5db; background: var(--swatch, #111827); cursor: pointer; padding: 0; }
+.ft-color-btn:hover { transform: translateY(-1px); box-shadow: 0 3px 8px rgba(15,23,42,0.15); }
+.ft-color-btn.is-active { outline: 2px solid #111827; outline-offset: 1px; }
 
 #image-resizer { position: absolute; border: 2px solid #007bff; z-index: 9900; display: none; pointer-events: none; }
 .resizer-handle { position: absolute; width: 10px; height: 10px; background: #007bff; border: 1px solid white; pointer-events: auto; }
@@ -368,23 +381,6 @@ table.choice-table .choice-text { display: inline-block; min-width: 0; }
 #folder-status { font-size: 11px; color: #666; font-weight: bold; display: block; margin-bottom: 5px; }
 #folder-status.active { color: #28a745; }
 
-/* [교재 모드: 서체 설정 UI] */
-.font-config-title { font-size: 11px; font-weight: 800; margin-bottom: 6px; color: #333; }
-.font-config-grid { display: flex; flex-direction: column; gap: 4px; }
-.font-config-row { display: grid; grid-template-columns: 1.4fr 1fr 0.8fr repeat(3, 0.5fr) 0.8fr; align-items: center; gap: 4px; }
-.font-config-header { font-size: 10px; font-weight: 700; color: #666; }
-.font-config-header div { text-align: center; }
-.font-config-header div:first-child { text-align: left; }
-.font-config-label { font-size: 10px; font-weight: 700; color: #333; }
-.font-config-select { width: 100%; padding: 2px 4px; font-size: 10px; border: 1px solid #ddd; border-radius: 4px; background: #fff; }
-.font-config-input { width: 100%; padding: 2px 4px; font-size: 10px; border: 1px solid #ddd; border-radius: 4px; }
-.font-config-toggle { display: flex; align-items: center; justify-content: center; }
-.font-config-toggle input { display: none; }
-.font-config-toggle span { width: 22px; height: 22px; border: 1px solid #ddd; border-radius: 4px; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; color: #333; background: #fff; }
-.font-config-toggle input:checked + span { background: #333; color: #fff; border-color: #333; }
-.font-config-italic span { font-style: italic; }
-.font-config-underline span { text-decoration: underline; }
-.font-config-color { width: 100%; height: 22px; border: 1px solid #ddd; border-radius: 4px; padding: 0; background: #fff; }
 
 .shortcut-guide { margin-top: 15px; background: #fff; border: 1px solid #ddd; border-radius: 6px; padding: 0; font-size: 11px; color: #333; height: 220px; overflow-y: auto; }
 .shortcut-header { background: #f1f3f5; padding: 8px; font-weight: bold; font-size: 12px; border-bottom: 1px solid #ddd; position: sticky; top:0; }

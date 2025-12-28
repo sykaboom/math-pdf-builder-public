@@ -447,7 +447,7 @@ export const Events = {
         Utils.closeModal('context-menu');
     },
 
-    applyInlineStyleToSelection(styles = {}) {
+    applyInlineStyleToSelection(styles = {}, options = {}) {
         const styleEntries = Object.entries(styles).filter(([, value]) => value !== undefined && value !== null && value !== '');
         if (!styleEntries.length) return;
         const sel = window.getSelection();
@@ -456,10 +456,10 @@ export const Events = {
         const container = baseRange.commonAncestorContainer.nodeType === Node.ELEMENT_NODE
             ? baseRange.commonAncestorContainer
             : baseRange.commonAncestorContainer.parentNode;
+        const editable = container ? container.closest('[contenteditable="true"]') : null;
         const box = container ? container.closest('.editable-box') : null;
-        if (!box) return;
-        const wrap = box.closest('.block-wrapper');
-        if (!wrap) return;
+        if (!box && !editable) return;
+        const wrap = box ? box.closest('.block-wrapper') : null;
 
         const span = document.createElement('span');
         styleEntries.forEach(([key, value]) => { span.style[key] = value; });
@@ -486,13 +486,17 @@ export const Events = {
         sel.removeAllRanges();
         sel.addRange(newRange);
         State.selectionRange = newRange.cloneRange();
-        State.selectionBlockId = wrap.dataset.id || null;
+        State.selectionBlockId = wrap ? (wrap.dataset.id || null) : null;
 
-        Actions.updateBlockContent(wrap.dataset.id, Utils.cleanRichContentToTexPreserveRaw(box.innerHTML), true);
-        Renderer.debouncedRebalance();
+        if (wrap && box) {
+            Actions.updateBlockContent(wrap.dataset.id, Utils.cleanRichContentToTexPreserveRaw(box.innerHTML), true);
+            Renderer.debouncedRebalance();
+        } else if (options && typeof options.onUpdate === 'function') {
+            options.onUpdate(editable);
+        }
     },
 
-    applyInlineFontFamily(familyKey) {
+    applyInlineFontFamily(familyKey, options = {}) {
         if (!familyKey) return;
         const familyMap = {
             serif: "'Noto Serif KR', serif",
@@ -500,14 +504,14 @@ export const Events = {
             gulim: "Gulim, 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif"
         };
         const fontFamily = familyKey === 'default' ? 'inherit' : (familyMap[familyKey] || familyKey);
-        this.applyInlineStyleToSelection({ fontFamily });
+        this.applyInlineStyleToSelection({ fontFamily }, options);
     },
 
-    applyInlineFontSize(sizePt) {
+    applyInlineFontSize(sizePt, options = {}) {
         if (sizePt === undefined || sizePt === null || sizePt === '') return;
         const sizeValue = parseFloat(sizePt);
         const fontSize = sizeValue > 0 ? `${sizeValue}pt` : 'inherit';
-        this.applyInlineStyleToSelection({ fontSize });
+        this.applyInlineStyleToSelection({ fontSize }, options);
     },
 
     async applyConceptBlankToSelection() {
@@ -1354,31 +1358,235 @@ export const Events = {
                 updateMathSelectionHighlight();
             });
         };
+        const INLINE_STYLE_TARGET = '__inline__';
+        const typographyTargets = {
+            tocTypography: {
+                label: '목차',
+                items: [
+                    { key: 'title', label: '타이틀', selector: '.toc-title' },
+                    { key: 'subtitle', label: '부제', selector: '.toc-subtitle' },
+                    { key: 'section', label: '대단원 제목', selector: '.toc-section-text' },
+                    { key: 'part', label: 'Part 제목', selector: '.toc-part-text' },
+                    { key: 'sub', label: 'Sub 항목', selector: '.toc-sub-text' }
+                ]
+            },
+            chapterTypography: {
+                label: '대단원',
+                items: [
+                    { key: 'number', label: '대단원 번호', selector: '.chapter-number' },
+                    { key: 'titleKo', label: '대단원 제목', selector: '.chapter-title-ko' },
+                    { key: 'titleEn', label: '영문 부제', selector: '.chapter-title-en' },
+                    { key: 'pointsHeader', label: '러닝포인트 헤더', selector: '.chapter-points-header' },
+                    { key: 'pointsBody', label: '학습 포인트 본문', selector: '.chapter-point-item' },
+                    { key: 'parts', label: '파트 목록', selector: '.chapter-part-item' }
+                ]
+            }
+        };
+        const resolveTypographyContext = (node) => {
+            if (!node || !node.closest) return null;
+            const entries = Object.entries(typographyTargets);
+            for (const [groupKey, group] of entries) {
+                for (const item of group.items) {
+                    if (node.closest(item.selector)) return { groupKey, itemKey: item.key };
+                }
+            }
+            return null;
+        };
+        const floatingToolbar = document.getElementById('floating-toolbar');
+        const toolbarControls = {
+            target: document.getElementById('ft-style-target'),
+            family: document.getElementById('ft-font-family'),
+            size: document.getElementById('ft-font-size'),
+            color: document.getElementById('ft-font-color')
+        };
+        const toolbarButtons = {
+            bold: floatingToolbar ? floatingToolbar.querySelector('.ft-toggle-btn[data-style="bold"]') : null,
+            italic: floatingToolbar ? floatingToolbar.querySelector('.ft-toggle-btn[data-style="italic"]') : null,
+            underline: floatingToolbar ? floatingToolbar.querySelector('.ft-toggle-btn[data-style="underline"]') : null
+        };
+        let activeStyleTarget = null;
+        const setToolbarContext = (context) => {
+            if (!floatingToolbar) return;
+            floatingToolbar.dataset.context = context;
+        };
+        const setButtonActive = (btn, active) => {
+            if (!btn) return;
+            btn.classList.toggle('is-active', active);
+            btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+        };
+        const getSelectionRange = () => {
+            if (State.selectionRange) return State.selectionRange.cloneRange();
+            const sel = window.getSelection();
+            if (sel && sel.rangeCount) return sel.getRangeAt(0).cloneRange();
+            return null;
+        };
+        const normalizeFontFamilyKey = (value = '') => {
+            const lower = String(value).toLowerCase();
+            if (lower.includes('noto serif')) return 'serif';
+            if (lower.includes('nanum gothic') || lower.includes('noto sans') || lower.includes('sans-serif')) return 'gothic';
+            if (lower.includes('gulim') || lower.includes('malgun') || lower.includes('apple sd')) return 'gulim';
+            if (lower.includes('serif')) return 'serif';
+            return 'default';
+        };
+        const rgbToHex = (value = '') => {
+            const raw = String(value || '').trim();
+            if (!raw) return '';
+            if (raw.startsWith('#')) {
+                const expanded = raw.length === 4
+                    ? `#${raw[1]}${raw[1]}${raw[2]}${raw[2]}${raw[3]}${raw[3]}`
+                    : raw;
+                return /^#[0-9a-fA-F]{6}$/.test(expanded) ? expanded.toLowerCase() : '';
+            }
+            const match = raw.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+            if (!match) return '';
+            const toHex = (num) => Number(num).toString(16).padStart(2, '0');
+            return `#${toHex(match[1])}${toHex(match[2])}${toHex(match[3])}`;
+        };
+        const syncInlineControls = (range) => {
+            if (!range) return;
+            const node = range.startContainer.nodeType === Node.TEXT_NODE
+                ? range.startContainer.parentElement
+                : range.startContainer;
+            if (!node || !window.getComputedStyle) return;
+            const computed = window.getComputedStyle(node);
+            if (toolbarControls.family) toolbarControls.family.value = normalizeFontFamilyKey(computed.fontFamily);
+            if (toolbarControls.size) {
+                const sizePx = parseFloat(computed.fontSize);
+                const sizePt = Number.isFinite(sizePx) ? Math.round((sizePx * 72 / 96) * 2) / 2 : '';
+                toolbarControls.size.value = sizePt || '';
+            }
+            if (toolbarControls.color) {
+                const hex = rgbToHex(computed.color) || '#000000';
+                toolbarControls.color.value = hex;
+            }
+            const weight = parseInt(computed.fontWeight, 10);
+            const computedBold = Number.isFinite(weight) ? weight >= 600 : /bold/i.test(computed.fontWeight);
+            const computedItalic = computed.fontStyle === 'italic' || computed.fontStyle === 'oblique';
+            const computedUnderline = (computed.textDecorationLine || '').includes('underline');
+            let boldActive = false;
+            let italicActive = false;
+            let underlineActive = false;
+            try { boldActive = document.queryCommandState('bold'); } catch (err) { }
+            try { italicActive = document.queryCommandState('italic'); } catch (err) { }
+            try { underlineActive = document.queryCommandState('underline'); } catch (err) { }
+            setButtonActive(toolbarButtons.bold, boldActive || computedBold);
+            setButtonActive(toolbarButtons.italic, italicActive || computedItalic);
+            setButtonActive(toolbarButtons.underline, underlineActive || computedUnderline);
+        };
+        const syncTypographyControls = (groupKey, itemKey) => {
+            const config = State.settings.designConfig?.[groupKey]?.[itemKey];
+            if (!config) return;
+            if (toolbarControls.family) toolbarControls.family.value = config.fontFamily || 'serif';
+            if (toolbarControls.size) toolbarControls.size.value = config.fontSizePt || '';
+            if (toolbarControls.color) toolbarControls.color.value = config.color || '#000000';
+            setButtonActive(toolbarButtons.bold, Number(config.fontWeight) >= 600);
+            setButtonActive(toolbarButtons.italic, config.italic === true);
+            setButtonActive(toolbarButtons.underline, config.underline === true);
+        };
+        const parseStyleTargetValue = (value) => {
+            if (value === INLINE_STYLE_TARGET) return { mode: 'inline' };
+            const [groupKey, itemKey] = String(value || '').split(':');
+            if (groupKey && itemKey) return { mode: 'typography', groupKey, itemKey };
+            return { mode: 'inline' };
+        };
+        const setActiveStyleTarget = (target, range) => {
+            activeStyleTarget = target;
+            if (!target) return;
+            if (target.mode === 'typography') {
+                syncTypographyControls(target.groupKey, target.itemKey);
+                return;
+            }
+            syncInlineControls(range || getSelectionRange());
+        };
+        const populateStyleTargetOptions = (groupKey) => {
+            if (!toolbarControls.target) return;
+            toolbarControls.target.innerHTML = '';
+            const inlineOption = document.createElement('option');
+            inlineOption.value = INLINE_STYLE_TARGET;
+            inlineOption.textContent = '선택 텍스트';
+            toolbarControls.target.appendChild(inlineOption);
+            const group = groupKey ? typographyTargets[groupKey] : null;
+            if (!group) return;
+            group.items.forEach((item) => {
+                const option = document.createElement('option');
+                option.value = `${groupKey}:${item.key}`;
+                option.textContent = `${group.label} · ${item.label}`;
+                toolbarControls.target.appendChild(option);
+            });
+        };
+        const applyTypographyPatch = async (groupKey, itemKey, patch) => {
+            if (!groupKey || !itemKey) return;
+            const currentDesign = State.settings.designConfig || {};
+            const group = currentDesign[groupKey] || {};
+            const item = group[itemKey] || {};
+            const nextGroup = { ...group, [itemKey]: { ...item, ...patch } };
+            State.settings.designConfig = { ...currentDesign, [groupKey]: nextGroup };
+            Renderer.renderPages();
+            if (State.renderingEnabled) await ManualRenderer.renderAll();
+            State.saveHistory();
+            syncTypographyControls(groupKey, itemKey);
+        };
+        const restoreSelectionRange = () => {
+            if (!State.selectionRange) return;
+            const sel = window.getSelection();
+            if (!sel) return;
+            sel.removeAllRanges();
+            sel.addRange(State.selectionRange.cloneRange());
+        };
+        const notifySelectionInput = (editable = null) => {
+            const target = editable && editable.closest ? editable : (() => {
+                const sel = window.getSelection();
+                if (!sel || !sel.rangeCount) return null;
+                const baseNode = sel.getRangeAt(0).commonAncestorContainer;
+                return baseNode && baseNode.nodeType === Node.ELEMENT_NODE
+                    ? baseNode
+                    : baseNode?.parentNode;
+            })();
+            if (!target || !target.closest) return;
+            const inputTarget = target.closest('[contenteditable="true"]');
+            if (!inputTarget || inputTarget.classList.contains('editable-box')) return;
+            inputTarget.dispatchEvent(new Event('input', { bubbles: true }));
+        };
+        const applyInlineStyle = (styles = {}) => {
+            eventsApi.applyInlineStyleToSelection(styles, { onUpdate: notifySelectionInput });
+        };
+        const applyInlineFontFamily = (value) => {
+            eventsApi.applyInlineFontFamily(value, { onUpdate: notifySelectionInput });
+        };
+        const applyInlineFontSize = (value) => {
+            eventsApi.applyInlineFontSize(value, { onUpdate: notifySelectionInput });
+        };
         const showFloatingToolbarForRange = (range) => {
             const container = range.commonAncestorContainer.nodeType === 1
                 ? range.commonAncestorContainer
                 : range.commonAncestorContainer.parentNode;
             if (!container) return false;
             const box = container.closest('.editable-box');
-            if (!box) return false;
+            const editable = container.closest ? container.closest('[contenteditable="true"]') : null;
+            const typography = resolveTypographyContext(container);
+            if (!box && !typography && !editable) return false;
+            if (!floatingToolbar) return false;
             const rect = range.getBoundingClientRect();
-            const tb = document.getElementById('floating-toolbar');
-            if (!tb) return false;
+            setToolbarContext(typography ? 'textbook' : 'block');
+            populateStyleTargetOptions(typography ? typography.groupKey : null);
+            if (toolbarControls.target) toolbarControls.target.value = INLINE_STYLE_TARGET;
+            setActiveStyleTarget(parseStyleTargetValue(INLINE_STYLE_TARGET), range);
             const desiredTop = rect.top + window.scrollY - 45;
             const desiredLeft = rect.left + window.scrollX + rect.width / 2;
-            tb.style.display = 'flex';
-            tb.style.top = desiredTop + 'px';
-            tb.style.left = desiredLeft + 'px';
+            floatingToolbar.style.display = 'flex';
+            floatingToolbar.style.top = desiredTop + 'px';
+            floatingToolbar.style.left = desiredLeft + 'px';
 
             const pad = 8;
-            const tbRect = tb.getBoundingClientRect();
-            let top = desiredTop; let left = desiredLeft;
+            const tbRect = floatingToolbar.getBoundingClientRect();
+            let top = desiredTop;
+            let left = desiredLeft;
             if (tbRect.left < pad) left += pad - tbRect.left;
             if (tbRect.right > window.innerWidth - pad) left -= tbRect.right - (window.innerWidth - pad);
             if (tbRect.top < pad) top += pad - tbRect.top;
             if (tbRect.bottom > window.innerHeight - pad) top -= tbRect.bottom - (window.innerHeight - pad);
-            tb.style.top = top + 'px';
-            tb.style.left = left + 'px';
+            floatingToolbar.style.top = top + 'px';
+            floatingToolbar.style.left = left + 'px';
 
             State.selectionRange = range.cloneRange();
             const wrap = container.closest('.block-wrapper');
@@ -1386,33 +1594,113 @@ export const Events = {
             return true;
         };
 
-        const floatingToolbar = document.getElementById('floating-toolbar');
         if (floatingToolbar) {
-            floatingToolbar.addEventListener('mousedown', (e) => {
+            floatingToolbar.dataset.context = 'block';
+            floatingToolbar.addEventListener('mousedown', async (e) => {
+                const colorBtn = e.target.closest('.ft-color-btn');
+                if (colorBtn) {
+                    e.preventDefault();
+                    const color = colorBtn.dataset.styleColor || '#000000';
+                    if (toolbarControls.color) toolbarControls.color.value = color;
+                    if (activeStyleTarget && activeStyleTarget.mode === 'typography') {
+                        await applyTypographyPatch(activeStyleTarget.groupKey, activeStyleTarget.itemKey, { color });
+                        return;
+                    }
+                    applyInlineStyle({ color });
+                    syncInlineControls(getSelectionRange());
+                    return;
+                }
+                const toggleBtn = e.target.closest('.ft-toggle-btn');
+                if (toggleBtn) {
+                    e.preventDefault();
+                    const style = toggleBtn.dataset.style;
+                    if (!style) return;
+                    if (activeStyleTarget && activeStyleTarget.mode === 'typography') {
+                        const { groupKey, itemKey } = activeStyleTarget;
+                        const config = State.settings.designConfig?.[groupKey]?.[itemKey] || {};
+                        const patch = {};
+                        if (style === 'bold') patch.fontWeight = Number(config.fontWeight) >= 600 ? 400 : 700;
+                        if (style === 'italic') patch.italic = !config.italic;
+                        if (style === 'underline') patch.underline = !config.underline;
+                        await applyTypographyPatch(groupKey, itemKey, patch);
+                        return;
+                    }
+                    restoreSelectionRange();
+                    const cmdMap = { bold: 'bold', italic: 'italic', underline: 'underline' };
+                    const cmd = cmdMap[style];
+                    if (!cmd) return;
+                    document.execCommand(cmd, false, null);
+                    notifySelectionInput();
+                    const nextRange = getSelectionRange();
+                    if (nextRange && !nextRange.collapsed) State.selectionRange = nextRange.cloneRange();
+                    syncInlineControls(nextRange);
+                    return;
+                }
                 const btn = e.target.closest('.ft-btn');
                 if (!btn) return;
+                e.preventDefault();
                 const action = btn.dataset.action;
                 if (action === 'concept-blank') {
                     eventsApi.applyConceptBlankToSelection();
                     return;
                 }
                 const cmd = btn.dataset.cmd;
-                if (!cmd) return;
+                if (!cmd || !activeStyleTarget || activeStyleTarget.mode !== 'inline') return;
+                restoreSelectionRange();
                 const value = btn.dataset.value || null;
                 document.execCommand(cmd, false, value);
+                notifySelectionInput();
+                const nextRange = getSelectionRange();
+                if (nextRange && !nextRange.collapsed) State.selectionRange = nextRange.cloneRange();
+                syncInlineControls(nextRange);
             });
-            floatingToolbar.addEventListener('change', (e) => {
+            floatingToolbar.addEventListener('change', async (e) => {
                 const target = e.target;
+                if (target.id === 'ft-style-target') {
+                    const parsed = parseStyleTargetValue(target.value);
+                    setActiveStyleTarget(parsed, getSelectionRange());
+                    return;
+                }
+                if (!activeStyleTarget) return;
                 if (target.id === 'ft-font-family') {
-                    eventsApi.applyInlineFontFamily(target.value);
+                    if (activeStyleTarget.mode === 'typography') {
+                        const { groupKey, itemKey } = activeStyleTarget;
+                        const config = State.settings.designConfig?.[groupKey]?.[itemKey] || {};
+                        const nextFamily = target.value === 'default'
+                            ? (config.fontFamily || 'serif')
+                            : target.value;
+                        await applyTypographyPatch(groupKey, itemKey, { fontFamily: nextFamily });
+                        return;
+                    }
+                    applyInlineFontFamily(target.value);
+                    syncInlineControls(getSelectionRange());
                     return;
                 }
                 if (target.id === 'ft-font-size') {
-                    eventsApi.applyInlineFontSize(target.value);
+                    const value = parseFloat(target.value);
+                    if (!Number.isFinite(value) || value <= 0) {
+                        if (activeStyleTarget.mode === 'typography') {
+                            syncTypographyControls(activeStyleTarget.groupKey, activeStyleTarget.itemKey);
+                        } else {
+                            syncInlineControls(getSelectionRange());
+                        }
+                        return;
+                    }
+                    if (activeStyleTarget.mode === 'typography') {
+                        await applyTypographyPatch(activeStyleTarget.groupKey, activeStyleTarget.itemKey, { fontSizePt: value });
+                        return;
+                    }
+                    applyInlineFontSize(value);
+                    syncInlineControls(getSelectionRange());
                     return;
                 }
                 if (target.id === 'ft-font-color') {
-                    eventsApi.applyInlineStyleToSelection({ color: target.value });
+                    if (activeStyleTarget.mode === 'typography') {
+                        await applyTypographyPatch(activeStyleTarget.groupKey, activeStyleTarget.itemKey, { color: target.value });
+                        return;
+                    }
+                    applyInlineStyle({ color: target.value });
+                    syncInlineControls(getSelectionRange());
                 }
             });
         }
@@ -1725,6 +2013,7 @@ export const Events = {
         window.addEventListener('scroll', () => {
             document.getElementById('context-menu').style.display = 'none';
             document.getElementById('floating-toolbar').style.display = 'none';
+            activeStyleTarget = null;
             closeMathMenu();
             closeElementMenu();
             tableEditor.handleScroll();
@@ -1736,6 +2025,7 @@ export const Events = {
                 Utils.resolveConfirm(false);
                 Utils.closeModal('context-menu');
                 document.getElementById('floating-toolbar').style.display='none';
+                activeStyleTarget = null;
                 closeMathMenu();
                 closeElementMenu();
                 this.hideResizer();
@@ -1844,7 +2134,11 @@ export const Events = {
         };
 
         document.addEventListener('mousedown', (e) => {
-            if (!e.target.closest('#floating-toolbar') && !e.target.closest('.ft-btn')) document.getElementById('floating-toolbar').style.display='none'; 
+            if (!e.target.closest('#floating-toolbar') && !e.target.closest('.ft-btn')) {
+                const toolbar = document.getElementById('floating-toolbar');
+                if (toolbar) toolbar.style.display = 'none';
+                activeStyleTarget = null;
+            }
             if (!e.target.closest('img') && !e.target.closest('#image-resizer')) this.hideResizer(); 
             const tocImage = e.target.closest('.toc-bg-image, .toc-overlay-image');
             if (tocImage) {
@@ -1855,7 +2149,9 @@ export const Events = {
                     startTocImageDrag(tocImage, context, e);
                 }
             }
-            if (!e.target.closest('#floating-toolbar') && !e.target.closest('.editable-box')) {
+            if (!e.target.closest('#floating-toolbar')
+                && !e.target.closest('.editable-box')
+                && !e.target.closest('[contenteditable="true"]')) {
                 State.selectionRange = null;
                 State.selectionBlockId = null;
             }
