@@ -176,7 +176,7 @@ body.modal-open .modal-content * { user-select: text; -webkit-user-select: text;
 /* [교재 모드: 대단원 표지] */
 .chapter-cover-page {
     position: relative;
-    background: #f7f7fb;
+    background: var(--chapter-bg-color, #f7f7fb);
     overflow: hidden;
     --chapter-bar-width: 12mm;
     --chapter-content-width: 150mm;

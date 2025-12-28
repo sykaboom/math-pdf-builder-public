@@ -444,9 +444,29 @@ export const Renderer = {
         page.style.padding = '0';
 
         const design = State.settings.designConfig || {};
-        page.style.setProperty('--chapter-main-color', design.themeMain || '#1a1a2e');
-        page.style.setProperty('--chapter-sub-color', design.themeSub || '#333333');
-        page.style.setProperty('--chapter-text-color', design.textColor || '#000000');
+        const normalizeHex = (value) => {
+            if (typeof value !== 'string') return null;
+            const trimmed = value.trim();
+            return /^#[0-9a-fA-F]{6}$/.test(trimmed) ? trimmed : null;
+        };
+        const toHex = (num) => num.toString(16).padStart(2, '0');
+        const lightenHex = (hex, amount) => {
+            const normalized = normalizeHex(hex);
+            if (!normalized) return null;
+            const r = parseInt(normalized.slice(1, 3), 16);
+            const g = parseInt(normalized.slice(3, 5), 16);
+            const b = parseInt(normalized.slice(5, 7), 16);
+            const mix = (value) => Math.round(value + (255 - value) * amount);
+            return `#${toHex(mix(r))}${toHex(mix(g))}${toHex(mix(b))}`;
+        };
+        const themeMain = design.themeMain || '#1a1a2e';
+        const themeSub = design.themeSub || '#333333';
+        const themeText = design.textColor || '#000000';
+        const bgColor = lightenHex(themeSub, 0.92) || '#f7f7fb';
+        page.style.setProperty('--chapter-main-color', themeMain);
+        page.style.setProperty('--chapter-sub-color', themeSub);
+        page.style.setProperty('--chapter-text-color', themeText);
+        page.style.setProperty('--chapter-bg-color', bgColor);
 
         const bar = document.createElement('div');
         bar.className = 'chapter-bar';
