@@ -516,7 +516,13 @@ export const Renderer = {
 
         const pointsHeader = document.createElement('div');
         pointsHeader.className = 'chapter-points-header';
-        pointsHeader.textContent = 'LEARNING POINTS';
+        pointsHeader.contentEditable = 'true';
+        pointsHeader.textContent = cover.pointsTitle || 'LEARNING POINTS';
+        pointsHeader.addEventListener('keydown', (e) => { if (e.key === 'Enter') e.preventDefault(); });
+        pointsHeader.addEventListener('input', () => {
+            cover.pointsTitle = pointsHeader.textContent || '';
+            State.saveHistory(500);
+        });
 
         const pointsBody = document.createElement('div');
         pointsBody.className = 'chapter-points-body';

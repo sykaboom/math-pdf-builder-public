@@ -19,6 +19,7 @@ export const DEFAULT_CHAPTER_COVER = {
     number: "01",
     titleKo: "대단원 제목",
     titleEn: "Chapter Title",
+    pointsTitle: "LEARNING POINTS",
     points: [
         "정의(Definition): 핵심 개념 요약",
         "그래프(Graph): 개념 시각화",
@@ -145,6 +146,7 @@ const normalizeChapterCover = (rawCover) => {
     cover.number = typeof cover.number === 'string' ? cover.number : DEFAULT_CHAPTER_COVER.number;
     cover.titleKo = typeof cover.titleKo === 'string' ? cover.titleKo : DEFAULT_CHAPTER_COVER.titleKo;
     cover.titleEn = typeof cover.titleEn === 'string' ? cover.titleEn : DEFAULT_CHAPTER_COVER.titleEn;
+    cover.pointsTitle = typeof cover.pointsTitle === 'string' ? cover.pointsTitle : DEFAULT_CHAPTER_COVER.pointsTitle;
     cover.points = Array.isArray(cover.points)
         ? cover.points.filter(value => typeof value === 'string')
         : [...DEFAULT_CHAPTER_COVER.points];
