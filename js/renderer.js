@@ -143,6 +143,9 @@ export const Renderer = {
             header.appendChild(img);
         }
 
+        const headerInner = document.createElement('div');
+        headerInner.className = 'toc-header-inner';
+
         const titleBox = document.createElement('div');
         titleBox.className = 'toc-title-box';
 
@@ -168,7 +171,8 @@ export const Renderer = {
 
         titleBox.appendChild(titleEl);
         titleBox.appendChild(subtitleEl);
-        header.appendChild(titleBox);
+        headerInner.appendChild(titleBox);
+        header.appendChild(headerInner);
 
         const imageControls = document.createElement('div');
         imageControls.className = 'toc-image-controls toc-edit-control';
@@ -191,6 +195,8 @@ export const Renderer = {
 
         const list = document.createElement('div');
         list.className = 'toc-list-container';
+        const listInner = document.createElement('div');
+        listInner.className = 'toc-list-inner';
 
         if (!Array.isArray(toc.items)) toc.items = [];
 
@@ -271,14 +277,14 @@ export const Renderer = {
             State.saveHistory();
             await rerender();
         });
-        list.appendChild(addBtn);
+        listInner.appendChild(addBtn);
 
         const emptyNote = document.createElement('div');
         emptyNote.className = 'toc-empty toc-edit-control';
         emptyNote.textContent = '목차 항목을 추가하세요.';
 
         if (toc.items.length === 0) {
-            list.appendChild(emptyNote);
+            listInner.appendChild(emptyNote);
         }
 
         const sections = [];
@@ -416,10 +422,11 @@ export const Renderer = {
                 sectionEl.appendChild(card);
             }
 
-            list.appendChild(sectionEl);
+            listInner.appendChild(sectionEl);
         });
 
         page.appendChild(header);
+        list.appendChild(listInner);
         page.appendChild(list);
         return page;
     },
