@@ -402,18 +402,8 @@
                 </div>
 
                 <div class="settings-panel" style="margin-bottom:0;">
-                    <div style="font-size:11px; font-weight:bold; margin-bottom:5px; border-bottom:1px solid #ddd; padding-bottom:3px;">📌 머릿말/꼬릿말</div>
-                    <div class="settings-row"><label>머릿말 높이(mm)</label><input type="number" id="setting-header-height" min="0" max="60" step="1"></div>
-                    <div class="settings-row"><label>머릿말 템플릿</label>
-                        <select id="setting-header-template">
-                            <option value="exam">시험지(기본)</option>
-                            <option value="free">프리박스</option>
-                            <option value="table">표</option>
-                            <option value="image">이미지</option>
-                            <option value="none">없음</option>
-                        </select>
-                    </div>
-                    <div class="template-controls" data-target="header" data-template="free">
+                    <div style="font-size:11px; font-weight:bold; margin-bottom:5px; border-bottom:1px solid #ddd; padding-bottom:3px;">📌 머릿말/꼬릿말 서식</div>
+                    <div class="template-controls active" data-target="header" data-template="free">
                         <div class="settings-row"><label>머릿말 폰트</label>
                             <select id="setting-header-free-font-family">
                                 <option value="">기본</option>
@@ -434,11 +424,11 @@
                             </select>
                         </div>
                     </div>
-                    <div class="template-controls" data-target="header" data-template="table">
+                    <div class="template-controls active" data-target="header" data-template="table">
                         <div class="settings-row"><label>머릿말 행</label><input type="number" id="setting-header-table-rows" min="1" max="8" step="1"></div>
                         <div class="settings-row"><label>머릿말 열</label><input type="number" id="setting-header-table-cols" min="1" max="8" step="1"></div>
                     </div>
-                    <div class="template-controls" data-target="header" data-template="image">
+                    <div class="template-controls active" data-target="header" data-template="image">
                         <div class="settings-row">
                             <label>머릿말 이미지</label>
                             <div style="display:flex; gap:6px;">
@@ -447,17 +437,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="settings-row"><label>꼬릿말 높이(mm)</label><input type="number" id="setting-footer-height" min="0" max="60" step="1"></div>
-                    <div class="settings-row"><label>꼬릿말 템플릿</label>
-                        <select id="setting-footer-template">
-                            <option value="exam">시험지(기본)</option>
-                            <option value="free">프리박스</option>
-                            <option value="table">표</option>
-                            <option value="image">이미지</option>
-                            <option value="none">없음</option>
-                        </select>
-                    </div>
-                    <div class="template-controls" data-target="footer" data-template="free">
+                    <div class="template-controls active" data-target="footer" data-template="free">
                         <div class="settings-row"><label>꼬릿말 폰트</label>
                             <select id="setting-footer-free-font-family">
                                 <option value="">기본</option>
@@ -478,11 +458,11 @@
                             </select>
                         </div>
                     </div>
-                    <div class="template-controls" data-target="footer" data-template="table">
+                    <div class="template-controls active" data-target="footer" data-template="table">
                         <div class="settings-row"><label>꼬릿말 행</label><input type="number" id="setting-footer-table-rows" min="1" max="8" step="1"></div>
                         <div class="settings-row"><label>꼬릿말 열</label><input type="number" id="setting-footer-table-cols" min="1" max="8" step="1"></div>
                     </div>
-                    <div class="template-controls" data-target="footer" data-template="image">
+                    <div class="template-controls active" data-target="footer" data-template="image">
                         <div class="settings-row">
                             <label>꼬릿말 이미지</label>
                             <div style="display:flex; gap:6px;">
@@ -491,8 +471,6 @@
                             </div>
                         </div>
                     </div>
-                    <div class="settings-row"><label>머릿말(과정)</label><input type="text" id="setting-meta-title"></div>
-                    <div class="settings-row"><label>머릿말(단원)</label><input type="text" id="setting-meta-subtitle"></div>
                 </div>
             </div>
         </details>

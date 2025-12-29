@@ -4,7 +4,7 @@ import { ManualRenderer, FileSystem } from './services.js';
 import { Renderer } from './renderer.js';
 import { Actions } from './actions.js';
 import { Events } from './events.js';
-import { buildDefaultHeaderFooterContent, buildDefaultToc, EXAM_HEADER_HEIGHT_MM } from './state-normalize.js';
+import { buildDefaultHeaderFooterContent, buildDefaultToc } from './state-normalize.js';
 
 window.addEventListener('DOMContentLoaded', () => {
     const saved = localStorage.getItem('editorAutoSave');
@@ -34,12 +34,6 @@ window.addEventListener('DOMContentLoaded', () => {
     const marginTopInp = document.getElementById('setting-margin-top');
     const marginSideInp = document.getElementById('setting-margin-side');
     const columnGapInp = document.getElementById('setting-column-gap');
-    const metaTitleInp = document.getElementById('setting-meta-title');
-    const metaSubtitleInp = document.getElementById('setting-meta-subtitle');
-    const headerHeightInp = document.getElementById('setting-header-height');
-    const footerHeightInp = document.getElementById('setting-footer-height');
-    const headerTemplateSel = document.getElementById('setting-header-template');
-    const footerTemplateSel = document.getElementById('setting-footer-template');
     const headerFreeFamilySel = document.getElementById('setting-header-free-font-family');
     const headerFreeSizeInp = document.getElementById('setting-header-free-font-size');
     const headerFreeWeightInp = document.getElementById('setting-header-free-font-weight');
@@ -58,7 +52,6 @@ window.addEventListener('DOMContentLoaded', () => {
     const themeTextInp = document.getElementById('setting-theme-text');
     const themeHeaderTextInp = document.getElementById('setting-theme-header-text');
     const themeTocTextInp = document.getElementById('setting-theme-toc-text');
-    const meta = State.docData.meta;
     const settings = State.settings;
     const toc = State.docData.toc;
     const ensureHeaderFooterContent = () => {
@@ -78,14 +71,8 @@ window.addEventListener('DOMContentLoaded', () => {
     if (marginTopInp) marginTopInp.value = settings.marginTopMm || 15;
     if (marginSideInp) marginSideInp.value = settings.marginSideMm || 10;
     if (columnGapInp) columnGapInp.value = settings.columnGapMm || 5;
-    if (metaTitleInp) metaTitleInp.value = meta.title || '';
-    if (metaSubtitleInp) metaSubtitleInp.value = meta.subtitle || '';
     const headerConfig = settings.headerConfig || {};
     const footerConfig = settings.footerConfig || {};
-    if (headerHeightInp) headerHeightInp.value = Number.isFinite(headerConfig.heightMm) ? headerConfig.heightMm : 0;
-    if (footerHeightInp) footerHeightInp.value = Number.isFinite(footerConfig.heightMm) ? footerConfig.heightMm : 0;
-    if (headerTemplateSel) headerTemplateSel.value = headerConfig.template || 'exam';
-    if (footerTemplateSel) footerTemplateSel.value = footerConfig.template || 'exam';
     if (headerFreeFamilySel) headerFreeFamilySel.value = headerConfig.freeTypography?.fontFamily || '';
     if (headerFreeSizeInp) headerFreeSizeInp.value = Number.isFinite(headerConfig.freeTypography?.fontSizePt) ? headerConfig.freeTypography.fontSizePt : '';
     if (headerFreeWeightInp) headerFreeWeightInp.value = Number.isFinite(headerConfig.freeTypography?.fontWeight) ? headerConfig.freeTypography.fontWeight : '';
@@ -124,46 +111,6 @@ window.addEventListener('DOMContentLoaded', () => {
     numberHandler('marginTopMm', marginTopInp, 15);
     numberHandler('marginSideMm', marginSideInp, 10);
     numberHandler('columnGapMm', columnGapInp, 5);
-    if (metaTitleInp) metaTitleInp.addEventListener('input', (e) => {
-        State.docData.meta.title = e.target.value;
-        Renderer.renderPages();
-        State.saveHistory(500);
-    });
-    if (metaSubtitleInp) metaSubtitleInp.addEventListener('input', (e) => {
-        State.docData.meta.subtitle = e.target.value;
-        Renderer.renderPages();
-        State.saveHistory(500);
-    });
-
-    const toggleTemplateControls = (target, template) => {
-        document.querySelectorAll(`.template-controls[data-target="${target}"]`).forEach((el) => {
-            el.classList.toggle('active', el.dataset.template === template);
-        });
-    };
-    if (headerTemplateSel) toggleTemplateControls('header', headerTemplateSel.value);
-    if (footerTemplateSel) toggleTemplateControls('footer', footerTemplateSel.value);
-    const applyExamHeaderHeightLock = () => {
-        if (!headerHeightInp || !headerTemplateSel) return;
-        const isExam = headerTemplateSel.value === 'exam';
-        headerHeightInp.disabled = isExam;
-        if (isExam) {
-            headerHeightInp.value = EXAM_HEADER_HEIGHT_MM;
-            if (State.settings.headerConfig) {
-                State.settings.headerConfig.heightMm = EXAM_HEADER_HEIGHT_MM;
-            }
-        }
-    };
-    applyExamHeaderHeightLock();
-
-    const applyHeaderFooterConfig = async (target, patch) => {
-        const config = target === 'header' ? State.settings.headerConfig : State.settings.footerConfig;
-        if (!config) return;
-        Object.assign(config, patch);
-        Renderer.renderPages();
-        if (State.renderingEnabled) await ManualRenderer.renderAll();
-        State.saveHistory();
-    };
-
     const updateFreeTypography = async (target, patch) => {
         const config = target === 'header' ? State.settings.headerConfig : State.settings.footerConfig;
         if (!config) return;
@@ -188,35 +135,6 @@ window.addEventListener('DOMContentLoaded', () => {
         contentSection.table = { data: next };
     };
 
-    if (headerHeightInp) headerHeightInp.addEventListener('change', async (e) => {
-        if (headerTemplateSel && headerTemplateSel.value === 'exam') {
-            headerHeightInp.value = EXAM_HEADER_HEIGHT_MM;
-            await applyHeaderFooterConfig('header', { heightMm: EXAM_HEADER_HEIGHT_MM });
-            return;
-        }
-        const value = parseInt(e.target.value, 10);
-        await applyHeaderFooterConfig('header', { heightMm: Number.isFinite(value) ? value : 0 });
-    });
-    if (footerHeightInp) footerHeightInp.addEventListener('change', async (e) => {
-        const value = parseInt(e.target.value, 10);
-        await applyHeaderFooterConfig('footer', { heightMm: Number.isFinite(value) ? value : 0 });
-    });
-    if (headerTemplateSel) headerTemplateSel.addEventListener('change', async (e) => {
-        const value = e.target.value;
-        toggleTemplateControls('header', value);
-        if (value === 'exam') {
-            await applyHeaderFooterConfig('header', { template: value, heightMm: EXAM_HEADER_HEIGHT_MM });
-            applyExamHeaderHeightLock();
-            return;
-        }
-        await applyHeaderFooterConfig('header', { template: value });
-        applyExamHeaderHeightLock();
-    });
-    if (footerTemplateSel) footerTemplateSel.addEventListener('change', async (e) => {
-        const value = e.target.value;
-        toggleTemplateControls('footer', value);
-        await applyHeaderFooterConfig('footer', { template: value });
-    });
     if (headerFreeFamilySel) headerFreeFamilySel.addEventListener('change', async (e) => {
         await updateFreeTypography('header', { fontFamily: e.target.value });
     });

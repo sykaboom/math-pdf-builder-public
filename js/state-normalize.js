@@ -284,7 +284,7 @@ const normalizeHeaderFooterContent = (rawContent, options = {}) => {
     };
 };
 
-const normalizeHeaderFooterConfig = (rawConfig, defaults) => {
+const normalizeHeaderFooterConfig = (rawConfig, defaults, opts = {}) => {
     const cfg = isPlainObject(rawConfig) ? { ...rawConfig } : {};
     const normalized = { ...defaults };
 
@@ -295,7 +295,8 @@ const normalizeHeaderFooterConfig = (rawConfig, defaults) => {
     if (typeof cfg.template === 'string' && allowedTemplates.has(cfg.template)) {
         normalized.template = cfg.template;
     }
-    if (normalized.template === 'exam') {
+    const enforceExamHeight = opts && opts.enforceExamHeight === true;
+    if (enforceExamHeight && normalized.template === 'exam') {
         normalized.heightMm = EXAM_HEADER_HEIGHT_MM;
     }
 
@@ -351,6 +352,17 @@ const normalizePagePlan = (rawPlan, covers) => {
     const plan = Array.isArray(rawPlan) ? rawPlan : [];
     const normalized = [];
     const coverMap = new Map((covers || []).map(cover => [cover.id, cover]));
+    const allowedTemplates = new Set(['exam', 'free', 'table', 'image', 'none']);
+    const normalizeHeaderFooterOverride = (rawOverride) => {
+        if (!isPlainObject(rawOverride)) return null;
+        const next = {};
+        if (typeof rawOverride.template === 'string' && allowedTemplates.has(rawOverride.template)) {
+            next.template = rawOverride.template;
+        }
+        const height = toNumber(rawOverride.heightMm);
+        if (height !== null && height >= 0) next.heightMm = height;
+        return Object.keys(next).length ? next : null;
+    };
     const ensureCover = (coverId) => {
         let id = typeof coverId === 'string' ? coverId : '';
         if (id && coverMap.has(id)) return id;
@@ -373,6 +385,10 @@ const normalizePagePlan = (rawPlan, covers) => {
         if (normalizedKind === 'chapter-cover') {
             entry.coverId = ensureCover(item.coverId);
         }
+        const headerOverride = normalizeHeaderFooterOverride(item.header);
+        if (headerOverride) entry.header = headerOverride;
+        const footerOverride = normalizeHeaderFooterOverride(item.footer);
+        if (footerOverride) entry.footer = footerOverride;
         normalized.push(entry);
     });
     if (!normalized.length) {
@@ -458,7 +474,7 @@ export const normalizeSettings = (rawSettings) => {
     settings.labelBold = typeof settings.labelBold === 'boolean' ? settings.labelBold : defaults.labelBold;
     settings.labelUnderline = typeof settings.labelUnderline === 'boolean' ? settings.labelUnderline : defaults.labelUnderline;
 
-    settings.headerConfig = normalizeHeaderFooterConfig(settings.headerConfig, defaults.headerConfig);
+    settings.headerConfig = normalizeHeaderFooterConfig(settings.headerConfig, defaults.headerConfig, { enforceExamHeight: true });
     settings.footerConfig = normalizeHeaderFooterConfig(settings.footerConfig, defaults.footerConfig);
 
     if (isPlainObject(settings.pageLayouts)) {

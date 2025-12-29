@@ -7,6 +7,7 @@ import { Events } from './events.js';
 import { buildDefaultChapterCover, buildDefaultHeaderFooterContent, buildDefaultToc, EXAM_HEADER_HEIGHT_MM } from './state-normalize.js';
 
 const INLINE_TAG_PATTERN = /<\/?(span|b|strong|i|em|u|br|font)\b/i;
+const EXAM_HEADER_EMPTY_HEIGHT_MM = 12;
 
 const decodeHtml = (value = '') => {
     const tmp = document.createElement('div');
@@ -92,6 +93,20 @@ export const Renderer = {
         const settings = State.settings || {};
         if (kind === 'header') return settings.headerConfig || {};
         return settings.footerConfig || {};
+    },
+    resolveHeaderFooterConfigForEntry(kind, planEntry) {
+        const base = { ...(this.resolveHeaderFooterConfig(kind) || {}) };
+        const override = planEntry && planEntry[kind] && typeof planEntry[kind] === 'object' ? planEntry[kind] : null;
+        if (!override) return base;
+        const allowedTemplates = new Set(['exam', 'free', 'table', 'image', 'none']);
+        if (typeof override.template === 'string' && allowedTemplates.has(override.template)) {
+            base.template = override.template;
+        }
+        const heightRaw = typeof override.heightMm === 'number' ? override.heightMm : parseFloat(override.heightMm);
+        if (Number.isFinite(heightRaw) && heightRaw >= 0) {
+            base.heightMm = heightRaw;
+        }
+        return base;
     },
     resolveHeaderFooterContent(kind) {
         if (!State.docData.headerFooter) {
@@ -244,12 +259,13 @@ export const Renderer = {
 
         const meta = State.docData.meta;
         const settings = State.settings;
-        const headerConfig = this.resolveHeaderFooterConfig('header');
-        const footerConfig = this.resolveHeaderFooterConfig('footer');
+        const headerConfig = this.resolveHeaderFooterConfigForEntry('header', planEntry);
+        const footerConfig = this.resolveHeaderFooterConfigForEntry('footer', planEntry);
         const headerContentData = this.resolveHeaderFooterContent('header');
         const footerContentData = this.resolveHeaderFooterContent('footer');
+        const isExamDoc = settings.documentMode === 'exam';
         const headerHeight = headerConfig.template === 'none'
-            ? 0
+            ? (isExamDoc ? EXAM_HEADER_EMPTY_HEIGHT_MM : 0)
             : (headerConfig.template === 'exam' ? EXAM_HEADER_HEIGHT_MM : headerConfig.heightMm);
         const footerHeight = footerConfig.template === 'none' ? 0 : footerConfig.heightMm;
         const columnsCount = planEntry && (planEntry.columns === 1 || planEntry.columns === 2)
@@ -259,7 +275,13 @@ export const Renderer = {
         const headerArea = document.createElement('div');
         headerArea.className = 'header-area';
         this.applyHeaderFooterSize(headerArea, headerHeight);
-        if (headerHeight === 0) headerArea.style.marginBottom = '0';
+        if (headerConfig.template === 'none') {
+            headerArea.style.marginBottom = '0';
+        }
+        if (headerHeight === 0) {
+            headerArea.style.marginBottom = '0';
+            headerArea.style.overflow = 'visible';
+        }
         let headerContent = null;
         if (headerConfig.template === 'exam') headerContent = this.buildExamHeader(meta, num);
         else if (headerConfig.template === 'free') headerContent = this.buildHeaderFooterFreeBox(headerConfig, headerContentData);
@@ -286,7 +308,10 @@ export const Renderer = {
         const footerArea = document.createElement('div');
         footerArea.className = 'page-footer';
         this.applyHeaderFooterSize(footerArea, footerHeight);
-        if (footerHeight === 0) footerArea.style.marginTop = '0';
+        if (footerHeight === 0) {
+            footerArea.style.marginTop = '0';
+            footerArea.style.overflow = 'visible';
+        }
         let footerContent = null;
         if (footerConfig.template === 'exam') footerContent = this.buildExamFooter(meta, num);
         else if (footerConfig.template === 'free') footerContent = this.buildHeaderFooterFreeBox(footerConfig, footerContentData);
@@ -864,6 +889,108 @@ export const Renderer = {
         return page;
     },
 
+    attachHeaderFooterControls(pageEl, entry) {
+        if (!pageEl || !entry || entry.kind !== 'content') return;
+        this.attachHeaderFooterControl(pageEl, entry, 'header');
+        this.attachHeaderFooterControl(pageEl, entry, 'footer');
+    },
+
+    attachHeaderFooterControl(pageEl, entry, kind) {
+        const area = pageEl.querySelector(kind === 'header' ? '.header-area' : '.page-footer');
+        if (!area) return;
+        const labelText = kind === 'header' ? '머릿말' : '꼬릿말';
+        const controlClass = kind === 'header' ? 'header-control' : 'footer-control';
+        const existing = area.querySelector(`.header-footer-control.${controlClass}`);
+        const control = existing || (() => {
+            const div = document.createElement('div');
+            div.className = `header-footer-control ${controlClass}`;
+            area.appendChild(div);
+            return div;
+        })();
+        control.innerHTML = '';
+
+        const config = this.resolveHeaderFooterConfigForEntry(kind, entry);
+        const template = config.template || 'exam';
+        const isExamDoc = State.settings.documentMode === 'exam';
+        const isHeader = kind === 'header';
+
+        let displayHeight = 0;
+        let lockHeight = false;
+        if (template === 'none') {
+            displayHeight = isHeader && isExamDoc ? EXAM_HEADER_EMPTY_HEIGHT_MM : 0;
+            lockHeight = true;
+        } else if (isHeader && template === 'exam') {
+            displayHeight = EXAM_HEADER_HEIGHT_MM;
+            lockHeight = true;
+        } else {
+            displayHeight = Number.isFinite(config.heightMm) ? config.heightMm : 0;
+        }
+
+        const label = document.createElement('span');
+        label.className = 'page-layout-label';
+        label.textContent = labelText;
+
+        const templateSelect = document.createElement('select');
+        templateSelect.className = 'page-layout-select';
+        templateSelect.innerHTML = [
+            '<option value="exam">시험지(기본)</option>',
+            '<option value="free">프리박스</option>',
+            '<option value="table">표</option>',
+            '<option value="image">이미지</option>',
+            '<option value="none">없음</option>'
+        ].join('');
+        templateSelect.value = template;
+
+        const heightInput = document.createElement('input');
+        heightInput.type = 'number';
+        heightInput.min = '0';
+        heightInput.max = '60';
+        heightInput.step = '1';
+        heightInput.className = 'page-layout-input';
+        heightInput.value = Number.isFinite(displayHeight) ? displayHeight : 0;
+        heightInput.disabled = lockHeight;
+
+        const heightLabel = document.createElement('span');
+        heightLabel.className = 'page-layout-label';
+        heightLabel.textContent = '높이';
+
+        templateSelect.addEventListener('change', async (e) => {
+            const nextTemplate = e.target.value;
+            if (!entry[kind] || typeof entry[kind] !== 'object') entry[kind] = {};
+            entry[kind].template = nextTemplate;
+            if (isHeader && nextTemplate === 'exam') {
+                entry[kind].heightMm = EXAM_HEADER_HEIGHT_MM;
+            } else if (nextTemplate === 'none') {
+                entry[kind].heightMm = isHeader && isExamDoc ? EXAM_HEADER_EMPTY_HEIGHT_MM : 0;
+            } else if (!Number.isFinite(entry[kind].heightMm)) {
+                entry[kind].heightMm = Number.isFinite(config.heightMm) ? config.heightMm : 0;
+            }
+            State.saveHistory();
+            this.renderPages();
+            await ManualRenderer.renderAll();
+        });
+
+        heightInput.addEventListener('change', async (e) => {
+            if (heightInput.disabled) {
+                heightInput.value = Number.isFinite(displayHeight) ? displayHeight : 0;
+                return;
+            }
+            const raw = parseFloat(e.target.value);
+            const nextHeight = Number.isFinite(raw) ? Math.max(0, Math.min(60, raw)) : 0;
+            if (!entry[kind] || typeof entry[kind] !== 'object') entry[kind] = {};
+            if (!entry[kind].template) entry[kind].template = template;
+            entry[kind].heightMm = nextHeight;
+            State.saveHistory();
+            this.renderPages();
+            await ManualRenderer.renderAll();
+        });
+
+        control.appendChild(label);
+        control.appendChild(templateSelect);
+        control.appendChild(heightLabel);
+        control.appendChild(heightInput);
+    },
+
     attachPagePlanControl(pageEl, entry, index) {
         if (!pageEl || !entry) return;
         pageEl.dataset.planId = entry.id;
@@ -982,6 +1109,8 @@ export const Renderer = {
             this.renderPages();
             await ManualRenderer.renderAll();
         });
+
+        this.attachHeaderFooterControls(pageEl, entry);
     },
 
     renderPages() {
