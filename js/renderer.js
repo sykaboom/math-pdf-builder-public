@@ -29,6 +29,19 @@ const setEditableContent = (el, value = '') => {
 const getEditableHtml = (el) => Utils.sanitizeHtml(el?.innerHTML || '');
 const getEditableText = (el) => (el?.textContent || '').replace(/\u00A0/g, ' ').trim();
 
+const hexToRgba = (hex, alpha = 0.1) => {
+    const raw = String(hex || '').trim();
+    const match = raw.match(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/);
+    if (!match) return `rgba(0, 0, 0, ${alpha})`;
+    let value = match[1];
+    if (value.length === 3) value = value.split('').map(ch => ch + ch).join('');
+    const intVal = parseInt(value, 16);
+    const r = (intVal >> 16) & 255;
+    const g = (intVal >> 8) & 255;
+    const b = intVal & 255;
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+};
+
 export const Renderer = {
     conceptBlankSyncing: false,
     conceptBlankPending: null,
@@ -64,27 +77,203 @@ export const Renderer = {
     },
 
     getPageColumns(pageNum, pageEl) {
-        const count = this.getPageColumnsCount(pageNum);
+        let count = null;
+        if (pageEl && pageEl.dataset && pageEl.dataset.planId) {
+            const plan = Array.isArray(State.docData.pagePlan) ? State.docData.pagePlan : [];
+            const entry = plan.find(item => item.id === pageEl.dataset.planId);
+            if (entry && (entry.columns === 1 || entry.columns === 2)) count = entry.columns;
+        }
+        if (!count) count = this.getPageColumnsCount(pageNum);
         if (count === 1) return [pageEl.querySelector('.column.single')];
         return [pageEl.querySelector('.column.left'), pageEl.querySelector('.column.right')];
     },
 
+    resolveHeaderFooterConfig(kind) {
+        const settings = State.settings || {};
+        if (kind === 'header') return settings.headerConfig || {};
+        return settings.footerConfig || {};
+    },
+
+    applyHeaderFooterSize(area, heightMm) {
+        const height = Number.isFinite(heightMm) ? heightMm : null;
+        if (height === null) return;
+        area.style.height = `${height}mm`;
+        area.style.minHeight = `${height}mm`;
+    },
+
+    applyFreeTypography(target, typography) {
+        if (!target || !typography) return;
+        const familyMap = {
+            serif: "'Noto Serif KR', serif",
+            gothic: "'Nanum Gothic', 'Noto Sans KR', sans-serif",
+            gulim: "Gulim, 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif"
+        };
+        if (typography.fontFamily) {
+            target.style.fontFamily = familyMap[typography.fontFamily] || typography.fontFamily;
+        }
+        if (typography.fontSizePt) target.style.fontSize = `${typography.fontSizePt}pt`;
+        if (typography.fontWeight) target.style.fontWeight = typography.fontWeight;
+        if (typography.textAlign) target.style.textAlign = typography.textAlign;
+        if (typography.color) target.style.color = typography.color;
+    },
+
+    applyRelativeImageStyle(img, style) {
+        if (!img || !style) return;
+        img.style.left = `${style.leftPct}%`;
+        img.style.top = `${style.topPct}%`;
+        img.style.width = `${style.widthPct}%`;
+        img.style.height = `${style.heightPct}%`;
+        img.style.right = 'auto';
+        img.style.bottom = 'auto';
+    },
+
+    syncHeaderFooterTableData(table, config) {
+        if (!table || !config || !config.table) return;
+        const rows = Array.from(table.rows);
+        const data = rows.map(row => Array.from(row.cells).map(cell => Utils.sanitizeHtml(cell.innerHTML || '')));
+        config.table.data = data;
+        State.saveHistory(500);
+    },
+
+    buildHeaderFooterTable(config) {
+        const table = document.createElement('table');
+        table.className = 'header-footer-table';
+        const rows = config.table?.rows || 1;
+        const cols = config.table?.cols || 1;
+        const data = Array.isArray(config.table?.data) ? config.table.data : [];
+        for (let r = 0; r < rows; r++) {
+            const tr = document.createElement('tr');
+            for (let c = 0; c < cols; c++) {
+                const td = document.createElement('td');
+                td.contentEditable = 'true';
+                td.innerHTML = (data[r] && data[r][c]) ? data[r][c] : '';
+                tr.appendChild(td);
+            }
+            table.appendChild(tr);
+        }
+        const sync = Utils.debounce(() => this.syncHeaderFooterTableData(table, config), 300);
+        table.addEventListener('input', sync);
+        return table;
+    },
+
+    buildHeaderFooterFreeBox(config) {
+        const box = document.createElement('div');
+        box.className = 'header-footer-freebox';
+        box.contentEditable = 'true';
+        box.innerHTML = Utils.sanitizeHtml(config.freeHtml || '');
+        this.applyFreeTypography(box, config.freeTypography);
+        box.addEventListener('input', () => {
+            config.freeHtml = Utils.sanitizeHtml(box.innerHTML || '');
+            State.saveHistory(500);
+        });
+        return box;
+    },
+
+    buildHeaderFooterImage(config, kind) {
+        const container = document.createElement('div');
+        container.className = 'header-footer-image-container';
+        const image = config.image;
+        if (image && (image.src || image.path)) {
+            const img = document.createElement('img');
+            img.className = `header-footer-image ${kind}-image`;
+            img.src = image.src || image.path;
+            if (image.path) img.dataset.path = image.path;
+            img.dataset.hfTarget = kind;
+            img.draggable = false;
+            const style = image.style || { leftPct: 0, topPct: 0, widthPct: 100, heightPct: 100 };
+            this.applyRelativeImageStyle(img, style);
+            container.appendChild(img);
+        } else {
+            const placeholder = document.createElement('div');
+            placeholder.className = 'header-footer-image-placeholder';
+            placeholder.textContent = '이미지 없음';
+            container.appendChild(placeholder);
+        }
+        return container;
+    },
+
+    buildExamHeader(meta, pageNum) {
+        if (pageNum !== 1) {
+            const line = document.createElement('div');
+            line.className = 'header-line';
+            line.style.marginTop = 'auto';
+            return line;
+        }
+        const table = document.createElement('table');
+        table.className = 'header-table';
+        table.innerHTML = `<colgroup><col class="col-title"><col class="col-label"><col class="col-input-wide"><col class="col-label"><col class="col-input-narrow"></colgroup><tr><td rowspan="2" class="col-title">TEST</td><td class="col-label">과정</td><td><input class="header-input meta-title" value="${meta.title}"></td><td class="col-label">성명</td><td><input class="header-input"></td></tr><tr><td class="col-label">단원</td><td><input class="header-input meta-subtitle" value="${meta.subtitle}"></td><td class="col-label">점수</td><td></td></tr>`;
+        return table;
+    },
+
+    buildExamFooter(meta, pageNum) {
+        const container = document.createElement('div');
+        if (pageNum === 1) {
+            container.className = 'footer-content-first';
+            container.innerHTML = `<div>- ${pageNum} -</div>`;
+            return container;
+        }
+        container.innerHTML = `<div class="footer-line"></div><div>- ${pageNum} -</div>`;
+        return container;
+    },
+
     createPage(num, options = {}) {
-        const { mode = 'exam', planEntry = null } = options;
-        const isTextbook = mode === 'textbook';
-        const div = document.createElement('div'); div.className = 'page'; if(num === 1) div.classList.add('page-first');
+        const { planEntry = null } = options;
+        const div = document.createElement('div');
+        div.className = 'page';
+        if (num === 1) div.classList.add('page-first');
+
         const meta = State.docData.meta;
         const settings = State.settings;
-        const headerHTML = num === 1 ? 
-            `<table class="header-table"><colgroup><col class="col-title"><col class="col-label"><col class="col-input-wide"><col class="col-label"><col class="col-input-narrow"></colgroup><tr><td rowspan="2" class="col-title">TEST</td><td class="col-label">과정</td><td><input class="header-input meta-title" value="${meta.title}"></td><td class="col-label">성명</td><td><input class="header-input"></td></tr><tr><td class="col-label">단원</td><td><input class="header-input meta-subtitle" value="${meta.subtitle}"></td><td class="col-label">점수</td><td></td></tr></table>` : `<div class="header-line"></div>`;
-        const footerText = meta.footerText ? `<div class="footer-text">${meta.footerText}</div>` : '';
-        const footerHTML = num === 1 ? `<div class="footer-content-first">${footerText}<div>- ${num} -</div></div>` : `<div class="footer-line"></div>${footerText}<div>- ${num} -</div>`;
-        const columnsCount = isTextbook && planEntry && (planEntry.columns === 1 || planEntry.columns === 2)
+        const headerConfig = this.resolveHeaderFooterConfig('header');
+        const footerConfig = this.resolveHeaderFooterConfig('footer');
+        const headerHeight = headerConfig.template === 'none' ? 0 : headerConfig.heightMm;
+        const footerHeight = footerConfig.template === 'none' ? 0 : footerConfig.heightMm;
+        const columnsCount = planEntry && (planEntry.columns === 1 || planEntry.columns === 2)
             ? planEntry.columns
             : this.getPageColumnsCount(num);
-        const columnsHTML = columnsCount === 1 ? `<div class="column single"></div>` : `<div class="column left"></div><div class="column right"></div>`;
+
+        const headerArea = document.createElement('div');
+        headerArea.className = 'header-area';
+        this.applyHeaderFooterSize(headerArea, headerHeight);
+        if (headerHeight === 0) headerArea.style.marginBottom = '0';
+        let headerContent = null;
+        if (headerConfig.template === 'exam') headerContent = this.buildExamHeader(meta, num);
+        else if (headerConfig.template === 'free') headerContent = this.buildHeaderFooterFreeBox(headerConfig);
+        else if (headerConfig.template === 'table') headerContent = this.buildHeaderFooterTable(headerConfig);
+        else if (headerConfig.template === 'image') headerContent = this.buildHeaderFooterImage(headerConfig, 'header');
+        if (headerContent) headerArea.appendChild(headerContent);
+
         const bodyClass = columnsCount === 1 ? 'body-container single-column' : 'body-container';
-        div.innerHTML=`<div class="header-area">${headerHTML}</div><div class="${bodyClass}">${columnsHTML}</div><div class="page-footer">${footerHTML}</div><div class="page-layout-control"><span class="page-layout-label">단 구성</span><select class="page-layout-select"><option value="1">1단</option><option value="2">2단</option></select></div>`;
+        const bodyContainer = document.createElement('div');
+        bodyContainer.className = bodyClass;
+        if (columnsCount === 1) {
+            const col = document.createElement('div');
+            col.className = 'column single';
+            bodyContainer.appendChild(col);
+        } else {
+            const left = document.createElement('div');
+            const right = document.createElement('div');
+            left.className = 'column left';
+            right.className = 'column right';
+            bodyContainer.appendChild(left);
+            bodyContainer.appendChild(right);
+        }
+
+        const footerArea = document.createElement('div');
+        footerArea.className = 'page-footer';
+        this.applyHeaderFooterSize(footerArea, footerHeight);
+        if (footerHeight === 0) footerArea.style.marginTop = '0';
+        let footerContent = null;
+        if (footerConfig.template === 'exam') footerContent = this.buildExamFooter(meta, num);
+        else if (footerConfig.template === 'free') footerContent = this.buildHeaderFooterFreeBox(footerConfig);
+        else if (footerConfig.template === 'table') footerContent = this.buildHeaderFooterTable(footerConfig);
+        else if (footerConfig.template === 'image') footerContent = this.buildHeaderFooterImage(footerConfig, 'footer');
+        if (footerContent) footerArea.appendChild(footerContent);
+
+        div.appendChild(headerArea);
+        div.appendChild(bodyContainer);
+        div.appendChild(footerArea);
+
         div.style.padding = `${settings.marginTopMm || 15}mm ${settings.marginSideMm || 10}mm`;
         if (columnsCount === 2) {
             const gap = settings.columnGapMm || 5;
@@ -94,26 +283,10 @@ export const Renderer = {
             if (rightCol) rightCol.style.paddingLeft = gap + 'mm';
         }
 
-        const layoutSelect = div.querySelector('.page-layout-select');
-        if (layoutSelect && !isTextbook) {
-            layoutSelect.value = String(columnsCount);
-            layoutSelect.addEventListener('change', async (e) => {
-                const next = parseInt(e.target.value, 10) === 1 ? 1 : 2;
-                if (!settings.pageLayouts) settings.pageLayouts = {};
-                const defaultColumns = parseInt(settings.columns) === 1 ? 1 : 2;
-                if (next === defaultColumns) delete settings.pageLayouts[num];
-                else settings.pageLayouts[num] = next;
-                State.saveHistory();
-                this.renderPages();
-                await ManualRenderer.renderAll();
-            });
-        }
-        
-        if(num === 1) {
-            const titleInp = div.querySelector('.meta-title'); const subInp = div.querySelector('.meta-subtitle');
-            if(titleInp) titleInp.oninput = (e) => { State.docData.meta.title = e.target.value; State.saveHistory(500); };
-            if(subInp) subInp.oninput = (e) => { State.docData.meta.subtitle = e.target.value; State.saveHistory(500); };
-        }
+        const titleInp = div.querySelector('.meta-title');
+        const subInp = div.querySelector('.meta-subtitle');
+        if (titleInp) titleInp.oninput = (e) => { State.docData.meta.title = e.target.value; State.saveHistory(500); };
+        if (subInp) subInp.oninput = (e) => { State.docData.meta.subtitle = e.target.value; State.saveHistory(500); };
         return div;
     },
 
@@ -694,7 +867,8 @@ export const Renderer = {
             const layoutSelect = document.createElement('select');
             layoutSelect.className = 'page-layout-select page-columns-select';
             layoutSelect.innerHTML = '<option value="1">1단</option><option value="2">2단</option>';
-            layoutSelect.value = String(entry.columns === 1 ? 1 : 2);
+            const defaultColumns = parseInt(State.settings.columns) === 1 ? 1 : 2;
+            layoutSelect.value = String(entry.columns === 1 ? 1 : (entry.columns === 2 ? 2 : defaultColumns));
             layoutSelect.addEventListener('change', async (e) => {
                 const next = parseInt(e.target.value, 10) === 1 ? 1 : 2;
                 entry.columns = next;
@@ -759,7 +933,7 @@ export const Renderer = {
             if (entry.kind === nextKind) return;
             entry.kind = nextKind;
             if (nextKind === 'content') {
-                entry.columns = entry.columns === 1 ? 1 : 2;
+                entry.columns = parseInt(State.settings.columns) === 1 ? 1 : 2;
                 delete entry.coverId;
             } else if (nextKind === 'chapter-cover') {
                 const covers = Array.isArray(State.docData.chapterCovers) ? State.docData.chapterCovers : [];
@@ -798,6 +972,15 @@ export const Renderer = {
         document.documentElement.style.setProperty('--label-font-weight', labelBold ? '800' : '400');
         document.documentElement.style.setProperty('--label-text-decoration', labelUnderline ? 'underline' : 'none');
         document.documentElement.style.setProperty('--label-font-size', Number.isFinite(labelSize) ? `${labelSize}pt` : 'inherit');
+        const design = State.settings.designConfig || {};
+        const themeMain = design.themeMain || '#1a1a2e';
+        const themeSub = design.themeSub || '#333333';
+        const themeText = design.textColor || '#000000';
+        document.documentElement.style.setProperty('--theme-main', themeMain);
+        document.documentElement.style.setProperty('--theme-sub', themeSub);
+        document.documentElement.style.setProperty('--theme-text', themeText);
+        document.documentElement.style.setProperty('--theme-main-soft', hexToRgba(themeMain, 0.12));
+        document.documentElement.style.setProperty('--theme-sub-soft', hexToRgba(themeSub, 0.08));
 
         let preserveScrollAfterFocus = false;
         if (!State.lastFocusId) {
@@ -814,121 +997,103 @@ export const Renderer = {
         if(State.settings.zoom) { container.style.transform = `scale(${State.settings.zoom})`; container.style.transformOrigin = 'top center'; document.getElementById('zoomRange').value = State.settings.zoom; }
 
         let pageNum = 1;
-        const isTextbook = State.settings.documentMode === 'textbook';
         let planExpanded = false;
+        if (!Array.isArray(State.docData.pagePlan)) State.docData.pagePlan = [];
+        const plan = State.docData.pagePlan;
+        const covers = Array.isArray(State.docData.chapterCovers) ? State.docData.chapterCovers : [];
+        const coverMap = new Map(covers.map(item => [item.id, item]));
+        const contentPages = [];
 
-        const getColumnsForEntry = (entry, pageEl) => {
-            const count = entry && entry.columns === 1 ? 1 : 2;
+        const resolveColumnsCount = (entry, pageNumber) => {
+            if (entry && (entry.columns === 1 || entry.columns === 2)) return entry.columns;
+            return this.getPageColumnsCount(pageNumber);
+        };
+
+        const getColumnsForEntry = (entry, pageEl, pageNumber) => {
+            const count = resolveColumnsCount(entry, pageNumber);
             if (count === 1) return [pageEl.querySelector('.column.single')];
             return [pageEl.querySelector('.column.left'), pageEl.querySelector('.column.right')];
         };
 
-        if (isTextbook) {
-            const plan = Array.isArray(State.docData.pagePlan) ? State.docData.pagePlan : [];
-            const covers = Array.isArray(State.docData.chapterCovers) ? State.docData.chapterCovers : [];
-            const coverMap = new Map(covers.map(item => [item.id, item]));
-            const contentPages = [];
-
-            const addContentEntry = () => {
-                const entry = {
-                    id: `pg_${Date.now()}_${Math.random().toString(16).slice(2, 6)}`,
-                    kind: 'content',
-                    columns: parseInt(State.settings.columns) === 1 ? 1 : 2
-                };
-                plan.push(entry);
-                planExpanded = true;
-                return entry;
+        const addContentEntry = (pageNumber) => {
+            const entry = {
+                id: `pg_${Date.now()}_${Math.random().toString(16).slice(2, 6)}`,
+                kind: 'content',
+                columns: resolveColumnsCount(null, pageNumber)
             };
+            plan.push(entry);
+            planExpanded = true;
+            return entry;
+        };
 
-            const createPageFromEntry = (entry, index) => {
-                let page = null;
-                if (entry.kind === 'toc') {
-                    if (!State.docData.toc) State.docData.toc = buildDefaultToc();
-                    page = this.createTocPage(State.docData.toc);
-                } else if (entry.kind === 'chapter-cover') {
-                    const cover = coverMap.get(entry.coverId) || buildDefaultChapterCover();
-                    if (!coverMap.has(cover.id)) {
-                        coverMap.set(cover.id, cover);
-                        covers.push(cover);
-                        entry.coverId = cover.id;
-                        planExpanded = true;
-                    }
-                    page = this.createChapterCoverPage(cover);
-                } else if (entry.kind === 'blank') {
-                    page = this.createBlankPage();
-                } else {
-                    page = this.createPage(pageNum, { mode: 'textbook', planEntry: entry });
-                    contentPages.push({ page, entry });
+        const createPageFromEntry = (entry, index) => {
+            let page = null;
+            if (entry.kind === 'toc') {
+                if (!State.docData.toc) State.docData.toc = buildDefaultToc();
+                page = this.createTocPage(State.docData.toc);
+            } else if (entry.kind === 'chapter-cover') {
+                const cover = coverMap.get(entry.coverId) || buildDefaultChapterCover();
+                if (!coverMap.has(cover.id)) {
+                    coverMap.set(cover.id, cover);
+                    covers.push(cover);
+                    entry.coverId = cover.id;
+                    planExpanded = true;
                 }
-                container.appendChild(page);
-                this.attachPagePlanControl(page, entry, index);
-                pageNum += 1;
-            };
-
-            plan.forEach((entry, index) => createPageFromEntry(entry, index));
-            if (!contentPages.length) {
-                const entry = addContentEntry();
-                createPageFromEntry(entry, plan.length - 1);
+                page = this.createChapterCoverPage(cover);
+            } else if (entry.kind === 'blank') {
+                page = this.createBlankPage();
+            } else {
+                if (!(entry.columns === 1 || entry.columns === 2)) {
+                    entry.columns = resolveColumnsCount(entry, pageNum);
+                    planExpanded = true;
+                }
+                page = this.createPage(pageNum, { planEntry: entry });
+                contentPages.push({ page, entry, pageNumber: pageNum });
             }
+            container.appendChild(page);
+            this.attachPagePlanControl(page, entry, index);
+            pageNum += 1;
+        };
 
-            let contentIndex = 0;
-            let currentPage = contentPages[contentIndex].page;
-            let columns = getColumnsForEntry(contentPages[contentIndex].entry, currentPage);
-            let colIndex = 0;
-            let curCol = columns[colIndex];
-
-            const moveToNextColumn = () => {
-                colIndex++;
-                if (colIndex >= columns.length) {
-                    contentIndex++;
-                    if (contentIndex >= contentPages.length) {
-                        const entry = addContentEntry();
-                        createPageFromEntry(entry, plan.length - 1);
-                        contentIndex = contentPages.length - 1;
-                    }
-                    currentPage = contentPages[contentIndex].page;
-                    columns = getColumnsForEntry(contentPages[contentIndex].entry, currentPage);
-                    colIndex = 0;
-                }
-                curCol = columns[colIndex];
-            };
-
-            State.docData.blocks.forEach((block) => { 
-                if (block.type === 'break') { curCol.appendChild(this.createBlock(block)); moveToNextColumn(); return; } 
-                const el = this.createBlock(block); curCol.appendChild(el); 
-                if (curCol.scrollHeight > curCol.clientHeight + 5) { 
-                    if (curCol.children.length === 1) { moveToNextColumn(); } 
-                    else { curCol.removeChild(el); moveToNextColumn(); curCol.appendChild(el); } 
-                } 
-            });
-        } else {
-            let currentPage = this.createPage(pageNum);
-            container.appendChild(currentPage);
-            let columns = this.getPageColumns(pageNum, currentPage);
-            let colIndex = 0; let curCol = columns[colIndex];
-
-            const moveToNextColumn = () => {
-                colIndex++;
-                if (colIndex >= columns.length) {
-                    pageNum++; currentPage = this.createPage(pageNum); container.appendChild(currentPage);
-                    columns = this.getPageColumns(pageNum, currentPage);
-                    colIndex = 0;
-                }
-                curCol = columns[colIndex];
-            };
-
-            State.docData.blocks.forEach((block) => { 
-                if (block.type === 'break') { curCol.appendChild(this.createBlock(block)); moveToNextColumn(); return; } 
-                const el = this.createBlock(block); curCol.appendChild(el); 
-                if (curCol.scrollHeight > curCol.clientHeight + 5) { 
-                    if (curCol.children.length === 1) { moveToNextColumn(); } 
-                    else { curCol.removeChild(el); moveToNextColumn(); curCol.appendChild(el); } 
-                } 
-            });
+        plan.forEach((entry, index) => createPageFromEntry(entry, index));
+        if (!contentPages.length) {
+            const entry = addContentEntry(pageNum);
+            createPageFromEntry(entry, plan.length - 1);
         }
 
-        if (planExpanded && isTextbook) {
-            State.docData.chapterCovers = Array.isArray(State.docData.chapterCovers) ? State.docData.chapterCovers : [];
+        let contentIndex = 0;
+        let currentPage = contentPages[contentIndex].page;
+        let columns = getColumnsForEntry(contentPages[contentIndex].entry, currentPage, contentPages[contentIndex].pageNumber);
+        let colIndex = 0;
+        let curCol = columns[colIndex];
+
+        const moveToNextColumn = () => {
+            colIndex++;
+            if (colIndex >= columns.length) {
+                contentIndex++;
+                if (contentIndex >= contentPages.length) {
+                    const entry = addContentEntry(pageNum);
+                    createPageFromEntry(entry, plan.length - 1);
+                    contentIndex = contentPages.length - 1;
+                }
+                currentPage = contentPages[contentIndex].page;
+                columns = getColumnsForEntry(contentPages[contentIndex].entry, currentPage, contentPages[contentIndex].pageNumber);
+                colIndex = 0;
+            }
+            curCol = columns[colIndex];
+        };
+
+        State.docData.blocks.forEach((block) => { 
+            if (block.type === 'break') { curCol.appendChild(this.createBlock(block)); moveToNextColumn(); return; } 
+            const el = this.createBlock(block); curCol.appendChild(el); 
+            if (curCol.scrollHeight > curCol.clientHeight + 5) { 
+                if (curCol.children.length === 1) { moveToNextColumn(); } 
+                else { curCol.removeChild(el); moveToNextColumn(); curCol.appendChild(el); } 
+            } 
+        });
+
+        if (planExpanded) {
+            State.docData.chapterCovers = covers;
             State.saveHistory(0, { reason: 'page-plan-auto', coalesceMs: 1500 });
         }
 
@@ -963,12 +1128,14 @@ export const Renderer = {
 
     createBlock(block) {
         const isConceptDerived = block.derived === 'concept-answers';
+        const variantClass = block.variant ? `variant-${block.variant}` : '';
         if (block.derived && !isConceptDerived) {
             const wrap = document.createElement('div');
             wrap.className = 'block-wrapper derived-block';
             wrap.dataset.derived = block.derived;
             if (block.style && block.style.textAlign) wrap.style.textAlign = block.style.textAlign;
             if (block.bgGray) wrap.classList.add('bg-gray-block');
+            if (variantClass) wrap.classList.add(variantClass);
 
             const box = document.createElement('div');
             box.className = `editable-box ${block.type}-box`;
@@ -976,6 +1143,7 @@ export const Renderer = {
             box.contentEditable = false;
             if (block.type === 'concept') box.classList.add('concept-box');
             if (block.bordered) box.classList.add('bordered-box');
+            if (variantClass) box.classList.add(`${variantClass}-box`);
 
             const familyKey = block.fontFamily || State.settings.fontFamily || 'serif';
             const sizePt = block.fontSizePt || State.settings.fontSizePt || 10.5;
@@ -995,17 +1163,10 @@ export const Renderer = {
         if (isConceptDerived) wrap.dataset.derived = 'concept-answers';
         if(block.style && block.style.textAlign) wrap.style.textAlign = block.style.textAlign;
         if(block.bgGray) wrap.classList.add('bg-gray-block'); 
-
-        if (!isConceptDerived) {
-            const actions = document.createElement('div'); actions.className = 'block-actions';
-            const btnBr = document.createElement('button'); btnBr.className = 'block-action-btn'; btnBr.innerText = '⤵'; btnBr.title = '단 나누기 추가'; btnBr.dataset.action = 'add-break';
-            const btnSp = document.createElement('button'); btnSp.className = 'block-action-btn'; btnSp.innerText = '▱'; btnSp.title = '여백 블록 추가'; btnSp.dataset.action = 'add-spacer';
-            actions.appendChild(btnBr); actions.appendChild(btnSp); wrap.appendChild(actions);
-        }
+        if (variantClass) wrap.classList.add(variantClass);
 
         if (!isConceptDerived) {
             wrap.addEventListener('click', (e) => {
-                 if (e.target.closest('.block-actions')) return;
                  if (!(e.ctrlKey || e.metaKey)) return;
                  if (e.altKey) { e.preventDefault(); e.stopPropagation(); this.performAndRender(() => Actions.addBlockBelow('break', block.id)); return; }
                  if (e.shiftKey) { e.preventDefault(); e.stopPropagation(); this.performAndRender(() => Actions.addBlockBelow('spacer', block.id)); return; }
@@ -1073,6 +1234,7 @@ export const Renderer = {
             const box=document.createElement('div'); box.className=`editable-box ${block.type}-box`;
             if(block.type==='concept') box.classList.add('concept-box');
             if(block.bordered) box.classList.add('bordered-box');
+            if (variantClass) box.classList.add(`${variantClass}-box`);
             box.innerHTML=block.content;
             const isConceptAnswer = isConceptDerived;
             box.contentEditable = true;
@@ -1481,7 +1643,8 @@ export const Renderer = {
         let columns = [];
         pages.forEach((p, idx) => {
             const pageNum = idx + 1;
-            columns.push(...this.getPageColumns(pageNum, p));
+            const pageColumns = this.getPageColumns(pageNum, p).filter(Boolean);
+            if (pageColumns.length) columns.push(...pageColumns);
         });
         const MAX_LOOPS = 50; let loopCount = 0;
         for (let i = 0; i < columns.length; i++) {
@@ -1492,9 +1655,9 @@ export const Renderer = {
                 const lastBlock = col.lastElementChild;
                 let nextCol = columns[i + 1];
                 if (!nextCol) {
-                    const newPageNum = pages.length + 1; const newPage = this.createPage(newPageNum); container.appendChild(newPage); pages.push(newPage);
-                    const newColumns = this.getPageColumns(newPageNum, newPage);
-                    columns.push(...newColumns); nextCol = newColumns[0];
+                    this.renderPages();
+                    ManualRenderer.renderAll();
+                    return;
                 }
                 if (nextCol.firstChild) nextCol.insertBefore(lastBlock, nextCol.firstChild); else nextCol.appendChild(lastBlock);
             }

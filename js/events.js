@@ -758,7 +758,7 @@ export const Events = {
     initGlobalListeners() {
         const eventsApi = this;
         const body = document.body;
-        let tocImageDrag = null;
+        let layoutImageDrag = null;
         const isTypingTarget = () => {
             const el = document.activeElement;
             if (!el) return false;
@@ -784,36 +784,54 @@ export const Events = {
         };
         const clampSize = (value, min, max = 200) => clamp(value, min, max);
 
-        const getTocImageContext = (img) => {
+        const getLayoutImageContext = (img) => {
             if (!img || !img.classList) return null;
             if (img.classList.contains('toc-bg-image')) return { type: 'toc-image', key: 'headerImage', minWidthPct: 100, minHeightPct: 100 };
             if (img.classList.contains('toc-overlay-image')) return { type: 'toc-image', key: 'headerOverlayImage', minWidthPct: 5, minHeightPct: 5 };
+            if (img.classList.contains('header-image')) return { type: 'layout-image', area: 'header', minWidthPct: 100, minHeightPct: 100 };
+            if (img.classList.contains('footer-image')) return { type: 'layout-image', area: 'footer', minWidthPct: 100, minHeightPct: 100 };
             return null;
         };
 
-        const getTocHeaderRect = (img) => {
-            const header = img.closest('.toc-header-container');
-            return header ? header.getBoundingClientRect() : null;
+        const getLayoutImageRect = (img, context) => {
+            if (!context) return null;
+            if (context.type === 'toc-image') {
+                const header = img.closest('.toc-header-container');
+                return header ? header.getBoundingClientRect() : null;
+            }
+            const container = context.area === 'footer'
+                ? img.closest('.page-footer')
+                : img.closest('.header-area');
+            return container ? container.getBoundingClientRect() : null;
         };
 
-        const getTocImageStyle = (img, context) => {
-            const headerRect = getTocHeaderRect(img);
-            if (!headerRect) return null;
-            const toc = State.docData.toc;
-            const stored = toc && toc[context.key] && toc[context.key].style;
-            if (stored && Number.isFinite(stored.leftPct) && Number.isFinite(stored.topPct)
-                && Number.isFinite(stored.widthPct) && Number.isFinite(stored.heightPct)) {
-                return { ...stored };
+        const getLayoutImageStyle = (img, context) => {
+            const rect = getLayoutImageRect(img, context);
+            if (!rect) return null;
+            if (context.type === 'toc-image') {
+                const toc = State.docData.toc;
+                const stored = toc && toc[context.key] && toc[context.key].style;
+                if (stored && Number.isFinite(stored.leftPct) && Number.isFinite(stored.topPct)
+                    && Number.isFinite(stored.widthPct) && Number.isFinite(stored.heightPct)) {
+                    return { ...stored };
+                }
+            } else {
+                const config = context.area === 'footer' ? State.settings.footerConfig : State.settings.headerConfig;
+                const stored = config && config.image && config.image.style;
+                if (stored && Number.isFinite(stored.leftPct) && Number.isFinite(stored.topPct)
+                    && Number.isFinite(stored.widthPct) && Number.isFinite(stored.heightPct)) {
+                    return { ...stored };
+                }
             }
             const imgRect = img.getBoundingClientRect();
-            const widthPct = clampSize((imgRect.width / headerRect.width) * 100, context.minWidthPct);
-            const heightPct = clampSize((imgRect.height / headerRect.height) * 100, context.minHeightPct);
-            const leftPct = clampPosition(((imgRect.left - headerRect.left) / headerRect.width) * 100, widthPct);
-            const topPct = clampPosition(((imgRect.top - headerRect.top) / headerRect.height) * 100, heightPct);
+            const widthPct = clampSize((imgRect.width / rect.width) * 100, context.minWidthPct);
+            const heightPct = clampSize((imgRect.height / rect.height) * 100, context.minHeightPct);
+            const leftPct = clampPosition(((imgRect.left - rect.left) / rect.width) * 100, widthPct);
+            const topPct = clampPosition(((imgRect.top - rect.top) / rect.height) * 100, heightPct);
             return { leftPct, topPct, widthPct, heightPct };
         };
 
-        const applyTocImageStyle = (img, style) => {
+        const applyLayoutImageStyle = (img, style) => {
             if (!img || !style) return;
             img.style.left = `${style.leftPct}%`;
             img.style.top = `${style.topPct}%`;
@@ -823,45 +841,51 @@ export const Events = {
             img.style.bottom = 'auto';
         };
 
-        const storeTocImageStyle = (context, style) => {
-            const toc = State.docData.toc;
-            if (!toc || !toc[context.key]) return;
-            toc[context.key].style = { ...style };
+        const storeLayoutImageStyle = (context, style) => {
+            if (context.type === 'toc-image') {
+                const toc = State.docData.toc;
+                if (!toc || !toc[context.key]) return;
+                toc[context.key].style = { ...style };
+                return;
+            }
+            const config = context.area === 'footer' ? State.settings.footerConfig : State.settings.headerConfig;
+            if (!config || !config.image) return;
+            config.image.style = { ...style };
         };
 
-        const startTocImageDrag = (img, context, e) => {
+        const startLayoutImageDrag = (img, context, e) => {
             if (!img || !context || e.button !== 0) return;
-            const headerRect = getTocHeaderRect(img);
-            if (!headerRect) return;
-            const baseStyle = getTocImageStyle(img, context);
+            const rect = getLayoutImageRect(img, context);
+            if (!rect) return;
+            const baseStyle = getLayoutImageStyle(img, context);
             if (!baseStyle) return;
-            tocImageDrag = {
+            layoutImageDrag = {
                 img,
                 context,
                 startX: e.clientX,
                 startY: e.clientY,
-                headerRect,
+                rect,
                 baseStyle,
                 moved: false
             };
             const doDrag = (evt) => {
-                if (!tocImageDrag) return;
-                const dx = ((evt.clientX - tocImageDrag.startX) / tocImageDrag.headerRect.width) * 100;
-                const dy = ((evt.clientY - tocImageDrag.startY) / tocImageDrag.headerRect.height) * 100;
+                if (!layoutImageDrag) return;
+                const dx = ((evt.clientX - layoutImageDrag.startX) / layoutImageDrag.rect.width) * 100;
+                const dy = ((evt.clientY - layoutImageDrag.startY) / layoutImageDrag.rect.height) * 100;
                 const next = {
-                    ...tocImageDrag.baseStyle,
-                    leftPct: clampPosition(tocImageDrag.baseStyle.leftPct + dx, tocImageDrag.baseStyle.widthPct),
-                    topPct: clampPosition(tocImageDrag.baseStyle.topPct + dy, tocImageDrag.baseStyle.heightPct)
+                    ...layoutImageDrag.baseStyle,
+                    leftPct: clampPosition(layoutImageDrag.baseStyle.leftPct + dx, layoutImageDrag.baseStyle.widthPct),
+                    topPct: clampPosition(layoutImageDrag.baseStyle.topPct + dy, layoutImageDrag.baseStyle.heightPct)
                 };
-                tocImageDrag.moved = true;
-                applyTocImageStyle(tocImageDrag.img, next);
-                storeTocImageStyle(tocImageDrag.context, next);
-                eventsApi.showResizer(tocImageDrag.img, tocImageDrag.context);
+                layoutImageDrag.moved = true;
+                applyLayoutImageStyle(layoutImageDrag.img, next);
+                storeLayoutImageStyle(layoutImageDrag.context, next);
+                eventsApi.showResizer(layoutImageDrag.img, layoutImageDrag.context);
             };
             const stopDrag = () => {
-                if (!tocImageDrag) return;
-                const moved = tocImageDrag.moved;
-                tocImageDrag = null;
+                if (!layoutImageDrag) return;
+                const moved = layoutImageDrag.moved;
+                layoutImageDrag = null;
                 window.removeEventListener('mousemove', doDrag);
                 window.removeEventListener('mouseup', stopDrag);
                 if (moved) State.saveHistory(500);
@@ -1705,27 +1729,6 @@ export const Events = {
             });
         }
 
-        const paperContainer = document.getElementById('paper-container');
-        if (paperContainer) {
-            paperContainer.addEventListener('click', (e) => {
-                const btn = e.target.closest('.block-action-btn');
-                if (!btn) return;
-                const action = btn.dataset.action;
-                const wrap = btn.closest('.block-wrapper');
-                const id = wrap ? wrap.dataset.id : null;
-                if (!action || !id) return;
-                e.preventDefault();
-                e.stopPropagation();
-                if (action === 'add-break') {
-                    Renderer.performAndRender(() => Actions.addBlockBelow('break', id));
-                    return;
-                }
-                if (action === 'add-spacer') {
-                    Renderer.performAndRender(() => Actions.addBlockBelow('spacer', id));
-                }
-            });
-        }
-
         document.addEventListener('click', (e) => {
             const closeBtn = e.target.closest('.modal-close');
             if (closeBtn) {
@@ -1872,6 +1875,26 @@ export const Events = {
                 eventsApi.insertImagePlaceholderAtEnd();
                 return;
             }
+            if (action === 'insert-left-concept') {
+                e.preventDefault();
+                Renderer.performAndRender(() => Actions.addBlockBelow('concept', null, { variant: 'left-concept', label: 'Def.' }));
+                return;
+            }
+            if (action === 'insert-top-concept') {
+                e.preventDefault();
+                Renderer.performAndRender(() => Actions.addBlockBelow('concept', null, { variant: 'top-concept', label: 'Visual Concept' }));
+                return;
+            }
+            if (action === 'insert-two-col-example') {
+                e.preventDefault();
+                Renderer.performAndRender(() => Actions.addBlockBelow('example', null, { variant: 'two-col-concept', label: '예제 01', subLabel: 'Solution' }));
+                return;
+            }
+            if (action === 'insert-two-col-exercise') {
+                e.preventDefault();
+                Renderer.performAndRender(() => Actions.addBlockBelow('example', null, { variant: 'two-col-concept', label: '유제 01' }));
+                return;
+            }
             if (action === 'add-spacer') {
                 e.preventDefault();
                 Renderer.performAndRender(() => Actions.addBlockBelow('spacer'));
@@ -1880,6 +1903,38 @@ export const Events = {
             if (action === 'add-break') {
                 e.preventDefault();
                 Renderer.performAndRender(() => Actions.addBlockBelow('break'));
+                return;
+            }
+            if (action === 'header-image-upload') {
+                e.preventDefault();
+                State.headerFooterImageTarget = 'header';
+                State.selectedPlaceholder = null;
+                const input = document.getElementById('imgUpload');
+                if (input) input.click();
+                return;
+            }
+            if (action === 'footer-image-upload') {
+                e.preventDefault();
+                State.headerFooterImageTarget = 'footer';
+                State.selectedPlaceholder = null;
+                const input = document.getElementById('imgUpload');
+                if (input) input.click();
+                return;
+            }
+            if (action === 'header-image-clear') {
+                e.preventDefault();
+                if (State.settings?.headerConfig) State.settings.headerConfig.image = null;
+                Renderer.renderPages();
+                ManualRenderer.renderAll();
+                State.saveHistory();
+                return;
+            }
+            if (action === 'footer-image-clear') {
+                e.preventDefault();
+                if (State.settings?.footerConfig) State.settings.footerConfig.image = null;
+                Renderer.renderPages();
+                ManualRenderer.renderAll();
+                State.saveHistory();
                 return;
             }
             if (action === 'toggle-gray-bg') {
@@ -1906,13 +1961,25 @@ export const Events = {
             if (action === 'add-block-above') {
                 e.preventDefault();
                 const type = actionEl.dataset.type || 'example';
-                if (Actions.addBlockAbove(type)) { Renderer.renderPages(); ManualRenderer.renderAll(); }
+                const variant = actionEl.dataset.variant || null;
+                const label = actionEl.dataset.label || '';
+                const subLabel = actionEl.dataset.sublabel || '';
+                if (Actions.addBlockAbove(type, null, { variant, label, subLabel })) {
+                    Renderer.renderPages();
+                    ManualRenderer.renderAll();
+                }
                 return;
             }
             if (action === 'add-block-below') {
                 e.preventDefault();
                 const type = actionEl.dataset.type || 'example';
-                if (Actions.addBlockBelow(type)) { Renderer.renderPages(); ManualRenderer.renderAll(); }
+                const variant = actionEl.dataset.variant || null;
+                const label = actionEl.dataset.label || '';
+                const subLabel = actionEl.dataset.sublabel || '';
+                if (Actions.addBlockBelow(type, null, { variant, label, subLabel })) {
+                    Renderer.renderPages();
+                    ManualRenderer.renderAll();
+                }
                 return;
             }
             if (action === 'apply-block-font') {
@@ -2140,13 +2207,13 @@ export const Events = {
                 activeStyleTarget = null;
             }
             if (!e.target.closest('img') && !e.target.closest('#image-resizer')) this.hideResizer(); 
-            const tocImage = e.target.closest('.toc-bg-image, .toc-overlay-image');
-            if (tocImage) {
-                const context = getTocImageContext(tocImage);
+            const layoutImage = e.target.closest('.toc-bg-image, .toc-overlay-image, .header-footer-image');
+            if (layoutImage) {
+                const context = getLayoutImageContext(layoutImage);
                 if (context) {
                     e.preventDefault();
-                    eventsApi.showResizer(tocImage, context);
-                    startTocImageDrag(tocImage, context, e);
+                    eventsApi.showResizer(layoutImage, context);
+                    startLayoutImageDrag(layoutImage, context, e);
                 }
             }
             if (!e.target.closest('#floating-toolbar')
@@ -2492,10 +2559,10 @@ export const Events = {
         if(resizeHandle) resizeHandle.addEventListener('mousedown', (e) => {
             e.preventDefault(); e.stopPropagation(); if(!State.selectedImage) return; 
             const context = State.selectedImageContext;
-            if (context && context.type === 'toc-image') {
+            if (context && (context.type === 'toc-image' || context.type === 'layout-image')) {
                 const img = State.selectedImage;
-                const headerRect = getTocHeaderRect(img);
-                const baseStyle = getTocImageStyle(img, context);
+                const headerRect = getLayoutImageRect(img, context);
+                const baseStyle = getLayoutImageStyle(img, context);
                 if (!headerRect || !baseStyle) return;
                 const startX = e.clientX;
                 const startY = e.clientY;
@@ -2511,8 +2578,8 @@ export const Events = {
                         leftPct: clampPosition(baseStyle.leftPct, widthPct),
                         topPct: clampPosition(baseStyle.topPct, heightPct)
                     };
-                    applyTocImageStyle(img, next);
-                    storeTocImageStyle(context, next);
+                    applyLayoutImageStyle(img, next);
+                    storeLayoutImageStyle(context, next);
                     eventsApi.showResizer(img, context);
                 };
                 const stopDrag = () => {

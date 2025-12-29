@@ -64,7 +64,12 @@ export const ImportParser = {
             const styles = stylePart.split(',');
             const labelTrim = (labelPart || '').trim();
             const hasStyle = (name) => styles.some(style => style.trim() === name);
+            const isLeftConcept = hasStyle('좌컨셉');
+            const isTopConcept = hasStyle('상단컨셉');
+            const isTwoColConcept = hasStyle('2단컨셉');
             const isConceptBlock = hasStyle('개념')
+                || isLeftConcept
+                || isTopConcept
                 || /^박스_개념\b/.test(metaClean)
                 || /^개념\b/.test(metaClean)
                 || (hasStyle('박스') && /^개념\b/.test(labelTrim));
@@ -229,10 +234,44 @@ export const ImportParser = {
             content = content.replace(/\[빈칸([:_])(.*?)\]/g, (m, delim, label) => `<span class="blank-box" data-delim="${delim || ':'}" contenteditable="false">${label}</span>`);
             content = content.replace(/\n/g, '<br>');
             let type = 'example'; let bordered = hasStyle('박스'); let bgGray = hasStyle('음영');
+            let variant = null;
+            if (isLeftConcept) variant = 'left-concept';
+            else if (isTopConcept) variant = 'top-concept';
+            else if (isTwoColConcept) variant = 'two-col-concept';
+
+            const splitTwoColLabel = (raw = '') => {
+                const text = String(raw || '').trim();
+                if (!text) return { main: '', sub: '' };
+                const idx = text.lastIndexOf('_');
+                if (idx < 0) return { main: text, sub: '' };
+                return { main: text.slice(0, idx).trim(), sub: text.slice(idx + 1).trim() };
+            };
+
             const safeQLabel = labelPart ? escapeHtml(labelPart) : '';
             let label = safeQLabel ? `<span class="q-label">${safeQLabel}</span>` : '';
-            if (hasStyle('개념')) type = 'concept';
-            blocks.push({ id: `imp_${Date.now()}${Math.random()}`, type, content: label + ' ' + content, bordered, bgGray });
+
+            if (variant === 'left-concept') {
+                type = 'concept';
+            } else if (variant === 'top-concept') {
+                type = 'concept';
+                const headerLabel = safeQLabel || 'Visual Concept';
+                content = `<div class="top-concept-header">${headerLabel}</div><div class="top-concept-body">${content}</div>`;
+                label = '';
+            } else if (variant === 'two-col-concept') {
+                type = 'example';
+                const { main, sub } = splitTwoColLabel(labelPart);
+                const safeMain = escapeHtml(main);
+                const safeSub = escapeHtml(sub);
+                const subHtml = safeSub ? `<div class="two-col-concept-sub">${safeSub}</div>` : '';
+                content = `<div class="two-col-concept"><div class="two-col-concept-label"><div class="two-col-concept-title">${safeMain || '예제 01'}</div>${subHtml}</div><div class="two-col-concept-body">${content}</div></div>`;
+                label = '';
+            } else if (hasStyle('개념')) {
+                type = 'concept';
+            }
+
+            const block = { id: `imp_${Date.now()}${Math.random()}`, type, content: label + ' ' + content, bordered, bgGray };
+            if (variant) block.variant = variant;
+            blocks.push(block);
         });
         return { blocks, meta };
     }

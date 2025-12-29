@@ -253,6 +253,12 @@
     <div class="menu-item" data-action="add-block-above" data-type="example"><span>➕ 위에 추가</span><span class="shortcut-badge">Alt+Enter</span></div>
     <div class="menu-item" data-action="add-block-below" data-type="example"><span>➕ 아래에 추가</span><span class="shortcut-badge">Enter</span></div>
     <div class="menu-sep"></div>
+    <div class="menu-title">컨셉 블록</div>
+    <div class="menu-item" data-action="add-block-below" data-type="concept" data-variant="left-concept" data-label="Def."><span>➕ 좌컨셉 (Def.)</span><span class="shortcut-badge">-</span></div>
+    <div class="menu-item" data-action="add-block-below" data-type="concept" data-variant="top-concept" data-label="Visual Concept"><span>➕ 상단컨셉</span><span class="shortcut-badge">-</span></div>
+    <div class="menu-item" data-action="add-block-below" data-type="example" data-variant="two-col-concept" data-label="예제 01" data-sublabel="Solution"><span>➕ 2단컨셉 예제</span><span class="shortcut-badge">-</span></div>
+    <div class="menu-item" data-action="add-block-below" data-type="example" data-variant="two-col-concept" data-label="유제 01"><span>➕ 2단컨셉 유제</span><span class="shortcut-badge">-</span></div>
+    <div class="menu-sep"></div>
     <div class="menu-item" data-action="insert-image-box"><span>🖼️ 이미지 삽입</span><span class="shortcut-badge">Ctrl+Alt+I</span></div>
     <div class="menu-item" data-action="insert-image-placeholder"><span>🖼️ 블록 안에 이미지 추가</span><span class="shortcut-badge">-</span></div>
 	    <div class="menu-item" data-action="add-spacer"><span>↕ 여백 블록 추가</span><span class="shortcut-badge">Ctrl+Sh+Click</span></div>
@@ -389,28 +395,101 @@
 
                 <div class="settings-panel" style="margin-bottom:0;">
                     <div style="font-size:11px; font-weight:bold; margin-bottom:5px; border-bottom:1px solid #ddd; padding-bottom:3px;">📌 머릿말/꼬릿말</div>
+                    <div class="settings-row"><label>머릿말 높이(mm)</label><input type="number" id="setting-header-height" min="0" max="60" step="1"></div>
+                    <div class="settings-row"><label>머릿말 템플릿</label>
+                        <select id="setting-header-template">
+                            <option value="exam">시험지(기본)</option>
+                            <option value="free">프리박스</option>
+                            <option value="table">표</option>
+                            <option value="image">이미지</option>
+                            <option value="none">없음</option>
+                        </select>
+                    </div>
+                    <div class="template-controls" data-target="header" data-template="free">
+                        <div class="settings-row"><label>머릿말 폰트</label>
+                            <select id="setting-header-free-font-family">
+                                <option value="">기본</option>
+                                <option value="gothic">고딕</option>
+                                <option value="serif">명조</option>
+                                <option value="gulim">굴림</option>
+                            </select>
+                        </div>
+                        <div class="settings-row"><label>머릿말 크기(pt)</label><input type="number" id="setting-header-free-font-size" min="8" max="24" step="0.5" placeholder="기본"></div>
+                        <div class="settings-row"><label>머릿말 굵기</label><input type="number" id="setting-header-free-font-weight" min="300" max="900" step="100" placeholder="기본"></div>
+                        <div class="settings-row"><label>머릿말 정렬</label>
+                            <select id="setting-header-free-align">
+                                <option value="left">왼쪽</option>
+                                <option value="center">가운데</option>
+                                <option value="right">오른쪽</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="template-controls" data-target="header" data-template="table">
+                        <div class="settings-row"><label>머릿말 행</label><input type="number" id="setting-header-table-rows" min="1" max="8" step="1"></div>
+                        <div class="settings-row"><label>머릿말 열</label><input type="number" id="setting-header-table-cols" min="1" max="8" step="1"></div>
+                    </div>
+                    <div class="template-controls" data-target="header" data-template="image">
+                        <div class="settings-row">
+                            <label>머릿말 이미지</label>
+                            <div style="display:flex; gap:6px;">
+                                <button class="btn btn-sm" data-action="header-image-upload">불러오기</button>
+                                <button class="btn btn-sm" data-action="header-image-clear">제거</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="settings-row"><label>꼬릿말 높이(mm)</label><input type="number" id="setting-footer-height" min="0" max="60" step="1"></div>
+                    <div class="settings-row"><label>꼬릿말 템플릿</label>
+                        <select id="setting-footer-template">
+                            <option value="exam">시험지(기본)</option>
+                            <option value="free">프리박스</option>
+                            <option value="table">표</option>
+                            <option value="image">이미지</option>
+                            <option value="none">없음</option>
+                        </select>
+                    </div>
+                    <div class="template-controls" data-target="footer" data-template="free">
+                        <div class="settings-row"><label>꼬릿말 폰트</label>
+                            <select id="setting-footer-free-font-family">
+                                <option value="">기본</option>
+                                <option value="gothic">고딕</option>
+                                <option value="serif">명조</option>
+                                <option value="gulim">굴림</option>
+                            </select>
+                        </div>
+                        <div class="settings-row"><label>꼬릿말 크기(pt)</label><input type="number" id="setting-footer-free-font-size" min="8" max="24" step="0.5" placeholder="기본"></div>
+                        <div class="settings-row"><label>꼬릿말 굵기</label><input type="number" id="setting-footer-free-font-weight" min="300" max="900" step="100" placeholder="기본"></div>
+                        <div class="settings-row"><label>꼬릿말 정렬</label>
+                            <select id="setting-footer-free-align">
+                                <option value="left">왼쪽</option>
+                                <option value="center">가운데</option>
+                                <option value="right">오른쪽</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="template-controls" data-target="footer" data-template="table">
+                        <div class="settings-row"><label>꼬릿말 행</label><input type="number" id="setting-footer-table-rows" min="1" max="8" step="1"></div>
+                        <div class="settings-row"><label>꼬릿말 열</label><input type="number" id="setting-footer-table-cols" min="1" max="8" step="1"></div>
+                    </div>
+                    <div class="template-controls" data-target="footer" data-template="image">
+                        <div class="settings-row">
+                            <label>꼬릿말 이미지</label>
+                            <div style="display:flex; gap:6px;">
+                                <button class="btn btn-sm" data-action="footer-image-upload">불러오기</button>
+                                <button class="btn btn-sm" data-action="footer-image-clear">제거</button>
+                            </div>
+                        </div>
+                    </div>
                     <div class="settings-row"><label>머릿말(과정)</label><input type="text" id="setting-meta-title"></div>
                     <div class="settings-row"><label>머릿말(단원)</label><input type="text" id="setting-meta-subtitle"></div>
-                    <div class="settings-row"><label>꼬릿말(푸터)</label><input type="text" id="setting-footer-text"></div>
                 </div>
             </div>
         </details>
 
         <details class="sidebar-folder">
-            <summary>교재 제작 (공사중)</summary>
+            <summary>페이지 구성</summary>
             <div class="sidebar-folder-body">
                 <div class="sidebar-section">
                     <div class="sidebar-section-title">공통</div>
-                    <div class="settings-panel">
-                        <div style="font-size:11px; font-weight:bold; margin-bottom:5px; border-bottom:1px solid #ddd; padding-bottom:3px;">문서 모드</div>
-                        <div class="settings-row"><label>모드</label>
-                            <select id="setting-document-mode">
-                                <option value="exam">시험지 (기본)</option>
-                                <option value="textbook">교재 (공사중)</option>
-                            </select>
-                        </div>
-                    </div>
-
                     <div class="settings-panel" style="margin-bottom:0;">
                         <div style="font-size:11px; font-weight:bold; margin-bottom:5px; border-bottom:1px solid #ddd; padding-bottom:3px;">테마 색상</div>
                         <div class="settings-row"><label>주색</label><input type="color" id="setting-theme-main"></div>
@@ -434,7 +513,7 @@
                     <div class="sidebar-section-title">대단원</div>
                     <div class="sidebar-hint">대단원 텍스트를 드래그하면 서체 설정이 나타납니다.</div>
                 </div>
-                <div class="sidebar-hint">교재 모드에서는 각 페이지 우측 상단에서 목차/대단원/빈페이지를 선택해 구성합니다.</div>
+                <div class="sidebar-hint">페이지 우측 상단에서 페이지 유형(본문/목차/대단원/빈페이지)을 선택해 구성합니다.</div>
             </div>
         </details>
 
@@ -442,6 +521,10 @@
             <summary>삽입</summary>
             <div class="sidebar-folder-body">
                 <button class="btn btn-success" data-action="insert-image-box">🖼️ 이미지 삽입 (Ctrl+Alt+I)</button>
+                <button class="btn" data-action="insert-left-concept">⬅️ 좌컨셉 블록</button>
+                <button class="btn" data-action="insert-top-concept">⬆️ 상단컨셉 블록</button>
+                <button class="btn" data-action="insert-two-col-example">🧩 2단컨셉 예제</button>
+                <button class="btn" data-action="insert-two-col-exercise">🧩 2단컨셉 유제</button>
                 <button class="btn" data-action="split-block">✂️ 블록 나누기 (Alt+Shift+Enter)</button>
                 <button class="btn" data-action="add-spacer">↕ 여백 삽입 (Ctrl+Shift+Click)</button>
                 <button class="btn" data-action="add-break">⚡ 단 나누기 삽입 (Ctrl+Alt+Click)</button>
@@ -495,7 +578,8 @@
                 <div class="sidebar-hint">블록 헤더: <code>[[스타일_라벨]] : 내용</code></div>
                 <div class="sidebar-hint">머릿말: <code>[[머릿말_과정]] 과정명</code>, <code>[[머릿말_단원]] 단원명</code> (문서 최상단)</div>
                 <div class="sidebar-hint">꼬릿말: <code>[[꼬릿말:내용]]</code> (없음: <code>[[꼬릿말:]]</code>)</div>
-                <div class="sidebar-hint">스타일: <code>기본</code>, <code>박스</code>, <code>음영</code>, <code>개념</code> (콤마로 조합)</div>
+                <div class="sidebar-hint">스타일: <code>기본</code>, <code>박스</code>, <code>음영</code>, <code>개념</code>, <code>좌컨셉</code>, <code>상단컨셉</code>, <code>2단컨셉</code> (콤마로 조합)</div>
+                <div class="sidebar-hint">컨셉 예시: <code>[[좌컨셉_Def.]]</code>, <code>[[상단컨셉_Visual Concept]]</code>, <code>[[2단컨셉_예제 01-1_Solution]]</code></div>
                 <div class="sidebar-hint">라벨 없음: <code>[[기본_]]</code></div>
                 <div class="sidebar-hint">수식: <code>$...$</code></div>
                 <div class="sidebar-hint">개념빈칸: <code>[개념빈칸:#]정답[/개념빈칸]</code> (자동 번호/정답 모음)</div>

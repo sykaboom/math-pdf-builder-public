@@ -50,6 +50,7 @@ export const State = {
     selectedPlaceholder: null,
     selectedImage: null,
     selectedImageContext: null,
+    headerFooterImageTarget: null,
     lastFocusId: null,
     lastEditableId: null,
     renderingEnabled: true,

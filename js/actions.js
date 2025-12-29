@@ -24,14 +24,14 @@ export const Actions = {
         return false;
     },
 
-    createNewBlockData(type) {
-        return buildNewBlockData(type, { imagePlaceholderHtml: Utils.getImagePlaceholderHTML() });
+    createNewBlockData(type, options = {}) {
+        return buildNewBlockData(type, { imagePlaceholderHtml: Utils.getImagePlaceholderHTML(), ...options });
     },
 
-    addBlockBelow(type, refId) {
+    addBlockBelow(type, refId, options = {}) {
         const targetId = refId || State.contextTargetId;
         let targetIdx = targetId ? State.docData.blocks.findIndex(b => b.id === targetId) : State.docData.blocks.length - 1;
-        const newBlock = this.createNewBlockData(type);
+        const newBlock = this.createNewBlockData(type, options);
         State.docData.blocks.splice(targetIdx + 1, 0, newBlock);
         if (type !== 'break') State.lastFocusId = newBlock.id;
         State.saveHistory();
@@ -39,11 +39,11 @@ export const Actions = {
         return true; // 변경됨
     },
 
-    addBlockAbove(type, refId) {
+    addBlockAbove(type, refId, options = {}) {
         const targetId = refId || State.contextTargetId;
         if (!targetId) return false;
         let targetIdx = State.docData.blocks.findIndex(b => b.id === targetId);
-        const newBlock = this.createNewBlockData(type);
+        const newBlock = this.createNewBlockData(type, options);
         State.docData.blocks.splice(targetIdx, 0, newBlock);
         State.lastFocusId = newBlock.id;
         State.saveHistory();

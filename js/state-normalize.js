@@ -61,6 +61,34 @@ export const DEFAULT_SETTINGS = {
     labelFontSizePt: null,
     labelBold: true,
     labelUnderline: false,
+    headerConfig: {
+        heightMm: 18,
+        template: 'exam',
+        freeHtml: '',
+        freeTypography: {
+            fontFamily: '',
+            fontSizePt: null,
+            fontWeight: null,
+            textAlign: 'center',
+            color: ''
+        },
+        table: { rows: 2, cols: 4, data: [] },
+        image: null
+    },
+    footerConfig: {
+        heightMm: 12,
+        template: 'exam',
+        freeHtml: '',
+        freeTypography: {
+            fontFamily: '',
+            fontSizePt: null,
+            fontWeight: null,
+            textAlign: 'center',
+            color: ''
+        },
+        table: { rows: 1, cols: 3, data: [] },
+        image: null
+    },
     pageLayouts: {},
     documentMode: 'exam',
     designConfig: {
@@ -86,6 +114,28 @@ export const buildDefaultDocMeta = () => ({ ...DEFAULT_DOC_META });
 export const buildDefaultSettings = () => ({
     ...DEFAULT_SETTINGS,
     pageLayouts: {},
+    headerConfig: {
+        ...DEFAULT_SETTINGS.headerConfig,
+        freeTypography: { ...DEFAULT_SETTINGS.headerConfig.freeTypography },
+        table: {
+            ...DEFAULT_SETTINGS.headerConfig.table,
+            data: Array.isArray(DEFAULT_SETTINGS.headerConfig.table.data)
+                ? [...DEFAULT_SETTINGS.headerConfig.table.data]
+                : []
+        },
+        image: DEFAULT_SETTINGS.headerConfig.image ? { ...DEFAULT_SETTINGS.headerConfig.image } : null
+    },
+    footerConfig: {
+        ...DEFAULT_SETTINGS.footerConfig,
+        freeTypography: { ...DEFAULT_SETTINGS.footerConfig.freeTypography },
+        table: {
+            ...DEFAULT_SETTINGS.footerConfig.table,
+            data: Array.isArray(DEFAULT_SETTINGS.footerConfig.table.data)
+                ? [...DEFAULT_SETTINGS.footerConfig.table.data]
+                : []
+        },
+        image: DEFAULT_SETTINGS.footerConfig.image ? { ...DEFAULT_SETTINGS.footerConfig.image } : null
+    },
     designConfig: {
         ...DEFAULT_SETTINGS.designConfig,
         tocTypography: Object.fromEntries(Object.entries(DEFAULT_SETTINGS.designConfig.tocTypography)
@@ -161,6 +211,62 @@ const normalizeImageStyle = (rawStyle) => {
     const heightPct = normalizePercent(rawStyle.heightPct, 1, 300);
     if ([leftPct, topPct, widthPct, heightPct].some(value => value === null)) return null;
     return { leftPct, topPct, widthPct, heightPct };
+};
+
+const normalizeHeaderFooterConfig = (rawConfig, defaults) => {
+    const cfg = isPlainObject(rawConfig) ? { ...rawConfig } : {};
+    const normalized = { ...defaults };
+
+    const height = toNumber(cfg.heightMm);
+    if (height !== null && height >= 0) normalized.heightMm = height;
+
+    const allowedTemplates = new Set(['exam', 'free', 'table', 'image', 'none']);
+    if (typeof cfg.template === 'string' && allowedTemplates.has(cfg.template)) {
+        normalized.template = cfg.template;
+    }
+
+    if (typeof cfg.freeHtml === 'string') normalized.freeHtml = cfg.freeHtml;
+
+    if (isPlainObject(cfg.freeTypography)) {
+        const typography = { ...normalized.freeTypography };
+        if (typeof cfg.freeTypography.fontFamily === 'string') typography.fontFamily = cfg.freeTypography.fontFamily;
+        const fontSize = toNumber(cfg.freeTypography.fontSizePt);
+        typography.fontSizePt = fontSize && fontSize > 0 ? fontSize : null;
+        const weight = toNumber(cfg.freeTypography.fontWeight);
+        typography.fontWeight = weight && weight > 0 ? weight : null;
+        if (['left', 'center', 'right'].includes(cfg.freeTypography.textAlign)) {
+            typography.textAlign = cfg.freeTypography.textAlign;
+        }
+        typography.color = normalizeColor(cfg.freeTypography.color, typography.color || '');
+        normalized.freeTypography = typography;
+    }
+
+    if (isPlainObject(cfg.table)) {
+        const rows = toNumber(cfg.table.rows);
+        const cols = toNumber(cfg.table.cols);
+        const nextRows = rows && rows > 0 ? Math.min(8, Math.max(1, rows)) : normalized.table.rows;
+        const nextCols = cols && cols > 0 ? Math.min(8, Math.max(1, cols)) : normalized.table.cols;
+        const data = Array.isArray(cfg.table.data)
+            ? cfg.table.data.map(row => Array.isArray(row) ? row.map(cell => typeof cell === 'string' ? cell : '') : [])
+            : [];
+        normalized.table = { rows: nextRows, cols: nextCols, data };
+    }
+
+    if (isPlainObject(cfg.image)) {
+        const src = typeof cfg.image.src === 'string' ? cfg.image.src : '';
+        const path = typeof cfg.image.path === 'string' ? cfg.image.path : '';
+        const style = normalizeImageStyle(cfg.image.style);
+        if (src || path) {
+            normalized.image = { src, path };
+            if (style) normalized.image.style = style;
+        } else {
+            normalized.image = null;
+        }
+    } else if (cfg.image === null) {
+        normalized.image = null;
+    }
+
+    return normalized;
 };
 
 const normalizeChapterCover = (rawCover) => {
@@ -297,6 +403,9 @@ export const normalizeSettings = (rawSettings) => {
     settings.labelBold = typeof settings.labelBold === 'boolean' ? settings.labelBold : defaults.labelBold;
     settings.labelUnderline = typeof settings.labelUnderline === 'boolean' ? settings.labelUnderline : defaults.labelUnderline;
 
+    settings.headerConfig = normalizeHeaderFooterConfig(settings.headerConfig, defaults.headerConfig);
+    settings.footerConfig = normalizeHeaderFooterConfig(settings.footerConfig, defaults.footerConfig);
+
     if (isPlainObject(settings.pageLayouts)) {
         const normalizedLayouts = {};
         Object.entries(settings.pageLayouts).forEach(([key, value]) => {
@@ -362,6 +471,10 @@ export const normalizeBlock = (rawBlock, index, usedIds, options = {}) => {
     block.id = id;
 
     block.type = typeof block.type === 'string' && block.type.trim() ? block.type.trim() : 'example';
+    if ('variant' in block) {
+        if (typeof block.variant !== 'string' || !block.variant.trim()) delete block.variant;
+        else block.variant = block.variant.trim();
+    }
 
     if (typeof block.content !== 'string') block.content = '';
     if (opts.sanitize && typeof opts.sanitizeHtml === 'function') {

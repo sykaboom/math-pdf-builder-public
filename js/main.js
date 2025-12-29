@@ -36,8 +36,22 @@ window.addEventListener('DOMContentLoaded', () => {
     const columnGapInp = document.getElementById('setting-column-gap');
     const metaTitleInp = document.getElementById('setting-meta-title');
     const metaSubtitleInp = document.getElementById('setting-meta-subtitle');
-    const footerTextInp = document.getElementById('setting-footer-text');
-    const documentModeSel = document.getElementById('setting-document-mode');
+    const headerHeightInp = document.getElementById('setting-header-height');
+    const footerHeightInp = document.getElementById('setting-footer-height');
+    const headerTemplateSel = document.getElementById('setting-header-template');
+    const footerTemplateSel = document.getElementById('setting-footer-template');
+    const headerFreeFamilySel = document.getElementById('setting-header-free-font-family');
+    const headerFreeSizeInp = document.getElementById('setting-header-free-font-size');
+    const headerFreeWeightInp = document.getElementById('setting-header-free-font-weight');
+    const headerFreeAlignSel = document.getElementById('setting-header-free-align');
+    const footerFreeFamilySel = document.getElementById('setting-footer-free-font-family');
+    const footerFreeSizeInp = document.getElementById('setting-footer-free-font-size');
+    const footerFreeWeightInp = document.getElementById('setting-footer-free-font-weight');
+    const footerFreeAlignSel = document.getElementById('setting-footer-free-align');
+    const headerTableRowsInp = document.getElementById('setting-header-table-rows');
+    const headerTableColsInp = document.getElementById('setting-header-table-cols');
+    const footerTableRowsInp = document.getElementById('setting-footer-table-rows');
+    const footerTableColsInp = document.getElementById('setting-footer-table-cols');
     const tocHeaderHeightInp = document.getElementById('setting-toc-header-height');
     const themeMainInp = document.getElementById('setting-theme-main');
     const themeSubInp = document.getElementById('setting-theme-sub');
@@ -54,8 +68,24 @@ window.addEventListener('DOMContentLoaded', () => {
     if (columnGapInp) columnGapInp.value = settings.columnGapMm || 5;
     if (metaTitleInp) metaTitleInp.value = meta.title || '';
     if (metaSubtitleInp) metaSubtitleInp.value = meta.subtitle || '';
-    if (footerTextInp) footerTextInp.value = meta.footerText || '';
-    if (documentModeSel) documentModeSel.value = settings.documentMode === 'textbook' ? 'textbook' : 'exam';
+    const headerConfig = settings.headerConfig || {};
+    const footerConfig = settings.footerConfig || {};
+    if (headerHeightInp) headerHeightInp.value = Number.isFinite(headerConfig.heightMm) ? headerConfig.heightMm : 0;
+    if (footerHeightInp) footerHeightInp.value = Number.isFinite(footerConfig.heightMm) ? footerConfig.heightMm : 0;
+    if (headerTemplateSel) headerTemplateSel.value = headerConfig.template || 'exam';
+    if (footerTemplateSel) footerTemplateSel.value = footerConfig.template || 'exam';
+    if (headerFreeFamilySel) headerFreeFamilySel.value = headerConfig.freeTypography?.fontFamily || '';
+    if (headerFreeSizeInp) headerFreeSizeInp.value = Number.isFinite(headerConfig.freeTypography?.fontSizePt) ? headerConfig.freeTypography.fontSizePt : '';
+    if (headerFreeWeightInp) headerFreeWeightInp.value = Number.isFinite(headerConfig.freeTypography?.fontWeight) ? headerConfig.freeTypography.fontWeight : '';
+    if (headerFreeAlignSel) headerFreeAlignSel.value = headerConfig.freeTypography?.textAlign || 'center';
+    if (footerFreeFamilySel) footerFreeFamilySel.value = footerConfig.freeTypography?.fontFamily || '';
+    if (footerFreeSizeInp) footerFreeSizeInp.value = Number.isFinite(footerConfig.freeTypography?.fontSizePt) ? footerConfig.freeTypography.fontSizePt : '';
+    if (footerFreeWeightInp) footerFreeWeightInp.value = Number.isFinite(footerConfig.freeTypography?.fontWeight) ? footerConfig.freeTypography.fontWeight : '';
+    if (footerFreeAlignSel) footerFreeAlignSel.value = footerConfig.freeTypography?.textAlign || 'center';
+    if (headerTableRowsInp) headerTableRowsInp.value = headerConfig.table?.rows || 1;
+    if (headerTableColsInp) headerTableColsInp.value = headerConfig.table?.cols || 1;
+    if (footerTableRowsInp) footerTableRowsInp.value = footerConfig.table?.rows || 1;
+    if (footerTableColsInp) footerTableColsInp.value = footerConfig.table?.cols || 1;
     if (tocHeaderHeightInp) tocHeaderHeightInp.value = toc && toc.headerHeightMm ? toc.headerHeightMm : 80;
     if (themeMainInp) themeMainInp.value = settings.designConfig?.themeMain || '#1a1a2e';
     if (themeSubInp) themeSubInp.value = settings.designConfig?.themeSub || '#333333';
@@ -92,18 +122,139 @@ window.addEventListener('DOMContentLoaded', () => {
         Renderer.renderPages();
         State.saveHistory(500);
     });
-    if (footerTextInp) footerTextInp.addEventListener('input', (e) => {
-        State.docData.meta.footerText = e.target.value;
-        Renderer.renderPages();
-        State.saveHistory(500);
-    });
 
-    if (documentModeSel) documentModeSel.addEventListener('change', async (e) => {
-        const mode = e.target.value === 'textbook' ? 'textbook' : 'exam';
-        State.settings.documentMode = mode;
+    const toggleTemplateControls = (target, template) => {
+        document.querySelectorAll(`.template-controls[data-target="${target}"]`).forEach((el) => {
+            el.classList.toggle('active', el.dataset.template === template);
+        });
+    };
+    if (headerTemplateSel) toggleTemplateControls('header', headerTemplateSel.value);
+    if (footerTemplateSel) toggleTemplateControls('footer', footerTemplateSel.value);
+
+    const applyHeaderFooterConfig = async (target, patch) => {
+        const config = target === 'header' ? State.settings.headerConfig : State.settings.footerConfig;
+        if (!config) return;
+        Object.assign(config, patch);
         Renderer.renderPages();
         if (State.renderingEnabled) await ManualRenderer.renderAll();
         State.saveHistory();
+    };
+
+    const updateFreeTypography = async (target, patch) => {
+        const config = target === 'header' ? State.settings.headerConfig : State.settings.footerConfig;
+        if (!config) return;
+        config.freeTypography = { ...(config.freeTypography || {}), ...patch };
+        Renderer.renderPages();
+        if (State.renderingEnabled) await ManualRenderer.renderAll();
+        State.saveHistory();
+    };
+
+    const resizeTableData = (tableConfig, rows, cols) => {
+        const current = Array.isArray(tableConfig.data) ? tableConfig.data : [];
+        const next = [];
+        for (let r = 0; r < rows; r++) {
+            const row = [];
+            for (let c = 0; c < cols; c++) {
+                row.push((current[r] && current[r][c]) ? current[r][c] : '');
+            }
+            next.push(row);
+        }
+        tableConfig.data = next;
+    };
+
+    if (headerHeightInp) headerHeightInp.addEventListener('change', async (e) => {
+        const value = parseInt(e.target.value, 10);
+        await applyHeaderFooterConfig('header', { heightMm: Number.isFinite(value) ? value : 0 });
+    });
+    if (footerHeightInp) footerHeightInp.addEventListener('change', async (e) => {
+        const value = parseInt(e.target.value, 10);
+        await applyHeaderFooterConfig('footer', { heightMm: Number.isFinite(value) ? value : 0 });
+    });
+    if (headerTemplateSel) headerTemplateSel.addEventListener('change', async (e) => {
+        const value = e.target.value;
+        toggleTemplateControls('header', value);
+        await applyHeaderFooterConfig('header', { template: value });
+    });
+    if (footerTemplateSel) footerTemplateSel.addEventListener('change', async (e) => {
+        const value = e.target.value;
+        toggleTemplateControls('footer', value);
+        await applyHeaderFooterConfig('footer', { template: value });
+    });
+    if (headerFreeFamilySel) headerFreeFamilySel.addEventListener('change', async (e) => {
+        await updateFreeTypography('header', { fontFamily: e.target.value });
+    });
+    if (headerFreeSizeInp) headerFreeSizeInp.addEventListener('change', async (e) => {
+        const value = parseFloat(e.target.value);
+        await updateFreeTypography('header', { fontSizePt: Number.isFinite(value) ? value : null });
+    });
+    if (headerFreeWeightInp) headerFreeWeightInp.addEventListener('change', async (e) => {
+        const value = parseFloat(e.target.value);
+        await updateFreeTypography('header', { fontWeight: Number.isFinite(value) ? value : null });
+    });
+    if (headerFreeAlignSel) headerFreeAlignSel.addEventListener('change', async (e) => {
+        await updateFreeTypography('header', { textAlign: e.target.value });
+    });
+    if (footerFreeFamilySel) footerFreeFamilySel.addEventListener('change', async (e) => {
+        await updateFreeTypography('footer', { fontFamily: e.target.value });
+    });
+    if (footerFreeSizeInp) footerFreeSizeInp.addEventListener('change', async (e) => {
+        const value = parseFloat(e.target.value);
+        await updateFreeTypography('footer', { fontSizePt: Number.isFinite(value) ? value : null });
+    });
+    if (footerFreeWeightInp) footerFreeWeightInp.addEventListener('change', async (e) => {
+        const value = parseFloat(e.target.value);
+        await updateFreeTypography('footer', { fontWeight: Number.isFinite(value) ? value : null });
+    });
+    if (footerFreeAlignSel) footerFreeAlignSel.addEventListener('change', async (e) => {
+        await updateFreeTypography('footer', { textAlign: e.target.value });
+    });
+    if (headerTableRowsInp) headerTableRowsInp.addEventListener('change', async (e) => {
+        const value = parseInt(e.target.value, 10);
+        const config = State.settings.headerConfig;
+        if (config && config.table) {
+            const rows = Number.isFinite(value) ? Math.min(8, Math.max(1, value)) : config.table.rows;
+            config.table.rows = rows;
+            resizeTableData(config.table, rows, config.table.cols || 1);
+            Renderer.renderPages();
+            if (State.renderingEnabled) await ManualRenderer.renderAll();
+            State.saveHistory();
+        }
+    });
+    if (headerTableColsInp) headerTableColsInp.addEventListener('change', async (e) => {
+        const value = parseInt(e.target.value, 10);
+        const config = State.settings.headerConfig;
+        if (config && config.table) {
+            const cols = Number.isFinite(value) ? Math.min(8, Math.max(1, value)) : config.table.cols;
+            config.table.cols = cols;
+            resizeTableData(config.table, config.table.rows || 1, cols);
+            Renderer.renderPages();
+            if (State.renderingEnabled) await ManualRenderer.renderAll();
+            State.saveHistory();
+        }
+    });
+    if (footerTableRowsInp) footerTableRowsInp.addEventListener('change', async (e) => {
+        const value = parseInt(e.target.value, 10);
+        const config = State.settings.footerConfig;
+        if (config && config.table) {
+            const rows = Number.isFinite(value) ? Math.min(8, Math.max(1, value)) : config.table.rows;
+            config.table.rows = rows;
+            resizeTableData(config.table, rows, config.table.cols || 1);
+            Renderer.renderPages();
+            if (State.renderingEnabled) await ManualRenderer.renderAll();
+            State.saveHistory();
+        }
+    });
+    if (footerTableColsInp) footerTableColsInp.addEventListener('change', async (e) => {
+        const value = parseInt(e.target.value, 10);
+        const config = State.settings.footerConfig;
+        if (config && config.table) {
+            const cols = Number.isFinite(value) ? Math.min(8, Math.max(1, value)) : config.table.cols;
+            config.table.cols = cols;
+            resizeTableData(config.table, config.table.rows || 1, cols);
+            Renderer.renderPages();
+            if (State.renderingEnabled) await ManualRenderer.renderAll();
+            State.saveHistory();
+        }
     });
 
     if (tocHeaderHeightInp) tocHeaderHeightInp.addEventListener('change', async (e) => {
@@ -191,17 +342,58 @@ window.addEventListener('DOMContentLoaded', () => {
     });
     
     document.getElementById('imgUpload').addEventListener('change', (e) => {
-        if(!State.selectedPlaceholder || !e.target.files[0]) return;
         const file = e.target.files[0];
-        const cb = (url, path) => { 
-            const newImg = document.createElement('img'); newImg.src = url; if(path) newImg.dataset.path = path; newImg.style.maxWidth = '100%'; 
-            State.selectedPlaceholder.replaceWith(newImg); 
-            Actions.updateBlockContent(newImg.closest('.block-wrapper').dataset.id, newImg.closest('.editable-box').innerHTML); 
-            State.selectedPlaceholder=null; 
+        if (!file) {
+            if (State.headerFooterImageTarget) State.headerFooterImageTarget = null;
+            return;
+        }
+
+        const applyHeaderFooterImage = (target, url, path) => {
+            const config = target === 'header' ? State.settings.headerConfig : State.settings.footerConfig;
+            if (!config) return;
+            const nextImage = {
+                src: url,
+                path: path || null,
+                style: config.image && config.image.style
+                    ? { ...config.image.style }
+                    : { leftPct: 0, topPct: 0, widthPct: 100, heightPct: 100 }
+            };
+            config.image = nextImage;
+            State.headerFooterImageTarget = null;
+            Renderer.renderPages();
+            ManualRenderer.renderAll();
+            State.saveHistory();
         };
-        if(FileSystem.dirHandle) FileSystem.saveImage(file).then(s => { if(s) cb(s.url, s.path); });
-        else { const r=new FileReader(); r.onload=(ev)=>cb(ev.target.result, null); r.readAsDataURL(file); }
-        e.target.value='';
+
+        const applyBlockImage = (url, path) => {
+            const newImg = document.createElement('img');
+            newImg.src = url;
+            if (path) newImg.dataset.path = path;
+            newImg.style.maxWidth = '100%';
+            State.selectedPlaceholder.replaceWith(newImg);
+            Actions.updateBlockContent(newImg.closest('.block-wrapper').dataset.id, newImg.closest('.editable-box').innerHTML);
+            State.selectedPlaceholder = null;
+        };
+
+        const target = State.headerFooterImageTarget;
+        if (target) {
+            if (FileSystem.dirHandle) {
+                FileSystem.saveImage(file).then(saved => {
+                    if (saved) applyHeaderFooterImage(target, saved.url, saved.path);
+                });
+            } else {
+                const reader = new FileReader();
+                reader.onload = (ev) => applyHeaderFooterImage(target, ev.target.result, null);
+                reader.readAsDataURL(file);
+            }
+            e.target.value = '';
+            return;
+        }
+
+        if (!State.selectedPlaceholder) return;
+        if (FileSystem.dirHandle) FileSystem.saveImage(file).then(s => { if (s) applyBlockImage(s.url, s.path); });
+        else { const r = new FileReader(); r.onload = (ev) => applyBlockImage(ev.target.result, null); r.readAsDataURL(file); }
+        e.target.value = '';
     });
 
     const tocImageInput = document.getElementById('tocImageUpload');

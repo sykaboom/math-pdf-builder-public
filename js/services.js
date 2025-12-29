@@ -248,6 +248,20 @@ export const FileSystem = {
                 await loadTocImage(toc.headerImage, '.toc-bg-image');
                 await loadTocImage(toc.headerOverlayImage, '.toc-overlay-image');
             }
+            const loadLayoutImage = async (config, selector) => {
+                if (!config || !config.image || !config.image.path) return;
+                const src = config.image.path;
+                if (!src || !src.startsWith(`./${folderName}/`)) return;
+                try {
+                    const fh = await imgDir.getFileHandle(src.split('/').pop());
+                    const f = await fh.getFile();
+                    const url = URL.createObjectURL(f);
+                    config.image.src = url;
+                    document.querySelectorAll(selector).forEach(img => { img.src = url; });
+                } catch (e) { }
+            };
+            await loadLayoutImage(State.settings?.headerConfig, '.header-footer-image.header-image');
+            await loadLayoutImage(State.settings?.footerConfig, '.header-footer-image.footer-image');
         } catch (e) { }
     },
     async saveProjectJSON(syncCallback) {

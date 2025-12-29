@@ -34,6 +34,12 @@ export const buildProjectSaveData = (docData, settings, options = {}) => {
         data: JSON.parse(JSON.stringify(docData)),
         settings: JSON.parse(JSON.stringify(settings))
     };
+    const normalizeImageRef = (ref) => {
+        if (!ref || typeof ref !== 'object') return;
+        if (ref.path) ref.src = ref.path;
+    };
+    normalizeImageRef(rawData.settings?.headerConfig?.image);
+    normalizeImageRef(rawData.settings?.footerConfig?.image);
     rawData.data.blocks.forEach(block => {
         if (typeof cleanContent === 'function') {
             block.content = cleanContent(block.content);
