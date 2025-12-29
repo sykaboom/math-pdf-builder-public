@@ -72,7 +72,7 @@ export const ImportParser = {
             const hasStyle = (name) => styles.some(style => style.trim() === name);
             const isLeftConcept = hasStyle('좌컨셉');
             const isTopConcept = hasStyle('상단컨셉');
-            const isTwoColConcept = hasStyle('2단컨셉');
+            const isTwoRowConcept = hasStyle('2행컨셉') || hasStyle('2단컨셉');
             const isConceptBlock = hasStyle('개념')
                 || isLeftConcept
                 || isTopConcept
@@ -243,7 +243,7 @@ export const ImportParser = {
             let variant = null;
             if (isLeftConcept) variant = 'left-concept';
             else if (isTopConcept) variant = 'top-concept';
-            else if (isTwoColConcept) variant = 'two-col-concept';
+            else if (isTwoRowConcept) variant = 'two-col-concept';
 
             const splitTwoColLabel = (raw = '') => {
                 const text = String(raw || '').trim();

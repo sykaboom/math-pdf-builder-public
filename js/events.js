@@ -1907,7 +1907,7 @@ export const Events = {
                 Renderer.performAndRender(() => Actions.addBlockBelow('concept', null, { variant: 'top-concept', label: 'Visual Concept' }));
                 return;
             }
-            if (action === 'insert-two-col-concept') {
+            if (action === 'insert-two-row-concept') {
                 e.preventDefault();
                 Renderer.performAndRender(() => Actions.addBlockBelow('example', null, { variant: 'two-col-concept' }));
                 return;
