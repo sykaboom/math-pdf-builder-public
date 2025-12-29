@@ -322,6 +322,7 @@ export const Renderer = {
         div.appendChild(headerArea);
         div.appendChild(bodyContainer);
         div.appendChild(footerArea);
+        this.attachHeaderFooterControls(div, planEntry);
 
         div.style.padding = `${settings.marginTopMm || 15}mm ${settings.marginSideMm || 10}mm`;
         if (columnsCount === 2) {
@@ -1110,7 +1111,6 @@ export const Renderer = {
             await ManualRenderer.renderAll();
         });
 
-        this.attachHeaderFooterControls(pageEl, entry);
     },
 
     renderPages() {
