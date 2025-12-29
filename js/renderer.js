@@ -4,7 +4,7 @@ import { Actions } from './actions.js';
 import { ManualRenderer } from './services.js';
 import { Utils } from './utils.js';
 import { Events } from './events.js';
-import { buildDefaultChapterCover, buildDefaultToc, EXAM_HEADER_HEIGHT_MM } from './state-normalize.js';
+import { buildDefaultChapterCover, buildDefaultHeaderFooterContent, buildDefaultToc, EXAM_HEADER_HEIGHT_MM } from './state-normalize.js';
 
 const INLINE_TAG_PATTERN = /<\/?(span|b|strong|i|em|u|br|font)\b/i;
 
@@ -93,6 +93,19 @@ export const Renderer = {
         if (kind === 'header') return settings.headerConfig || {};
         return settings.footerConfig || {};
     },
+    resolveHeaderFooterContent(kind) {
+        if (!State.docData.headerFooter) {
+            State.docData.headerFooter = buildDefaultHeaderFooterContent();
+        }
+        if (!State.docData.headerFooter.header) {
+            State.docData.headerFooter.header = buildDefaultHeaderFooterContent().header;
+        }
+        if (!State.docData.headerFooter.footer) {
+            State.docData.headerFooter.footer = buildDefaultHeaderFooterContent().footer;
+        }
+        if (kind === 'header') return State.docData.headerFooter.header;
+        return State.docData.headerFooter.footer;
+    },
 
     applyHeaderFooterSize(area, heightMm) {
         const height = Number.isFinite(heightMm) ? heightMm : null;
@@ -129,20 +142,20 @@ export const Renderer = {
         img.style.bottom = 'auto';
     },
 
-    syncHeaderFooterTableData(table, config) {
-        if (!table || !config || !config.table) return;
+    syncHeaderFooterTableData(table, content) {
+        if (!table || !content) return;
         const rows = Array.from(table.rows);
         const data = rows.map(row => Array.from(row.cells).map(cell => Utils.sanitizeHtml(cell.innerHTML || '')));
-        config.table.data = data;
+        content.table = { data };
         State.saveHistory(500);
     },
 
-    buildHeaderFooterTable(config) {
+    buildHeaderFooterTable(config, content) {
         const table = document.createElement('table');
         table.className = 'header-footer-table';
         const rows = config.table?.rows || 1;
         const cols = config.table?.cols || 1;
-        const data = Array.isArray(config.table?.data) ? config.table.data : [];
+        const data = Array.isArray(content?.table?.data) ? content.table.data : [];
         for (let r = 0; r < rows; r++) {
             const tr = document.createElement('tr');
             for (let c = 0; c < cols; c++) {
@@ -153,28 +166,29 @@ export const Renderer = {
             }
             table.appendChild(tr);
         }
-        const sync = Utils.debounce(() => this.syncHeaderFooterTableData(table, config), 300);
+        const sync = Utils.debounce(() => this.syncHeaderFooterTableData(table, content), 300);
         table.addEventListener('input', sync);
         return table;
     },
 
-    buildHeaderFooterFreeBox(config) {
+    buildHeaderFooterFreeBox(config, content) {
         const box = document.createElement('div');
         box.className = 'header-footer-freebox';
         box.contentEditable = 'true';
-        box.innerHTML = Utils.sanitizeHtml(config.freeHtml || '');
+        box.innerHTML = Utils.sanitizeHtml(content?.freeHtml || '');
         this.applyFreeTypography(box, config.freeTypography);
         box.addEventListener('input', () => {
-            config.freeHtml = Utils.sanitizeHtml(box.innerHTML || '');
+            const nextHtml = Utils.sanitizeHtml(box.innerHTML || '');
+            content.freeHtml = nextHtml;
             State.saveHistory(500);
         });
         return box;
     },
 
-    buildHeaderFooterImage(config, kind) {
+    buildHeaderFooterImage(content, kind) {
         const container = document.createElement('div');
         container.className = 'header-footer-image-container';
-        const image = config.image;
+        const image = content?.image;
         if (image && (image.src || image.path)) {
             const img = document.createElement('img');
             img.className = `header-footer-image ${kind}-image`;
@@ -232,6 +246,8 @@ export const Renderer = {
         const settings = State.settings;
         const headerConfig = this.resolveHeaderFooterConfig('header');
         const footerConfig = this.resolveHeaderFooterConfig('footer');
+        const headerContentData = this.resolveHeaderFooterContent('header');
+        const footerContentData = this.resolveHeaderFooterContent('footer');
         const headerHeight = headerConfig.template === 'none'
             ? 0
             : (headerConfig.template === 'exam' ? EXAM_HEADER_HEIGHT_MM : headerConfig.heightMm);
@@ -246,9 +262,9 @@ export const Renderer = {
         if (headerHeight === 0) headerArea.style.marginBottom = '0';
         let headerContent = null;
         if (headerConfig.template === 'exam') headerContent = this.buildExamHeader(meta, num);
-        else if (headerConfig.template === 'free') headerContent = this.buildHeaderFooterFreeBox(headerConfig);
-        else if (headerConfig.template === 'table') headerContent = this.buildHeaderFooterTable(headerConfig);
-        else if (headerConfig.template === 'image') headerContent = this.buildHeaderFooterImage(headerConfig, 'header');
+        else if (headerConfig.template === 'free') headerContent = this.buildHeaderFooterFreeBox(headerConfig, headerContentData);
+        else if (headerConfig.template === 'table') headerContent = this.buildHeaderFooterTable(headerConfig, headerContentData);
+        else if (headerConfig.template === 'image') headerContent = this.buildHeaderFooterImage(headerContentData, 'header');
         if (headerContent) headerArea.appendChild(headerContent);
 
         const bodyClass = columnsCount === 1 ? 'body-container single-column' : 'body-container';
@@ -273,9 +289,9 @@ export const Renderer = {
         if (footerHeight === 0) footerArea.style.marginTop = '0';
         let footerContent = null;
         if (footerConfig.template === 'exam') footerContent = this.buildExamFooter(meta, num);
-        else if (footerConfig.template === 'free') footerContent = this.buildHeaderFooterFreeBox(footerConfig);
-        else if (footerConfig.template === 'table') footerContent = this.buildHeaderFooterTable(footerConfig);
-        else if (footerConfig.template === 'image') footerContent = this.buildHeaderFooterImage(footerConfig, 'footer');
+        else if (footerConfig.template === 'free') footerContent = this.buildHeaderFooterFreeBox(footerConfig, footerContentData);
+        else if (footerConfig.template === 'table') footerContent = this.buildHeaderFooterTable(footerConfig, footerContentData);
+        else if (footerConfig.template === 'image') footerContent = this.buildHeaderFooterImage(footerContentData, 'footer');
         if (footerContent) footerArea.appendChild(footerContent);
 
         div.appendChild(headerArea);
@@ -982,19 +998,21 @@ export const Renderer = {
         const labelBold = State.settings.labelBold !== false;
         const labelUnderline = State.settings.labelUnderline === true;
         const labelSize = State.settings.labelFontSizePt;
-        document.documentElement.style.setProperty('--label-font-family', labelFamilyMap[labelKey] || labelFamilyMap.gothic);
-        document.documentElement.style.setProperty('--label-font-weight', labelBold ? '800' : '400');
-        document.documentElement.style.setProperty('--label-text-decoration', labelUnderline ? 'underline' : 'none');
-        document.documentElement.style.setProperty('--label-font-size', Number.isFinite(labelSize) ? `${labelSize}pt` : 'inherit');
+        const container = document.getElementById('paper-container');
+        const cssTarget = container || document.documentElement;
+        cssTarget.style.setProperty('--label-font-family', labelFamilyMap[labelKey] || labelFamilyMap.gothic);
+        cssTarget.style.setProperty('--label-font-weight', labelBold ? '800' : '400');
+        cssTarget.style.setProperty('--label-text-decoration', labelUnderline ? 'underline' : 'none');
+        cssTarget.style.setProperty('--label-font-size', Number.isFinite(labelSize) ? `${labelSize}pt` : 'inherit');
         const design = State.settings.designConfig || {};
         const themeMain = design.themeMain || '#1a1a2e';
         const themeSub = design.themeSub || '#333333';
         const themeText = design.textColor || '#000000';
-        document.documentElement.style.setProperty('--theme-main', themeMain);
-        document.documentElement.style.setProperty('--theme-sub', themeSub);
-        document.documentElement.style.setProperty('--theme-text', themeText);
-        document.documentElement.style.setProperty('--theme-main-soft', hexToRgba(themeMain, 0.12));
-        document.documentElement.style.setProperty('--theme-sub-soft', hexToRgba(themeSub, 0.08));
+        cssTarget.style.setProperty('--theme-main', themeMain);
+        cssTarget.style.setProperty('--theme-sub', themeSub);
+        cssTarget.style.setProperty('--theme-text', themeText);
+        cssTarget.style.setProperty('--theme-main-soft', hexToRgba(themeMain, 0.12));
+        cssTarget.style.setProperty('--theme-sub-soft', hexToRgba(themeSub, 0.08));
 
         let preserveScrollAfterFocus = false;
         if (!State.lastFocusId) {
@@ -1006,7 +1024,6 @@ export const Renderer = {
             }
         }
 
-        const container = document.getElementById('paper-container'); 
         container.innerHTML = ''; 
         if(State.settings.zoom) { container.style.transform = `scale(${State.settings.zoom})`; container.style.transformOrigin = 'top center'; document.getElementById('zoomRange').value = State.settings.zoom; }
 

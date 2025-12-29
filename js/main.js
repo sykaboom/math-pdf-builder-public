@@ -4,7 +4,7 @@ import { ManualRenderer, FileSystem } from './services.js';
 import { Renderer } from './renderer.js';
 import { Actions } from './actions.js';
 import { Events } from './events.js';
-import { buildDefaultToc, EXAM_HEADER_HEIGHT_MM } from './state-normalize.js';
+import { buildDefaultHeaderFooterContent, buildDefaultToc, EXAM_HEADER_HEIGHT_MM } from './state-normalize.js';
 
 window.addEventListener('DOMContentLoaded', () => {
     const saved = localStorage.getItem('editorAutoSave');
@@ -61,6 +61,18 @@ window.addEventListener('DOMContentLoaded', () => {
     const meta = State.docData.meta;
     const settings = State.settings;
     const toc = State.docData.toc;
+    const ensureHeaderFooterContent = () => {
+        if (!State.docData.headerFooter) {
+            State.docData.headerFooter = buildDefaultHeaderFooterContent();
+        }
+        if (!State.docData.headerFooter.header) {
+            State.docData.headerFooter.header = buildDefaultHeaderFooterContent().header;
+        }
+        if (!State.docData.headerFooter.footer) {
+            State.docData.headerFooter.footer = buildDefaultHeaderFooterContent().footer;
+        }
+        return State.docData.headerFooter;
+    };
 
     if (columnsSel) columnsSel.value = settings.columns || 2;
     if (marginTopInp) marginTopInp.value = settings.marginTopMm || 15;
@@ -161,8 +173,10 @@ window.addEventListener('DOMContentLoaded', () => {
         State.saveHistory();
     };
 
-    const resizeTableData = (tableConfig, rows, cols) => {
-        const current = Array.isArray(tableConfig.data) ? tableConfig.data : [];
+    const resizeTableData = (contentSection, rows, cols) => {
+        if (!contentSection) return;
+        const table = contentSection.table || {};
+        const current = Array.isArray(table.data) ? table.data : [];
         const next = [];
         for (let r = 0; r < rows; r++) {
             const row = [];
@@ -171,7 +185,7 @@ window.addEventListener('DOMContentLoaded', () => {
             }
             next.push(row);
         }
-        tableConfig.data = next;
+        contentSection.table = { data: next };
     };
 
     if (headerHeightInp) headerHeightInp.addEventListener('change', async (e) => {
@@ -237,7 +251,8 @@ window.addEventListener('DOMContentLoaded', () => {
         if (config && config.table) {
             const rows = Number.isFinite(value) ? Math.min(8, Math.max(1, value)) : config.table.rows;
             config.table.rows = rows;
-            resizeTableData(config.table, rows, config.table.cols || 1);
+            const contentSection = ensureHeaderFooterContent().header;
+            resizeTableData(contentSection, rows, config.table.cols || 1);
             Renderer.renderPages();
             if (State.renderingEnabled) await ManualRenderer.renderAll();
             State.saveHistory();
@@ -249,7 +264,8 @@ window.addEventListener('DOMContentLoaded', () => {
         if (config && config.table) {
             const cols = Number.isFinite(value) ? Math.min(8, Math.max(1, value)) : config.table.cols;
             config.table.cols = cols;
-            resizeTableData(config.table, config.table.rows || 1, cols);
+            const contentSection = ensureHeaderFooterContent().header;
+            resizeTableData(contentSection, config.table.rows || 1, cols);
             Renderer.renderPages();
             if (State.renderingEnabled) await ManualRenderer.renderAll();
             State.saveHistory();
@@ -261,7 +277,8 @@ window.addEventListener('DOMContentLoaded', () => {
         if (config && config.table) {
             const rows = Number.isFinite(value) ? Math.min(8, Math.max(1, value)) : config.table.rows;
             config.table.rows = rows;
-            resizeTableData(config.table, rows, config.table.cols || 1);
+            const contentSection = ensureHeaderFooterContent().footer;
+            resizeTableData(contentSection, rows, config.table.cols || 1);
             Renderer.renderPages();
             if (State.renderingEnabled) await ManualRenderer.renderAll();
             State.saveHistory();
@@ -273,7 +290,8 @@ window.addEventListener('DOMContentLoaded', () => {
         if (config && config.table) {
             const cols = Number.isFinite(value) ? Math.min(8, Math.max(1, value)) : config.table.cols;
             config.table.cols = cols;
-            resizeTableData(config.table, config.table.rows || 1, cols);
+            const contentSection = ensureHeaderFooterContent().footer;
+            resizeTableData(contentSection, config.table.rows || 1, cols);
             Renderer.renderPages();
             if (State.renderingEnabled) await ManualRenderer.renderAll();
             State.saveHistory();
@@ -372,16 +390,18 @@ window.addEventListener('DOMContentLoaded', () => {
         }
 
         const applyHeaderFooterImage = (target, url, path) => {
-            const config = target === 'header' ? State.settings.headerConfig : State.settings.footerConfig;
-            if (!config) return;
+            const content = target === 'header'
+                ? ensureHeaderFooterContent().header
+                : ensureHeaderFooterContent().footer;
+            if (!content) return;
             const nextImage = {
                 src: url,
                 path: path || null,
-                style: config.image && config.image.style
-                    ? { ...config.image.style }
+                style: content.image && content.image.style
+                    ? { ...content.image.style }
                     : { leftPct: 0, topPct: 0, widthPct: 100, heightPct: 100 }
             };
-            config.image = nextImage;
+            content.image = nextImage;
             State.headerFooterImageTarget = null;
             Renderer.renderPages();
             ManualRenderer.renderAll();

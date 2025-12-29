@@ -51,6 +51,19 @@ export const DEFAULT_PAGE_PLAN = [
 
 export const EXAM_HEADER_HEIGHT_MM = 25;
 
+export const DEFAULT_HEADER_FOOTER_CONTENT = {
+    header: {
+        freeHtml: '',
+        table: { data: [] },
+        image: null
+    },
+    footer: {
+        freeHtml: '',
+        table: { data: [] },
+        image: null
+    }
+};
+
 export const DEFAULT_SETTINGS = {
     zoom: 1.0,
     columns: 2,
@@ -66,7 +79,6 @@ export const DEFAULT_SETTINGS = {
     headerConfig: {
         heightMm: EXAM_HEADER_HEIGHT_MM,
         template: 'exam',
-        freeHtml: '',
         freeTypography: {
             fontFamily: '',
             fontSizePt: null,
@@ -74,13 +86,11 @@ export const DEFAULT_SETTINGS = {
             textAlign: 'center',
             color: ''
         },
-        table: { rows: 2, cols: 4, data: [] },
-        image: null
+        table: { rows: 2, cols: 4 }
     },
     footerConfig: {
         heightMm: 12,
         template: 'exam',
-        freeHtml: '',
         freeTypography: {
             fontFamily: '',
             fontSizePt: null,
@@ -88,8 +98,7 @@ export const DEFAULT_SETTINGS = {
             textAlign: 'center',
             color: ''
         },
-        table: { rows: 1, cols: 3, data: [] },
-        image: null
+        table: { rows: 1, cols: 3 }
     },
     pageLayouts: {},
     documentMode: 'exam',
@@ -113,6 +122,31 @@ export const DEFAULT_BLOCK = {
 
 export const buildDefaultDocMeta = () => ({ ...DEFAULT_DOC_META });
 
+export const buildDefaultHeaderFooterContent = () => ({
+    header: {
+        freeHtml: DEFAULT_HEADER_FOOTER_CONTENT.header.freeHtml,
+        table: {
+            data: Array.isArray(DEFAULT_HEADER_FOOTER_CONTENT.header.table.data)
+                ? [...DEFAULT_HEADER_FOOTER_CONTENT.header.table.data]
+                : []
+        },
+        image: DEFAULT_HEADER_FOOTER_CONTENT.header.image
+            ? { ...DEFAULT_HEADER_FOOTER_CONTENT.header.image }
+            : null
+    },
+    footer: {
+        freeHtml: DEFAULT_HEADER_FOOTER_CONTENT.footer.freeHtml,
+        table: {
+            data: Array.isArray(DEFAULT_HEADER_FOOTER_CONTENT.footer.table.data)
+                ? [...DEFAULT_HEADER_FOOTER_CONTENT.footer.table.data]
+                : []
+        },
+        image: DEFAULT_HEADER_FOOTER_CONTENT.footer.image
+            ? { ...DEFAULT_HEADER_FOOTER_CONTENT.footer.image }
+            : null
+    }
+});
+
 export const buildDefaultSettings = () => ({
     ...DEFAULT_SETTINGS,
     pageLayouts: {},
@@ -120,23 +154,15 @@ export const buildDefaultSettings = () => ({
         ...DEFAULT_SETTINGS.headerConfig,
         freeTypography: { ...DEFAULT_SETTINGS.headerConfig.freeTypography },
         table: {
-            ...DEFAULT_SETTINGS.headerConfig.table,
-            data: Array.isArray(DEFAULT_SETTINGS.headerConfig.table.data)
-                ? [...DEFAULT_SETTINGS.headerConfig.table.data]
-                : []
-        },
-        image: DEFAULT_SETTINGS.headerConfig.image ? { ...DEFAULT_SETTINGS.headerConfig.image } : null
+            ...DEFAULT_SETTINGS.headerConfig.table
+        }
     },
     footerConfig: {
         ...DEFAULT_SETTINGS.footerConfig,
         freeTypography: { ...DEFAULT_SETTINGS.footerConfig.freeTypography },
         table: {
-            ...DEFAULT_SETTINGS.footerConfig.table,
-            data: Array.isArray(DEFAULT_SETTINGS.footerConfig.table.data)
-                ? [...DEFAULT_SETTINGS.footerConfig.table.data]
-                : []
-        },
-        image: DEFAULT_SETTINGS.footerConfig.image ? { ...DEFAULT_SETTINGS.footerConfig.image } : null
+            ...DEFAULT_SETTINGS.footerConfig.table
+        }
     },
     designConfig: {
         ...DEFAULT_SETTINGS.designConfig,
@@ -166,7 +192,8 @@ export const buildDefaultDocData = () => ({
     blocks: [buildDefaultBlock()],
     toc: null,
     pagePlan: buildDefaultPagePlan(),
-    chapterCovers: []
+    chapterCovers: [],
+    headerFooter: buildDefaultHeaderFooterContent()
 });
 
 export const isPlainObject = (value) => value && typeof value === 'object' && !Array.isArray(value);
@@ -215,6 +242,48 @@ const normalizeImageStyle = (rawStyle) => {
     return { leftPct, topPct, widthPct, heightPct };
 };
 
+const normalizeHeaderFooterContent = (rawContent, options = {}) => {
+    const opts = { sanitize: false, sanitizeHtml: null, legacySettings: null, ...options };
+    const sanitizeValue = (value) => {
+        if (typeof value !== 'string') return '';
+        if (opts.sanitize && typeof opts.sanitizeHtml === 'function') return opts.sanitizeHtml(value);
+        return value;
+    };
+    const normalizeTableData = (data) => {
+        if (!Array.isArray(data)) return [];
+        return data.map(row => Array.isArray(row) ? row.map(cell => sanitizeValue(cell)) : []);
+    };
+    const normalizeImageRef = (rawImage) => {
+        if (!isPlainObject(rawImage)) return null;
+        const src = typeof rawImage.src === 'string' ? rawImage.src : '';
+        const path = typeof rawImage.path === 'string' ? rawImage.path : '';
+        const style = normalizeImageStyle(rawImage.style);
+        if (!src && !path) return null;
+        const next = { src, path };
+        if (style) next.style = style;
+        return next;
+    };
+    const content = isPlainObject(rawContent) ? rawContent : {};
+    const legacySettings = isPlainObject(opts.legacySettings) ? opts.legacySettings : {};
+    const normalizeSection = (rawSection, legacyConfig, fallback) => {
+        const section = isPlainObject(rawSection) ? rawSection : {};
+        const legacy = isPlainObject(legacyConfig) ? legacyConfig : {};
+        const freeHtml = typeof section.freeHtml === 'string'
+            ? sanitizeValue(section.freeHtml)
+            : (typeof legacy.freeHtml === 'string' ? sanitizeValue(legacy.freeHtml) : fallback.freeHtml);
+        const dataSource = Array.isArray(section.table?.data)
+            ? section.table.data
+            : (Array.isArray(legacy.table?.data) ? legacy.table.data : fallback.table.data);
+        const tableData = normalizeTableData(dataSource);
+        const image = normalizeImageRef(section.image) || normalizeImageRef(legacy.image) || null;
+        return { freeHtml, table: { data: tableData }, image };
+    };
+    return {
+        header: normalizeSection(content.header, legacySettings.headerConfig, DEFAULT_HEADER_FOOTER_CONTENT.header),
+        footer: normalizeSection(content.footer, legacySettings.footerConfig, DEFAULT_HEADER_FOOTER_CONTENT.footer)
+    };
+};
+
 const normalizeHeaderFooterConfig = (rawConfig, defaults) => {
     const cfg = isPlainObject(rawConfig) ? { ...rawConfig } : {};
     const normalized = { ...defaults };
@@ -229,8 +298,6 @@ const normalizeHeaderFooterConfig = (rawConfig, defaults) => {
     if (normalized.template === 'exam') {
         normalized.heightMm = EXAM_HEADER_HEIGHT_MM;
     }
-
-    if (typeof cfg.freeHtml === 'string') normalized.freeHtml = cfg.freeHtml;
 
     if (isPlainObject(cfg.freeTypography)) {
         const typography = { ...normalized.freeTypography };
@@ -251,24 +318,7 @@ const normalizeHeaderFooterConfig = (rawConfig, defaults) => {
         const cols = toNumber(cfg.table.cols);
         const nextRows = rows && rows > 0 ? Math.min(8, Math.max(1, rows)) : normalized.table.rows;
         const nextCols = cols && cols > 0 ? Math.min(8, Math.max(1, cols)) : normalized.table.cols;
-        const data = Array.isArray(cfg.table.data)
-            ? cfg.table.data.map(row => Array.isArray(row) ? row.map(cell => typeof cell === 'string' ? cell : '') : [])
-            : [];
-        normalized.table = { rows: nextRows, cols: nextCols, data };
-    }
-
-    if (isPlainObject(cfg.image)) {
-        const src = typeof cfg.image.src === 'string' ? cfg.image.src : '';
-        const path = typeof cfg.image.path === 'string' ? cfg.image.path : '';
-        const style = normalizeImageStyle(cfg.image.style);
-        if (src || path) {
-            normalized.image = { src, path };
-            if (style) normalized.image.style = style;
-        } else {
-            normalized.image = null;
-        }
-    } else if (cfg.image === null) {
-        normalized.image = null;
+        normalized.table = { rows: nextRows, cols: nextCols };
     }
 
     return normalized;
@@ -567,6 +617,11 @@ export const normalizeDocData = (raw, options = {}) => {
     const chapterCovers = normalizeChapterCovers(base.chapterCovers);
     normalized.chapterCovers = chapterCovers;
     normalized.pagePlan = normalizePagePlan(base.pagePlan, chapterCovers);
+    normalized.headerFooter = normalizeHeaderFooterContent(base.headerFooter, {
+        sanitize: opts.sanitize,
+        sanitizeHtml: opts.sanitizeHtml,
+        legacySettings: options.legacySettings
+    });
     return normalized;
 };
 
@@ -574,7 +629,7 @@ export const normalizeProjectData = (raw, options = {}) => {
     const opts = { sanitize: false, ensureAtLeastOne: true, sanitizeHtml: null, ...options };
     const base = isPlainObject(raw) ? raw : {};
     const normalized = { ...base };
-    normalized.data = normalizeDocData(base.data, opts);
+    normalized.data = normalizeDocData(base.data, { ...opts, legacySettings: base.settings });
     normalized.settings = normalizeSettings(base.settings);
     return normalized;
 };

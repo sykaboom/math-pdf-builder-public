@@ -785,6 +785,12 @@ export const Events = {
             return clamp(value, min, max);
         };
         const clampSize = (value, min, max = 200) => clamp(value, min, max);
+        const getHeaderFooterContent = (area) => {
+            if (!State.docData.headerFooter) State.docData.headerFooter = { header: {}, footer: {} };
+            if (!State.docData.headerFooter.header) State.docData.headerFooter.header = {};
+            if (!State.docData.headerFooter.footer) State.docData.headerFooter.footer = {};
+            return area === 'footer' ? State.docData.headerFooter.footer : State.docData.headerFooter.header;
+        };
 
         const getLayoutImageContext = (img) => {
             if (!img || !img.classList) return null;
@@ -818,8 +824,8 @@ export const Events = {
                     return { ...stored };
                 }
             } else {
-                const config = context.area === 'footer' ? State.settings.footerConfig : State.settings.headerConfig;
-                const stored = config && config.image && config.image.style;
+                const content = getHeaderFooterContent(context.area);
+                const stored = content && content.image && content.image.style;
                 if (stored && Number.isFinite(stored.leftPct) && Number.isFinite(stored.topPct)
                     && Number.isFinite(stored.widthPct) && Number.isFinite(stored.heightPct)) {
                     return { ...stored };
@@ -850,9 +856,9 @@ export const Events = {
                 toc[context.key].style = { ...style };
                 return;
             }
-            const config = context.area === 'footer' ? State.settings.footerConfig : State.settings.headerConfig;
-            if (!config || !config.image) return;
-            config.image.style = { ...style };
+            const content = getHeaderFooterContent(context.area);
+            if (!content || !content.image) return;
+            content.image.style = { ...style };
         };
 
         const startLayoutImageDrag = (img, context, e) => {
@@ -1926,7 +1932,7 @@ export const Events = {
             }
             if (action === 'header-image-clear') {
                 e.preventDefault();
-                if (State.settings?.headerConfig) State.settings.headerConfig.image = null;
+                if (State.docData?.headerFooter?.header) State.docData.headerFooter.header.image = null;
                 Renderer.renderPages();
                 ManualRenderer.renderAll();
                 State.saveHistory();
@@ -1934,7 +1940,7 @@ export const Events = {
             }
             if (action === 'footer-image-clear') {
                 e.preventDefault();
-                if (State.settings?.footerConfig) State.settings.footerConfig.image = null;
+                if (State.docData?.headerFooter?.footer) State.docData.headerFooter.footer.image = null;
                 Renderer.renderPages();
                 ManualRenderer.renderAll();
                 State.saveHistory();
@@ -2561,13 +2567,19 @@ export const Events = {
                 if (kind === 'header') return State.settings?.headerConfig || null;
                 return null;
             };
+            const getHeaderFooterContent = (kind) => {
+                if (!State.docData.headerFooter) State.docData.headerFooter = { header: {}, footer: {} };
+                if (!State.docData.headerFooter.header) State.docData.headerFooter.header = {};
+                if (!State.docData.headerFooter.footer) State.docData.headerFooter.footer = {};
+                return kind === 'footer' ? State.docData.headerFooter.footer : State.docData.headerFooter.header;
+            };
             const isHeaderFooterImageTemplate = (kind) => {
                 const config = getHeaderFooterConfig(kind);
                 return config && config.template === 'image';
             };
             const applyHeaderFooterImage = async (kind, file) => {
-                const config = getHeaderFooterConfig(kind);
-                if (!config) return;
+                const content = getHeaderFooterContent(kind);
+                if (!content) return;
                 let saved = null;
                 if (FileSystem.dirHandle) {
                     saved = await FileSystem.saveImage(file);
@@ -2582,11 +2594,11 @@ export const Events = {
                 const nextImage = {
                     src: saved.url,
                     path: saved.path || null,
-                    style: config.image && config.image.style
-                        ? { ...config.image.style }
+                    style: content.image && content.image.style
+                        ? { ...content.image.style }
                         : { leftPct: 0, topPct: 0, widthPct: 100, heightPct: 100 }
                 };
-                config.image = nextImage;
+                content.image = nextImage;
                 State.headerFooterImageTarget = null;
                 Renderer.renderPages();
                 if (State.renderingEnabled) await ManualRenderer.renderAll();

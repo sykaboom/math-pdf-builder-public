@@ -38,8 +38,8 @@ export const buildProjectSaveData = (docData, settings, options = {}) => {
         if (!ref || typeof ref !== 'object') return;
         if (ref.path) ref.src = ref.path;
     };
-    normalizeImageRef(rawData.settings?.headerConfig?.image);
-    normalizeImageRef(rawData.settings?.footerConfig?.image);
+    normalizeImageRef(rawData.data?.headerFooter?.header?.image);
+    normalizeImageRef(rawData.data?.headerFooter?.footer?.image);
     rawData.data.blocks.forEach(block => {
         if (typeof cleanContent === 'function') {
             block.content = cleanContent(block.content);
