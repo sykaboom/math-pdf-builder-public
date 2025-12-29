@@ -1907,14 +1907,9 @@ export const Events = {
                 Renderer.performAndRender(() => Actions.addBlockBelow('concept', null, { variant: 'top-concept', label: 'Visual Concept' }));
                 return;
             }
-            if (action === 'insert-two-col-example') {
+            if (action === 'insert-two-col-concept') {
                 e.preventDefault();
-                Renderer.performAndRender(() => Actions.addBlockBelow('example', null, { variant: 'two-col-concept', label: '예제 01', subLabel: 'Solution' }));
-                return;
-            }
-            if (action === 'insert-two-col-exercise') {
-                e.preventDefault();
-                Renderer.performAndRender(() => Actions.addBlockBelow('example', null, { variant: 'two-col-concept', label: '유제 01' }));
+                Renderer.performAndRender(() => Actions.addBlockBelow('example', null, { variant: 'two-col-concept' }));
                 return;
             }
             if (action === 'add-spacer') {

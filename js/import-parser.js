@@ -60,7 +60,13 @@ export const ImportParser = {
             let content = chunk.substring(closeIdx + 2).trim();
             if (content.startsWith(':')) content = content.substring(1).trim();
             const metaClean = blockMeta.trim();
-            const [stylePart, labelPart] = metaClean.includes('_') ? metaClean.split('_') : ['기본', metaClean];
+            let stylePart = '기본';
+            let labelPart = metaClean;
+            const underscoreIndex = metaClean.indexOf('_');
+            if (underscoreIndex >= 0) {
+                stylePart = metaClean.slice(0, underscoreIndex);
+                labelPart = metaClean.slice(underscoreIndex + 1);
+            }
             const styles = stylePart.split(',');
             const labelTrim = (labelPart || '').trim();
             const hasStyle = (name) => styles.some(style => style.trim() === name);
@@ -263,7 +269,7 @@ export const ImportParser = {
                 const safeMain = escapeHtml(main);
                 const safeSub = escapeHtml(sub);
                 const subHtml = safeSub ? `<div class="two-col-concept-sub">${safeSub}</div>` : '';
-                content = `<div class="two-col-concept"><div class="two-col-concept-label"><div class="two-col-concept-title">${safeMain || '예제 01'}</div>${subHtml}</div><div class="two-col-concept-body">${content}</div></div>`;
+                content = `<div class="two-col-concept"><div class="two-col-concept-label"><div class="two-col-concept-title">${safeMain}</div>${subHtml}</div><div class="two-col-concept-body">${content}</div></div>`;
                 label = '';
             } else if (hasStyle('개념')) {
                 type = 'concept';

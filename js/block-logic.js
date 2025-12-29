@@ -24,7 +24,7 @@ const buildVariantBlock = (variant, options = {}) => {
         };
     }
     if (variant === 'two-col-concept') {
-        const title = label || '예제 01';
+        const title = label || '';
         const sub = subLabel ? `<div class="two-col-concept-sub">${subLabel}</div>` : '';
         return {
             type: 'example',
