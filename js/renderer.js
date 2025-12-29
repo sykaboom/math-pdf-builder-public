@@ -43,6 +43,20 @@ const hexToRgba = (hex, alpha = 0.1) => {
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 };
 
+const mixHexWithWhite = (hex, ratio = 0.5) => {
+    const raw = String(hex || '').trim();
+    const match = raw.match(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/);
+    if (!match) return 'rgb(204, 204, 204)';
+    let value = match[1];
+    if (value.length === 3) value = value.split('').map(ch => ch + ch).join('');
+    const intVal = parseInt(value, 16);
+    const r = (intVal >> 16) & 255;
+    const g = (intVal >> 8) & 255;
+    const b = intVal & 255;
+    const mix = (channel) => Math.round(channel + (255 - channel) * ratio);
+    return `rgb(${mix(r)}, ${mix(g)}, ${mix(b)})`;
+};
+
 export const Renderer = {
     conceptBlankSyncing: false,
     conceptBlankPending: null,
@@ -1148,6 +1162,7 @@ export const Renderer = {
         cssTarget.style.setProperty('--theme-text', themeText);
         cssTarget.style.setProperty('--theme-main-soft', hexToRgba(themeMain, 0.12));
         cssTarget.style.setProperty('--theme-sub-soft', hexToRgba(themeSub, 0.08));
+        cssTarget.style.setProperty('--theme-sub-50', mixHexWithWhite(themeSub, 0.5));
 
         let preserveScrollAfterFocus = false;
         if (!State.lastFocusId) {

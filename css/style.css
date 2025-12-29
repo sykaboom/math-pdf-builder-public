@@ -244,11 +244,11 @@ body.modal-open .modal-content * { user-select: text; -webkit-user-select: text;
 .top-concept-header { background: var(--theme-main, #1a1a2e); color: #fff; padding: 4px 8px; font-weight: 700; letter-spacing: 0.4px; }
 .top-concept-body { border: 1px solid var(--theme-main, #1a1a2e); border-top: none; padding: 8px 10px; background: #fff; box-sizing: border-box; }
 
-.two-col-concept { display: grid; grid-template-rows: auto 1fr; border: 1px solid var(--theme-sub, #999); background: #fff; width: 100%; box-sizing: border-box; }
-.two-col-concept-label { background: var(--theme-sub-soft, #f5f5f5); border-bottom: 1px dotted var(--theme-sub, #999); padding: 6px 8px; font-weight: 700; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.two-col-concept-title { font-size: 0.95em; }
-.two-col-concept-sub { margin-left: auto; font-weight: 600; font-size: 0.85em; color: var(--theme-sub, #555); }
-.two-col-concept-body { padding: 6px 8px; }
+.two-col-concept { display: grid; grid-template-rows: auto 1fr; border: 2px solid var(--theme-sub-50, #c0c0c0); border-radius: 8px; background: #fff; width: 100%; box-sizing: border-box; overflow: hidden; }
+.two-col-concept-label { padding: 6px 8px; font-weight: 700; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: center; }
+.two-col-concept-title { font-size: 0.95em; padding-right: 8px; border-right: 1px dotted var(--theme-sub-50, #c0c0c0); }
+.two-col-concept-sub { padding-left: 8px; text-align: right; font-weight: 600; font-size: 0.85em; color: var(--theme-sub, #555); }
+.two-col-concept-body { padding: 6px 8px; column-count: 2; column-gap: 16px; column-rule: 1px dotted var(--theme-sub-50, #c0c0c0); column-fill: auto; }
 
 .editable-box { border-radius: 4px; padding: 2px 2px; font-family: 'Noto Serif KR', serif; font-size: 10.5pt; line-height: 1.6; text-align: inherit; word-break: break-all; min-height: 28px; width: 100%; cursor: text; }
 .editable-box:focus { box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.35); border-radius: 4px; }
