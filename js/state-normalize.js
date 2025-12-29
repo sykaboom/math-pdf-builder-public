@@ -49,7 +49,7 @@ export const DEFAULT_PAGE_PLAN = [
     { id: 'pg_1', kind: 'content', columns: 2 }
 ];
 
-export const EXAM_HEADER_HEIGHT_MM = 25;
+export const EXAM_HEADER_HEIGHT_MM = 19;
 
 export const DEFAULT_HEADER_FOOTER_CONTENT = {
     header: {
