@@ -4,7 +4,7 @@ import { Actions } from './actions.js';
 import { ManualRenderer } from './services.js';
 import { Utils } from './utils.js';
 import { Events } from './events.js';
-import { buildDefaultChapterCover, buildDefaultToc } from './state-normalize.js';
+import { buildDefaultChapterCover, buildDefaultToc, EXAM_HEADER_HEIGHT_MM } from './state-normalize.js';
 
 const INLINE_TAG_PATTERN = /<\/?(span|b|strong|i|em|u|br|font)\b/i;
 
@@ -106,7 +106,9 @@ export const Renderer = {
         const familyMap = {
             serif: "'Noto Serif KR', serif",
             gothic: "'Nanum Gothic', 'Noto Sans KR', sans-serif",
-            gulim: "Gulim, 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif"
+            gulim: "Gulim, 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif",
+            'noto-sans': "'Noto Sans KR', sans-serif",
+            'noto-serif': "'Noto Serif KR', serif"
         };
         if (typography.fontFamily) {
             target.style.fontFamily = familyMap[typography.fontFamily] || typography.fontFamily;
@@ -226,7 +228,9 @@ export const Renderer = {
         const settings = State.settings;
         const headerConfig = this.resolveHeaderFooterConfig('header');
         const footerConfig = this.resolveHeaderFooterConfig('footer');
-        const headerHeight = headerConfig.template === 'none' ? 0 : headerConfig.heightMm;
+        const headerHeight = headerConfig.template === 'none'
+            ? 0
+            : (headerConfig.template === 'exam' ? EXAM_HEADER_HEIGHT_MM : headerConfig.heightMm);
         const footerHeight = footerConfig.template === 'none' ? 0 : footerConfig.heightMm;
         const columnsCount = planEntry && (planEntry.columns === 1 || planEntry.columns === 2)
             ? planEntry.columns
@@ -304,7 +308,9 @@ export const Renderer = {
         const fontFamilyMap = {
             serif: "'Noto Serif KR', serif",
             gothic: "'Nanum Gothic', 'Noto Sans KR', sans-serif",
-            gulim: "Gulim, 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif"
+            gulim: "Gulim, 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif",
+            'noto-sans': "'Noto Sans KR', sans-serif",
+            'noto-serif': "'Noto Serif KR', serif"
         };
         const tocTypography = design.tocTypography || {};
         const applyTypographyVars = (key, prefix) => {
@@ -691,7 +697,9 @@ export const Renderer = {
         const fontFamilyMap = {
             serif: "'Noto Serif KR', serif",
             gothic: "'Nanum Gothic', 'Noto Sans KR', sans-serif",
-            gulim: "Gulim, 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif"
+            gulim: "Gulim, 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif",
+            'noto-sans': "'Noto Sans KR', sans-serif",
+            'noto-serif': "'Noto Serif KR', serif"
         };
         const chapterTypography = design.chapterTypography || {};
         const applyChapterTypographyVars = (key, prefix) => {
@@ -962,7 +970,9 @@ export const Renderer = {
         const labelFamilyMap = {
             serif: "'Noto Serif KR', serif",
             gothic: "'Nanum Gothic', 'Noto Sans KR', sans-serif",
-            gulim: "Gulim, 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif"
+            gulim: "Gulim, 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif",
+            'noto-sans': "'Noto Sans KR', sans-serif",
+            'noto-serif': "'Noto Serif KR', serif"
         };
         const labelKey = State.settings.labelFontFamily || 'gothic';
         const labelBold = State.settings.labelBold !== false;
@@ -1150,7 +1160,9 @@ export const Renderer = {
             const familyMap = {
                 serif: "'Noto Serif KR', serif",
                 gothic: "'Nanum Gothic', 'Noto Sans KR', sans-serif",
-                gulim: "Gulim, 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif"
+                gulim: "Gulim, 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif",
+                'noto-sans': "'Noto Sans KR', sans-serif",
+                'noto-serif': "'Noto Serif KR', serif"
             };
             box.style.fontFamily = familyMap[familyKey] || familyMap.serif;
             box.style.fontSize = sizePt + 'pt';
@@ -1256,7 +1268,9 @@ export const Renderer = {
             const familyMap = {
                 serif: "'Noto Serif KR', serif",
                 gothic: "'Nanum Gothic', 'Noto Sans KR', sans-serif",
-                gulim: "Gulim, 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif"
+                gulim: "Gulim, 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif",
+                'noto-sans': "'Noto Sans KR', sans-serif",
+                'noto-serif': "'Noto Serif KR', serif"
             };
             box.style.fontFamily = familyMap[familyKey] || familyMap.serif;
             box.style.fontSize = sizePt + 'pt';

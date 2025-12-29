@@ -501,7 +501,9 @@ export const Events = {
         const familyMap = {
             serif: "'Noto Serif KR', serif",
             gothic: "'Nanum Gothic', 'Noto Sans KR', sans-serif",
-            gulim: "Gulim, 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif"
+            gulim: "Gulim, 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif",
+            'noto-sans': "'Noto Sans KR', sans-serif",
+            'noto-serif': "'Noto Serif KR', serif"
         };
         const fontFamily = familyKey === 'default' ? 'inherit' : (familyMap[familyKey] || familyKey);
         this.applyInlineStyleToSelection({ fontFamily }, options);
@@ -1446,8 +1448,9 @@ export const Events = {
         };
         const normalizeFontFamilyKey = (value = '') => {
             const lower = String(value).toLowerCase();
-            if (lower.includes('noto serif')) return 'serif';
-            if (lower.includes('nanum gothic') || lower.includes('noto sans') || lower.includes('sans-serif')) return 'gothic';
+            if (lower.includes('noto serif')) return 'noto-serif';
+            if (lower.includes('noto sans')) return 'noto-sans';
+            if (lower.includes('nanum gothic') || lower.includes('sans-serif')) return 'gothic';
             if (lower.includes('gulim') || lower.includes('malgun') || lower.includes('apple sd')) return 'gulim';
             if (lower.includes('serif')) return 'serif';
             return 'default';
@@ -2208,13 +2211,21 @@ export const Events = {
             }
             if (!e.target.closest('img') && !e.target.closest('#image-resizer')) this.hideResizer(); 
             const layoutImage = e.target.closest('.toc-bg-image, .toc-overlay-image, .header-footer-image');
+            let layoutContext = null;
             if (layoutImage) {
-                const context = getLayoutImageContext(layoutImage);
-                if (context) {
+                layoutContext = getLayoutImageContext(layoutImage);
+                if (layoutContext) {
                     e.preventDefault();
-                    eventsApi.showResizer(layoutImage, context);
-                    startLayoutImageDrag(layoutImage, context, e);
+                    eventsApi.showResizer(layoutImage, layoutContext);
+                    startLayoutImageDrag(layoutImage, layoutContext, e);
+                    if (layoutContext.type === 'layout-image') State.headerFooterImageTarget = layoutContext.area;
                 }
+            }
+            const headerFooterContainer = e.target.closest('.header-footer-image-container, .header-footer-image-placeholder');
+            if (headerFooterContainer) {
+                State.headerFooterImageTarget = headerFooterContainer.closest('.page-footer') ? 'footer' : 'header';
+            } else if (!layoutContext || layoutContext.type !== 'layout-image') {
+                State.headerFooterImageTarget = null;
             }
             if (!e.target.closest('#floating-toolbar')
                 && !e.target.closest('.editable-box')
@@ -2523,23 +2534,99 @@ export const Events = {
             }
         });
         document.addEventListener('paste', async (e) => {
-            let target = null; if (State.selectedPlaceholder && State.selectedPlaceholder.getAttribute('contenteditable') === 'false') target = State.selectedPlaceholder; else { const sel = window.getSelection(); if (sel.rangeCount) { const node = sel.anchorNode; const el = node.nodeType === 1 ? node : node.parentElement; if (el.closest('.editable-box')) target = 'cursor'; } } 
+            let target = null;
+            if (State.selectedPlaceholder && State.selectedPlaceholder.getAttribute('contenteditable') === 'false') {
+                target = State.selectedPlaceholder;
+            } else {
+                const sel = window.getSelection();
+                if (sel.rangeCount) {
+                    const node = sel.anchorNode;
+                    const el = node.nodeType === 1 ? node : node.parentElement;
+                    if (el.closest('.editable-box')) target = 'cursor';
+                }
+            }
+            const resolveHeaderFooterTarget = (node) => {
+                const el = node && node.closest ? node : null;
+                if (!el) return null;
+                const container = el.closest('.header-footer-image-container, .header-footer-image, .header-footer-image-placeholder');
+                if (!container) return null;
+                if (container.closest('.page-footer')) return 'footer';
+                if (container.closest('.header-area')) return 'header';
+                return null;
+            };
+            const directHeaderFooterTarget = resolveHeaderFooterTarget(e.target);
+            const headerFooterTarget = directHeaderFooterTarget || State.headerFooterImageTarget;
+            const getHeaderFooterConfig = (kind) => {
+                if (kind === 'footer') return State.settings?.footerConfig || null;
+                if (kind === 'header') return State.settings?.headerConfig || null;
+                return null;
+            };
+            const isHeaderFooterImageTemplate = (kind) => {
+                const config = getHeaderFooterConfig(kind);
+                return config && config.template === 'image';
+            };
+            const applyHeaderFooterImage = async (kind, file) => {
+                const config = getHeaderFooterConfig(kind);
+                if (!config) return;
+                let saved = null;
+                if (FileSystem.dirHandle) {
+                    saved = await FileSystem.saveImage(file);
+                } else {
+                    const reader = new FileReader();
+                    saved = await new Promise(resolve => {
+                        reader.onload = (ev) => resolve({ url: ev.target.result, path: null });
+                        reader.readAsDataURL(file);
+                    });
+                }
+                if (!saved) return;
+                const nextImage = {
+                    src: saved.url,
+                    path: saved.path || null,
+                    style: config.image && config.image.style
+                        ? { ...config.image.style }
+                        : { leftPct: 0, topPct: 0, widthPct: 100, heightPct: 100 }
+                };
+                config.image = nextImage;
+                State.headerFooterImageTarget = null;
+                Renderer.renderPages();
+                if (State.renderingEnabled) await ManualRenderer.renderAll();
+                State.saveHistory(500);
+            };
             const clipboard = e.clipboardData || e.originalEvent.clipboardData;
             if (!clipboard) return;
-            const items = clipboard.items || []; 
-            for (let item of items) { 
-                if (item.kind === 'file' && item.type.includes('image/')) { 
-                    if(!target) return; e.preventDefault(); const file = item.getAsFile(); 
-                    let saved = null; 
-                    if(FileSystem.dirHandle) saved = await FileSystem.saveImage(file); 
-                    else { const reader = new FileReader(); saved = await new Promise(r => { reader.onload=ev=>r({url:ev.target.result, path:null}); reader.readAsDataURL(file); }); } 
-                    if(!saved) return; 
-                    const newImg = document.createElement('img'); newImg.src = saved.url; if(saved.path) newImg.dataset.path = saved.path; newImg.style.maxWidth = '100%'; 
-                    if (target === State.selectedPlaceholder) { target.replaceWith(newImg); Actions.updateBlockContent(newImg.closest('.block-wrapper').dataset.id, newImg.closest('.editable-box').innerHTML); State.selectedPlaceholder = null; } 
-                    else if (target === 'cursor') { document.execCommand('insertHTML', false, newImg.outerHTML); } 
-                    State.saveHistory(500); return; 
-                } 
-            } 
+            const items = clipboard.items || [];
+            for (let item of items) {
+                if (item.kind === 'file' && item.type.includes('image/')) {
+                    const file = item.getAsFile();
+                    if (headerFooterTarget && isHeaderFooterImageTemplate(headerFooterTarget)) {
+                        e.preventDefault();
+                        await applyHeaderFooterImage(headerFooterTarget, file);
+                        return;
+                    }
+                    if (!target) return;
+                    e.preventDefault();
+                    let saved = null;
+                    if (FileSystem.dirHandle) saved = await FileSystem.saveImage(file);
+                    else {
+                        const reader = new FileReader();
+                        saved = await new Promise(r => { reader.onload = ev => r({ url: ev.target.result, path: null }); reader.readAsDataURL(file); });
+                    }
+                    if (!saved) return;
+                    const newImg = document.createElement('img');
+                    newImg.src = saved.url;
+                    if (saved.path) newImg.dataset.path = saved.path;
+                    newImg.style.maxWidth = '100%';
+                    if (target === State.selectedPlaceholder) {
+                        target.replaceWith(newImg);
+                        Actions.updateBlockContent(newImg.closest('.block-wrapper').dataset.id, newImg.closest('.editable-box').innerHTML);
+                        State.selectedPlaceholder = null;
+                    } else if (target === 'cursor') {
+                        document.execCommand('insertHTML', false, newImg.outerHTML);
+                    }
+                    State.saveHistory(500);
+                    return;
+                }
+            }
             if (target === 'cursor') {
                 const htmlData = clipboard.getData('text/html');
                 if (htmlData) {

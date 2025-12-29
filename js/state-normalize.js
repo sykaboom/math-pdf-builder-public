@@ -49,6 +49,8 @@ export const DEFAULT_PAGE_PLAN = [
     { id: 'pg_1', kind: 'content', columns: 2 }
 ];
 
+export const EXAM_HEADER_HEIGHT_MM = 25;
+
 export const DEFAULT_SETTINGS = {
     zoom: 1.0,
     columns: 2,
@@ -62,7 +64,7 @@ export const DEFAULT_SETTINGS = {
     labelBold: true,
     labelUnderline: false,
     headerConfig: {
-        heightMm: 18,
+        heightMm: EXAM_HEADER_HEIGHT_MM,
         template: 'exam',
         freeHtml: '',
         freeTypography: {
@@ -223,6 +225,9 @@ const normalizeHeaderFooterConfig = (rawConfig, defaults) => {
     const allowedTemplates = new Set(['exam', 'free', 'table', 'image', 'none']);
     if (typeof cfg.template === 'string' && allowedTemplates.has(cfg.template)) {
         normalized.template = cfg.template;
+    }
+    if (normalized.template === 'exam') {
+        normalized.heightMm = EXAM_HEADER_HEIGHT_MM;
     }
 
     if (typeof cfg.freeHtml === 'string') normalized.freeHtml = cfg.freeHtml;

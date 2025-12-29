@@ -4,7 +4,7 @@ import { ManualRenderer, FileSystem } from './services.js';
 import { Renderer } from './renderer.js';
 import { Actions } from './actions.js';
 import { Events } from './events.js';
-import { buildDefaultToc } from './state-normalize.js';
+import { buildDefaultToc, EXAM_HEADER_HEIGHT_MM } from './state-normalize.js';
 
 window.addEventListener('DOMContentLoaded', () => {
     const saved = localStorage.getItem('editorAutoSave');
@@ -130,6 +130,18 @@ window.addEventListener('DOMContentLoaded', () => {
     };
     if (headerTemplateSel) toggleTemplateControls('header', headerTemplateSel.value);
     if (footerTemplateSel) toggleTemplateControls('footer', footerTemplateSel.value);
+    const applyExamHeaderHeightLock = () => {
+        if (!headerHeightInp || !headerTemplateSel) return;
+        const isExam = headerTemplateSel.value === 'exam';
+        headerHeightInp.disabled = isExam;
+        if (isExam) {
+            headerHeightInp.value = EXAM_HEADER_HEIGHT_MM;
+            if (State.settings.headerConfig) {
+                State.settings.headerConfig.heightMm = EXAM_HEADER_HEIGHT_MM;
+            }
+        }
+    };
+    applyExamHeaderHeightLock();
 
     const applyHeaderFooterConfig = async (target, patch) => {
         const config = target === 'header' ? State.settings.headerConfig : State.settings.footerConfig;
@@ -163,6 +175,11 @@ window.addEventListener('DOMContentLoaded', () => {
     };
 
     if (headerHeightInp) headerHeightInp.addEventListener('change', async (e) => {
+        if (headerTemplateSel && headerTemplateSel.value === 'exam') {
+            headerHeightInp.value = EXAM_HEADER_HEIGHT_MM;
+            await applyHeaderFooterConfig('header', { heightMm: EXAM_HEADER_HEIGHT_MM });
+            return;
+        }
         const value = parseInt(e.target.value, 10);
         await applyHeaderFooterConfig('header', { heightMm: Number.isFinite(value) ? value : 0 });
     });
@@ -173,7 +190,13 @@ window.addEventListener('DOMContentLoaded', () => {
     if (headerTemplateSel) headerTemplateSel.addEventListener('change', async (e) => {
         const value = e.target.value;
         toggleTemplateControls('header', value);
+        if (value === 'exam') {
+            await applyHeaderFooterConfig('header', { template: value, heightMm: EXAM_HEADER_HEIGHT_MM });
+            applyExamHeaderHeightLock();
+            return;
+        }
         await applyHeaderFooterConfig('header', { template: value });
+        applyExamHeaderHeightLock();
     });
     if (footerTemplateSel) footerTemplateSel.addEventListener('change', async (e) => {
         const value = e.target.value;
