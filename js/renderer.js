@@ -203,7 +203,11 @@ export const Renderer = {
         }
         const table = document.createElement('table');
         table.className = 'header-table';
-        table.innerHTML = `<colgroup><col class="col-title"><col class="col-label"><col class="col-input-wide"><col class="col-label"><col class="col-input-narrow"></colgroup><tr><td rowspan="2" class="col-title">TEST</td><td class="col-label">과정</td><td><input class="header-input meta-title" value="${meta.title}"></td><td class="col-label">성명</td><td><input class="header-input"></td></tr><tr><td class="col-label">단원</td><td><input class="header-input meta-subtitle" value="${meta.subtitle}"></td><td class="col-label">점수</td><td></td></tr>`;
+        table.innerHTML = `<colgroup><col class="col-title"><col class="col-label"><col class="col-input-wide"><col class="col-label"><col class="col-input-narrow"></colgroup><tr><td rowspan="2" class="col-title">TEST</td><td class="col-label">과정</td><td><input class="header-input meta-title"></td><td class="col-label">성명</td><td><input class="header-input"></td></tr><tr><td class="col-label">단원</td><td><input class="header-input meta-subtitle"></td><td class="col-label">점수</td><td></td></tr>`;
+        const titleInput = table.querySelector('.meta-title');
+        if (titleInput) titleInput.value = meta.title || '';
+        const subtitleInput = table.querySelector('.meta-subtitle');
+        if (subtitleInput) subtitleInput.value = meta.subtitle || '';
         return table;
     },
 
