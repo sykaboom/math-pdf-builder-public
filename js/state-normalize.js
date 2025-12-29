@@ -291,7 +291,7 @@ const normalizeHeaderFooterConfig = (rawConfig, defaults, opts = {}) => {
     const height = toNumber(cfg.heightMm);
     if (height !== null && height >= 0) normalized.heightMm = height;
 
-    const allowedTemplates = new Set(['exam', 'free', 'table', 'image', 'none']);
+    const allowedTemplates = new Set(['exam', 'basic', 'free', 'table', 'image', 'none']);
     if (typeof cfg.template === 'string' && allowedTemplates.has(cfg.template)) {
         normalized.template = cfg.template;
     }
@@ -352,7 +352,7 @@ const normalizePagePlan = (rawPlan, covers) => {
     const plan = Array.isArray(rawPlan) ? rawPlan : [];
     const normalized = [];
     const coverMap = new Map((covers || []).map(cover => [cover.id, cover]));
-    const allowedTemplates = new Set(['exam', 'free', 'table', 'image', 'none']);
+    const allowedTemplates = new Set(['exam', 'basic', 'free', 'table', 'image', 'none']);
     const normalizeHeaderFooterOverride = (rawOverride) => {
         if (!isPlainObject(rawOverride)) return null;
         const next = {};

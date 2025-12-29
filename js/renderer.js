@@ -98,7 +98,7 @@ export const Renderer = {
         const base = { ...(this.resolveHeaderFooterConfig(kind) || {}) };
         const override = planEntry && planEntry[kind] && typeof planEntry[kind] === 'object' ? planEntry[kind] : null;
         if (!override) return base;
-        const allowedTemplates = new Set(['exam', 'free', 'table', 'image', 'none']);
+        const allowedTemplates = new Set(['exam', 'basic', 'free', 'table', 'image', 'none']);
         if (typeof override.template === 'string' && allowedTemplates.has(override.template)) {
             base.template = override.template;
         }
@@ -223,13 +223,7 @@ export const Renderer = {
         return container;
     },
 
-    buildExamHeader(meta, pageNum) {
-        if (pageNum !== 1) {
-            const line = document.createElement('div');
-            line.className = 'header-line';
-            line.style.marginTop = 'auto';
-            return line;
-        }
+    buildExamHeader(meta) {
         const table = document.createElement('table');
         table.className = 'header-table';
         table.innerHTML = `<colgroup><col class="col-title"><col class="col-label"><col class="col-input-wide"><col class="col-label"><col class="col-input-narrow"></colgroup><tr><td rowspan="2" class="col-title">TEST</td><td class="col-label">과정</td><td><input class="header-input meta-title"></td><td class="col-label">성명</td><td><input class="header-input"></td></tr><tr><td class="col-label">단원</td><td><input class="header-input meta-subtitle"></td><td class="col-label">점수</td><td></td></tr>`;
@@ -240,13 +234,22 @@ export const Renderer = {
         return table;
     },
 
+    buildBasicHeader() {
+        const line = document.createElement('div');
+        line.className = 'header-line';
+        line.style.marginTop = 'auto';
+        return line;
+    },
+
     buildExamFooter(meta, pageNum) {
         const container = document.createElement('div');
-        if (pageNum === 1) {
-            container.className = 'footer-content-first';
-            container.innerHTML = `<div>- ${pageNum} -</div>`;
-            return container;
-        }
+        container.className = 'footer-content-first';
+        container.innerHTML = `<div>- ${pageNum} -</div>`;
+        return container;
+    },
+
+    buildBasicFooter(pageNum) {
+        const container = document.createElement('div');
         container.innerHTML = `<div class="footer-line"></div><div>- ${pageNum} -</div>`;
         return container;
     },
@@ -283,7 +286,8 @@ export const Renderer = {
             headerArea.style.overflow = 'visible';
         }
         let headerContent = null;
-        if (headerConfig.template === 'exam') headerContent = this.buildExamHeader(meta, num);
+        if (headerConfig.template === 'exam') headerContent = this.buildExamHeader(meta);
+        else if (headerConfig.template === 'basic') headerContent = this.buildBasicHeader();
         else if (headerConfig.template === 'free') headerContent = this.buildHeaderFooterFreeBox(headerConfig, headerContentData);
         else if (headerConfig.template === 'table') headerContent = this.buildHeaderFooterTable(headerConfig, headerContentData);
         else if (headerConfig.template === 'image') headerContent = this.buildHeaderFooterImage(headerContentData, 'header');
@@ -314,6 +318,7 @@ export const Renderer = {
         }
         let footerContent = null;
         if (footerConfig.template === 'exam') footerContent = this.buildExamFooter(meta, num);
+        else if (footerConfig.template === 'basic') footerContent = this.buildBasicFooter(num);
         else if (footerConfig.template === 'free') footerContent = this.buildHeaderFooterFreeBox(footerConfig, footerContentData);
         else if (footerConfig.template === 'table') footerContent = this.buildHeaderFooterTable(footerConfig, footerContentData);
         else if (footerConfig.template === 'image') footerContent = this.buildHeaderFooterImage(footerContentData, 'footer');
@@ -934,7 +939,8 @@ export const Renderer = {
         const templateSelect = document.createElement('select');
         templateSelect.className = 'page-layout-select';
         templateSelect.innerHTML = [
-            '<option value="exam">시험지(기본)</option>',
+            '<option value="exam">시험지</option>',
+            '<option value="basic">기본</option>',
             '<option value="free">프리박스</option>',
             '<option value="table">표</option>',
             '<option value="image">이미지</option>',
