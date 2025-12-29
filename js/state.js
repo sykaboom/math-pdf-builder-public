@@ -60,6 +60,7 @@ export const State = {
     conceptBlankAnswersIsMath: [],
     conceptBlankAnswersHash: '',
     keysPressed: {},
+    pageControlsVisible: true,
 
     normalizeDocData,
     normalizeBlocks,

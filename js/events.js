@@ -156,6 +156,19 @@ export const Events = {
         btn.textContent = State.renderingEnabled ? '🔓 렌더링 해제 (편집 모드)' : '🔒 렌더링 적용 (렌더 모드)';
     },
 
+    updatePageControlsToggleUI() {
+        const btn = document.getElementById('toggle-page-controls-btn');
+        if (!btn) return;
+        btn.textContent = State.pageControlsVisible ? '🧩 페이지 제어 숨김' : '🧩 페이지 제어 표시';
+    },
+
+    togglePageControls(forceState) {
+        const next = (typeof forceState === 'boolean') ? forceState : !State.pageControlsVisible;
+        State.pageControlsVisible = next;
+        document.body.classList.toggle('hide-page-controls', !next);
+        this.updatePageControlsToggleUI();
+    },
+
     async toggleRenderingMode(forceState) {
         const next = (typeof forceState === 'boolean') ? forceState : !State.renderingEnabled;
         State.renderingEnabled = next;
@@ -2014,6 +2027,11 @@ export const Events = {
                 eventsApi.toggleRenderingMode();
                 return;
             }
+            if (action === 'toggle-page-controls') {
+                e.preventDefault();
+                eventsApi.togglePageControls();
+                return;
+            }
             if (action === 'render-all') {
                 e.preventDefault();
                 eventsApi.renderAllSafe();
@@ -2029,6 +2047,8 @@ export const Events = {
                 Utils.resolveConfirm(actionEl.dataset.result === 'true');
             }
         });
+
+        eventsApi.togglePageControls(State.pageControlsVisible);
 
         body.addEventListener('dragover', (e) => {
             if (State.dragSrcId) return;

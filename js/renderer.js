@@ -902,7 +902,7 @@ export const Renderer = {
     },
 
     attachHeaderFooterControl(pageEl, entry, kind) {
-        const area = pageEl.querySelector(kind === 'header' ? '.header-area' : '.page-footer');
+        const area = kind === 'header' ? pageEl : pageEl.querySelector('.page-footer');
         if (!area) return;
         const labelText = kind === 'header' ? '머릿말' : '꼬릿말';
         const controlClass = kind === 'header' ? 'header-control' : 'footer-control';
