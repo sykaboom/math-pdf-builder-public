@@ -15,29 +15,56 @@ export const replaceTokensOutsideMath = (root, options = {}) => {
         buildEditorTableElement,
         buildChoiceTableElement,
         recordConceptBlank,
-        enqueueConceptBlankIndex
+        enqueueConceptBlankIndex,
+        rawEditMap: rawEditMapInput
     } = options;
 
     let didReplace = false;
+    const rawEditMap = rawEditMapInput instanceof Map ? rawEditMapInput : null;
     const mathRegex = /(\$\$[\s\S]+?\$\$|\$[\s\S]+?\$)/g;
     const tokenPattern = /\[개념빈칸([:_])([^\]]*?)\]([\s\S]*?)\[\/개념빈칸\]|\[빈칸([:_])(.*?)\]|\[이미지\s*:\s*(.*?)\]|\[표_(\d+)x(\d+)\](?:\s*:\s*((?:\(\d+x\d+_(?:"(?:\\.|[^"])*"|&quot;[\s\S]*?&quot;|[^)]*)\)\s*,?\s*)+))?|\[선지_(1행|2행|5행)\](?:\s*:\s*((?:\(\d+_(?:"(?:\\.|[^"])*"|&quot;[\s\S]*?&quot;|[^)]*)\)\s*,?\s*)+))?|\[(굵게|볼드|BOLD|밑줄)([:_])([\s\S]*?)\]|\[블록사각형_([^\]]*?)\]/g;
+    const conceptTokenRegex = /\[개념빈칸([:_])([^\]]*?)\]([\s\S]*?)\[\/개념빈칸\]/g;
     const tableDataRegex = /^\s*:\s*((?:\(\d+x\d+_(?:"(?:\\.|[^"])*"|&quot;[\s\S]*?&quot;|[^)]*)\)\s*,?\s*)+)/;
     const choiceDataRegex = /^\s*:\s*((?:\(\d+_(?:"(?:\\.|[^"])*"|&quot;[\s\S]*?&quot;|[^)]*)\)\s*,?\s*)+)/;
     const normalizeTextBlankLabel = (value = '') => {
         return String(value).replace(/\s+/g, ' ').trim();
     };
-    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null, false);
-    const textNodes = [];
+    const nodesToProcess = [];
     const shouldSkipTokenization = (node) => {
         const parent = node.parentElement;
         if (!parent) return false;
         if (parent.closest('.raw-edit')) return true;
         return !!parent.closest('.image-placeholder');
     };
+    const getRawEditHtml = (node) => {
+        if (!rawEditMap || !node || !node.getAttribute) return '';
+        const id = node.getAttribute('data-raw-placeholder');
+        if (!id) return '';
+        return rawEditMap.get(id) || '';
+    };
+    const shouldRecordRawEdit = (node) => {
+        if (!rawEditMap || !node || node.nodeType !== Node.ELEMENT_NODE) return false;
+        const id = node.getAttribute('data-raw-placeholder');
+        return !!id && rawEditMap.has(id);
+    };
+    const walker = document.createTreeWalker(
+        root,
+        NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT,
+        {
+            acceptNode: (node) => {
+                if (node.nodeType === Node.TEXT_NODE) {
+                    if (shouldSkipTokenization(node)) return NodeFilter.FILTER_REJECT;
+                    return NodeFilter.FILTER_ACCEPT;
+                }
+                if (shouldRecordRawEdit(node)) return NodeFilter.FILTER_ACCEPT;
+                return NodeFilter.FILTER_SKIP;
+            }
+        },
+        false
+    );
     while (walker.nextNode()) {
         const node = walker.currentNode;
-        if (shouldSkipTokenization(node)) continue;
-        textNodes.push(node);
+        nodesToProcess.push(node);
     }
 
     const createImageFragment = (label) => {
@@ -65,6 +92,19 @@ export const replaceTokensOutsideMath = (root, options = {}) => {
 
     const isIndexInRanges = (index, ranges) => {
         return ranges.some(([start, end]) => index >= start && index < end);
+    };
+    const recordRawEditConceptBlanks = (rawHtml = '') => {
+        if (!trackConceptBlanks || typeof recordConceptBlank !== 'function') return;
+        const html = String(rawHtml || '');
+        if (!html) return;
+        const ranges = getMathRanges(html);
+        conceptTokenRegex.lastIndex = 0;
+        let m;
+        while ((m = conceptTokenRegex.exec(html)) !== null) {
+            const body = m[3] || '';
+            const isMath = isIndexInRanges(m.index, ranges);
+            recordConceptBlank(body, { isMath });
+        }
     };
 
     const buildFragmentFromText = (text) => {
@@ -167,7 +207,11 @@ export const replaceTokensOutsideMath = (root, options = {}) => {
         return frag;
     };
 
-    for (let node of textNodes) {
+    for (let node of nodesToProcess) {
+        if (node.nodeType === Node.ELEMENT_NODE) {
+            recordRawEditConceptBlanks(getRawEditHtml(node));
+            continue;
+        }
         const text = node.nodeValue;
         if (!text) continue;
         const hasToken = new RegExp(tokenPattern.source, 'g').test(text);
