@@ -9,8 +9,12 @@ export const escapeForMathTex = (value = '') => {
 
 export const decodeMathEntities = (value = '') => {
     let text = String(value);
-    text = text.replace(/&amp;lt;/g, '&lt;').replace(/&amp;gt;/g, '&gt;');
+    if (!text.includes('&')) return text;
+    while (text.includes('&amp;')) {
+        text = text.replace(/&amp;/g, '&');
+    }
     text = text.replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+    text = text.replace(/&nbsp;/g, ' ').replace(/&quot;/g, '"').replace(/&#39;/g, "'");
     return text;
 };
 
