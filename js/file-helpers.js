@@ -20,11 +20,14 @@ const sanitizeBaseName = (value) => {
 export const buildSafeProjectFilename = (inputName, defaultBase, extension = '.json') => {
     let baseName = String(inputName || '').trim();
     if (!baseName) baseName = String(defaultBase || '');
-    baseName = baseName.replace(/\.json$/i, '');
+    const ext = extension.startsWith('.') ? extension : `.${extension}`;
+    const extPattern = new RegExp(`${ext.replace('.', '\\.')}$`, 'i');
+    baseName = baseName.replace(extPattern, '');
+    if (ext.toLowerCase() !== '.json') baseName = baseName.replace(/\.json$/i, '');
+    if (ext.toLowerCase() !== '.msk') baseName = baseName.replace(/\.msk$/i, '');
     const safeBase = sanitizeBaseName(baseName);
     const fallbackBase = sanitizeBaseName(defaultBase) || 'project';
     const finalBase = safeBase || fallbackBase;
-    const ext = extension.startsWith('.') ? extension : `.${extension}`;
     return `${finalBase}${ext}`;
 };
 

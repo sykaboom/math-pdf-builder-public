@@ -5,6 +5,7 @@ Math Exam Editor v4.2 (Modular Architecture)
 ## 아키텍처 가이드라인
 - 미래 통합 기준과 코드 점검 원칙: `PROJECT_BLUEPRINT.md`
 - 개념빈칸 동작 명세: `docs/concept-blank.md`
+- MSK 패키지 포맷: `docs/msk-package.md`
 
 ## 사용하기 (배포판)
 - GitHub Pages: https://sykaboom.github.io/math-pdf-builder-public/
@@ -50,8 +51,8 @@ Math Exam Editor v4.2 (Modular Architecture)
 - 셀 경계 드래그로 행/열 크기를 조절합니다.
 
 ### 6) 저장 / 열기 / 출력
-- `저장(Ctrl+S)`은 JSON 파일로 저장됩니다.
-- `열기(Ctrl+O)`로 JSON을 다시 불러옵니다.
+- `저장(Ctrl+S)`은 `.msk` 패키지로 저장됩니다(내부에 JSON + assets 포함).
+- `열기(Ctrl+O)`는 `.msk`와 기존 `.json`을 지원합니다.
 - `출력`의 품질 체크리스트에서 미렌더 수식/미삽입 이미지 개수를 확인합니다.
 - `인쇄하기`는 preflight 경고 후 브라우저 인쇄 다이얼로그를 엽니다.
 

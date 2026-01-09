@@ -61,6 +61,7 @@ export const State = {
     conceptBlankAnswersHash: '',
     keysPressed: {},
     pageControlsVisible: true,
+    sourceData: null,
 
     normalizeDocData,
     normalizeBlocks,

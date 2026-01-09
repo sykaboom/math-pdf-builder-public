@@ -211,9 +211,25 @@ export const Events = {
         State.saveHistory();
     },
 
-    loadProjectJSONFromInput(input) {
+    loadProjectFileFromInput(input) {
         if (!input || !input.files || !input.files[0]) return;
         const file = input.files[0];
+        const name = String(file.name || '').toLowerCase();
+        if (name.endsWith('.msk')) {
+            FileSystem.readProjectPackage(file).then((pkg) => {
+                if (!pkg || !pkg.content) throw new Error('지원하지 않는 파일 형식입니다.');
+                State.applyProjectData(pkg.content, { sanitize: true });
+                State.sourceData = pkg.source;
+                FileSystem.applyPackageAssets(State.docData, pkg.assets);
+                Renderer.renderPages();
+                ManualRenderer.renderAll();
+                State.saveHistory();
+            }).catch(err => {
+                alert('파일 로드 실패: ' + err.message);
+            });
+            return;
+        }
+
         const r = new FileReader();
         r.onload = async (e) => {
             try {
@@ -222,6 +238,7 @@ export const Events = {
                     throw new Error('지원하지 않는 파일 형식입니다.');
                 }
                 State.applyProjectData(parsed, { sanitize: true });
+                State.sourceData = null;
                 await FileSystem.loadImagesForDisplay(State.docData.blocks, State.docData.toc);
                 Renderer.renderPages();
                 ManualRenderer.renderAll();
@@ -917,7 +934,7 @@ export const Events = {
 
         const fileInput = document.getElementById('fileInput');
         if (fileInput) {
-            fileInput.addEventListener('change', () => eventsApi.loadProjectJSONFromInput(fileInput));
+            fileInput.addEventListener('change', () => eventsApi.loadProjectFileFromInput(fileInput));
         }
 
         document.querySelectorAll('[data-action="insert-image-box"]').forEach((el) => {
@@ -1847,7 +1864,7 @@ export const Events = {
             }
             if (action === 'save-project') {
                 e.preventDefault();
-                FileSystem.saveProjectJSON(() => Renderer.syncAllBlocks());
+                FileSystem.saveProjectPackage(() => Renderer.syncAllBlocks());
                 return;
             }
             if (action === 'reset-project') {
@@ -2155,7 +2172,7 @@ export const Events = {
                 return;
             }
             if ((e.ctrlKey || e.metaKey) && e.shiftKey && key === 'f') { e.preventDefault(); Utils.openModal('find-replace-modal'); document.getElementById('fr-find-input').focus(); return; } 
-            if ((e.ctrlKey || e.metaKey) && key === 's') { e.preventDefault(); FileSystem.saveProjectJSON(() => Renderer.syncAllBlocks()); return; } 
+            if ((e.ctrlKey || e.metaKey) && key === 's') { e.preventDefault(); FileSystem.saveProjectPackage(() => Renderer.syncAllBlocks()); return; } 
             if ((e.ctrlKey || e.metaKey) && e.shiftKey && key === 'z') { e.preventDefault(); if(State.redo()) { Renderer.renderPages(); ManualRenderer.renderAll(); } return; } 
             else if ((e.ctrlKey || e.metaKey) && key === 'z') { e.preventDefault(); if(State.undo()) { Renderer.renderPages(); ManualRenderer.renderAll(); } return; } 
         });
