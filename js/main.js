@@ -4,7 +4,7 @@ import { ManualRenderer, FileSystem } from './services.js';
 import { Renderer } from './renderer.js';
 import { Actions } from './actions.js';
 import { Events } from './events.js';
-import { buildDefaultHeaderFooterContent, buildDefaultToc } from './state-normalize.js';
+import { buildDefaultHeaderFooterContent, buildDefaultToc, EXAM_HEADER_HEIGHT_MM } from './state-normalize.js';
 
 window.addEventListener('DOMContentLoaded', () => {
     const saved = localStorage.getItem('editorAutoSave');
@@ -34,6 +34,10 @@ window.addEventListener('DOMContentLoaded', () => {
     const marginTopInp = document.getElementById('setting-margin-top');
     const marginSideInp = document.getElementById('setting-margin-side');
     const columnGapInp = document.getElementById('setting-column-gap');
+    const headerTemplateSel = document.getElementById('setting-header-template');
+    const headerHeightInp = document.getElementById('setting-header-height');
+    const footerTemplateSel = document.getElementById('setting-footer-template');
+    const footerHeightInp = document.getElementById('setting-footer-height');
     const headerFreeFamilySel = document.getElementById('setting-header-free-font-family');
     const headerFreeSizeInp = document.getElementById('setting-header-free-font-size');
     const headerFreeWeightInp = document.getElementById('setting-header-free-font-weight');
@@ -66,6 +70,30 @@ window.addEventListener('DOMContentLoaded', () => {
         }
         return State.docData.headerFooter;
     };
+    const EXAM_HEADER_EMPTY_HEIGHT_MM = 12;
+    const updateTemplateControls = (target, template) => {
+        document.querySelectorAll(`.template-controls[data-target="${target}"]`).forEach((el) => {
+            el.classList.toggle('active', el.dataset.template === template);
+        });
+    };
+    const getHeaderFooterHeightDisplay = (target, template, config) => {
+        if (target === 'header') {
+            if (template === 'exam') return EXAM_HEADER_HEIGHT_MM;
+            if (template === 'none') {
+                return State.settings.documentMode === 'exam' ? EXAM_HEADER_EMPTY_HEIGHT_MM : 0;
+            }
+        }
+        if (template === 'none') return 0;
+        return Number.isFinite(config?.heightMm) ? config.heightMm : 0;
+    };
+    const syncHeaderFooterHeightInput = (target, template) => {
+        const input = target === 'header' ? headerHeightInp : footerHeightInp;
+        if (!input) return;
+        const config = target === 'header' ? State.settings.headerConfig : State.settings.footerConfig;
+        const isLocked = template === 'none' || (target === 'header' && template === 'exam');
+        input.value = getHeaderFooterHeightDisplay(target, template, config);
+        input.disabled = isLocked;
+    };
 
     if (columnsSel) columnsSel.value = settings.columns || 2;
     if (marginTopInp) marginTopInp.value = settings.marginTopMm || 15;
@@ -73,6 +101,14 @@ window.addEventListener('DOMContentLoaded', () => {
     if (columnGapInp) columnGapInp.value = settings.columnGapMm || 5;
     const headerConfig = settings.headerConfig || {};
     const footerConfig = settings.footerConfig || {};
+    const headerTemplate = headerConfig.template || 'exam';
+    const footerTemplate = footerConfig.template || 'exam';
+    if (headerTemplateSel) headerTemplateSel.value = headerTemplate;
+    if (footerTemplateSel) footerTemplateSel.value = footerTemplate;
+    updateTemplateControls('header', headerTemplate);
+    updateTemplateControls('footer', footerTemplate);
+    syncHeaderFooterHeightInput('header', headerTemplate);
+    syncHeaderFooterHeightInput('footer', footerTemplate);
     if (headerFreeFamilySel) headerFreeFamilySel.value = headerConfig.freeTypography?.fontFamily || '';
     if (headerFreeSizeInp) headerFreeSizeInp.value = Number.isFinite(headerConfig.freeTypography?.fontSizePt) ? headerConfig.freeTypography.fontSizePt : '';
     if (headerFreeWeightInp) headerFreeWeightInp.value = Number.isFinite(headerConfig.freeTypography?.fontWeight) ? headerConfig.freeTypography.fontWeight : '';
@@ -111,6 +147,43 @@ window.addEventListener('DOMContentLoaded', () => {
     numberHandler('marginTopMm', marginTopInp, 15);
     numberHandler('marginSideMm', marginSideInp, 10);
     numberHandler('columnGapMm', columnGapInp, 5);
+    const updateHeaderFooterTemplate = async (target, template) => {
+        const config = target === 'header' ? State.settings.headerConfig : State.settings.footerConfig;
+        if (!config) return;
+        config.template = template;
+        updateTemplateControls(target, template);
+        syncHeaderFooterHeightInput(target, template);
+        Renderer.renderPages();
+        if (State.renderingEnabled) await ManualRenderer.renderAll();
+        State.saveHistory();
+    };
+    const updateHeaderFooterHeight = async (target, rawValue) => {
+        const input = target === 'header' ? headerHeightInp : footerHeightInp;
+        if (input && input.disabled) {
+            syncHeaderFooterHeightInput(target, target === 'header' ? headerTemplateSel?.value : footerTemplateSel?.value);
+            return;
+        }
+        const config = target === 'header' ? State.settings.headerConfig : State.settings.footerConfig;
+        if (!config) return;
+        const value = parseFloat(rawValue);
+        const next = Number.isFinite(value) ? Math.max(0, Math.min(60, value)) : 0;
+        config.heightMm = next;
+        Renderer.renderPages();
+        if (State.renderingEnabled) await ManualRenderer.renderAll();
+        State.saveHistory();
+    };
+    if (headerTemplateSel) headerTemplateSel.addEventListener('change', async (e) => {
+        await updateHeaderFooterTemplate('header', e.target.value);
+    });
+    if (footerTemplateSel) footerTemplateSel.addEventListener('change', async (e) => {
+        await updateHeaderFooterTemplate('footer', e.target.value);
+    });
+    if (headerHeightInp) headerHeightInp.addEventListener('change', async (e) => {
+        await updateHeaderFooterHeight('header', e.target.value);
+    });
+    if (footerHeightInp) footerHeightInp.addEventListener('change', async (e) => {
+        await updateHeaderFooterHeight('footer', e.target.value);
+    });
     const updateFreeTypography = async (target, patch) => {
         const config = target === 'header' ? State.settings.headerConfig : State.settings.footerConfig;
         if (!config) return;

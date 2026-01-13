@@ -26,9 +26,10 @@ export const expandImportedBlocks = (blocks, options = {}) => {
     const { limit = 0, addSpacer = false } = options;
     const processedBlocks = [];
     let countInColumn = 0;
+    const affectsLimit = (block) => block && block.type !== 'answer' && block.bgGray !== true;
     blocks.forEach((block, idx) => {
         processedBlocks.push(block);
-        if (block.type !== 'answer') {
+        if (affectsLimit(block)) {
             countInColumn++;
             if (addSpacer) processedBlocks.push({ id: `sp_${Math.random()}`, type: 'spacer', height: 50 });
         }

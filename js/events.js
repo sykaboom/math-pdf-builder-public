@@ -7,6 +7,7 @@ import { Utils } from './utils.js';
 import { createTableEditor } from './table-editor.js';
 import { getMathSplitCandidates as buildMathSplitCandidates, normalizeMathTex } from './math-logic.js';
 import { stripConceptBlankTokens } from './math-tokenize.js';
+import { buildDefaultDocData } from './state-normalize.js';
 
 const PATCH_NOTES_PATH = 'PATCH_NOTES.txt';
 
@@ -206,7 +207,7 @@ export const Events = {
 
     resetProject() {
         if (!confirm('초기화하시겠습니까? (저장되지 않은 내용은 삭제됩니다)')) return;
-        State.docData.blocks = [{ id: 'b0', type: 'concept', content: '<span class="q-label">안내</span> 내용 입력...' }];
+        State.docData = buildDefaultDocData();
         Renderer.renderPages();
         State.saveHistory();
     },

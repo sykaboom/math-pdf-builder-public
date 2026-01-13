@@ -240,11 +240,26 @@ export const Renderer = {
     buildExamHeader(meta) {
         const table = document.createElement('table');
         table.className = 'header-table';
-        table.innerHTML = `<colgroup><col class="col-title"><col class="col-label"><col class="col-input-wide"><col class="col-label"><col class="col-input-narrow"></colgroup><tr><td rowspan="2" class="col-title">TEST</td><td class="col-label">과정</td><td><input class="header-input meta-title"></td><td class="col-label">성명</td><td><input class="header-input"></td></tr><tr><td class="col-label">단원</td><td><input class="header-input meta-subtitle"></td><td class="col-label">점수</td><td></td></tr>`;
+        table.innerHTML = `<colgroup><col class="col-title"><col class="col-label"><col class="col-input-wide"><col class="col-label"><col class="col-input-narrow"></colgroup><tr><td rowspan="2" class="col-title"><input class="header-input meta-exam-label"></td><td class="col-label">과정</td><td><input class="header-input meta-title"></td><td class="col-label">성명</td><td><input class="header-input meta-exam-name"></td></tr><tr><td class="col-label">단원</td><td><input class="header-input meta-subtitle"></td><td class="col-label">점수</td><td><input class="header-input meta-exam-score"></td></tr>`;
         const titleInput = table.querySelector('.meta-title');
         if (titleInput) titleInput.value = meta.title || '';
         const subtitleInput = table.querySelector('.meta-subtitle');
         if (subtitleInput) subtitleInput.value = meta.subtitle || '';
+        const labelInput = table.querySelector('.meta-exam-label');
+        if (labelInput) {
+            const hasLabel = Object.prototype.hasOwnProperty.call(meta, 'examLabel');
+            labelInput.value = hasLabel ? String(meta.examLabel ?? '') : 'TEST';
+        }
+        const nameInput = table.querySelector('.meta-exam-name');
+        if (nameInput) {
+            const hasName = Object.prototype.hasOwnProperty.call(meta, 'examName');
+            nameInput.value = hasName ? String(meta.examName ?? '') : '';
+        }
+        const scoreInput = table.querySelector('.meta-exam-score');
+        if (scoreInput) {
+            const hasScore = Object.prototype.hasOwnProperty.call(meta, 'examScore');
+            scoreInput.value = hasScore ? String(meta.examScore ?? '') : '';
+        }
         return table;
     },
 
@@ -354,8 +369,33 @@ export const Renderer = {
 
         const titleInp = div.querySelector('.meta-title');
         const subInp = div.querySelector('.meta-subtitle');
-        if (titleInp) titleInp.oninput = (e) => { State.docData.meta.title = e.target.value; State.saveHistory(500); };
-        if (subInp) subInp.oninput = (e) => { State.docData.meta.subtitle = e.target.value; State.saveHistory(500); };
+        const examLabelInp = div.querySelector('.meta-exam-label');
+        const examNameInp = div.querySelector('.meta-exam-name');
+        const examScoreInp = div.querySelector('.meta-exam-score');
+        const updateHeaderValue = (input, key, value) => {
+            const sourceId = input?.dataset?.headerSourceId;
+            if (sourceId) {
+                const block = State.docData.blocks.find(b => b.id === sourceId);
+                if (block) {
+                    if (!block.headerMeta || typeof block.headerMeta !== 'object') block.headerMeta = {};
+                    block.headerMeta[key] = value;
+                    State.saveHistory(500);
+                    return;
+                }
+            }
+            State.docData.meta[key] = value;
+            State.saveHistory(500);
+        };
+        const updateExamValue = (key, value) => {
+            if (!State.docData.meta) State.docData.meta = {};
+            State.docData.meta[key] = value;
+            State.saveHistory(500);
+        };
+        if (titleInp) titleInp.oninput = (e) => updateHeaderValue(titleInp, 'title', e.target.value);
+        if (subInp) subInp.oninput = (e) => updateHeaderValue(subInp, 'subtitle', e.target.value);
+        if (examLabelInp) examLabelInp.oninput = (e) => updateExamValue('examLabel', e.target.value);
+        if (examNameInp) examNameInp.oninput = (e) => updateExamValue('examName', e.target.value);
+        if (examScoreInp) examScoreInp.oninput = (e) => updateExamValue('examScore', e.target.value);
         return div;
     },
 
@@ -1180,10 +1220,53 @@ export const Renderer = {
         let pageNum = 1;
         let planExpanded = false;
         if (!Array.isArray(State.docData.pagePlan)) State.docData.pagePlan = [];
+        if (!Array.isArray(State.docData.blocks)) State.docData.blocks = [];
         const plan = State.docData.pagePlan;
         const covers = Array.isArray(State.docData.chapterCovers) ? State.docData.chapterCovers : [];
         const coverMap = new Map(covers.map(item => [item.id, item]));
         const contentPages = [];
+        const docMeta = State.docData.meta || {};
+        let currentHeaderMeta = {
+            title: typeof docMeta.title === 'string' ? docMeta.title : '',
+            subtitle: typeof docMeta.subtitle === 'string' ? docMeta.subtitle : ''
+        };
+        let headerOverrideActive = false;
+        const headerOverrides = new Map();
+        let currentHeaderSourceId = null;
+        const headerOverrideSources = new Map();
+        const applyHeaderChange = (update) => {
+            if (!update || typeof update !== 'object') return;
+            if (Object.prototype.hasOwnProperty.call(update, 'title') && typeof update.title === 'string') {
+                currentHeaderMeta.title = update.title.trim();
+            }
+            if (Object.prototype.hasOwnProperty.call(update, 'subtitle') && typeof update.subtitle === 'string') {
+                currentHeaderMeta.subtitle = update.subtitle.trim();
+            }
+        };
+        const applyHeaderOverrideForEntry = (entry) => {
+            if (!entry || !entry.id) return;
+            headerOverrides.set(entry.id, { ...currentHeaderMeta });
+        };
+        const reorderShadedBlocks = () => {
+            const blocks = State.docData.blocks;
+            if (!Array.isArray(blocks) || blocks.length < 2) return;
+            const normal = [];
+            const shaded = [];
+            blocks.forEach((block) => {
+                if (block && block.bgGray && block.derived !== 'concept-answers') {
+                    shaded.push(block);
+                } else {
+                    normal.push(block);
+                }
+            });
+            if (!shaded.length) return;
+            const next = normal.concat(shaded);
+            const changed = next.some((block, idx) => block !== blocks[idx]);
+            if (!changed) return;
+            State.docData.blocks = next;
+            State.saveHistory(0, { reason: 'shade-order', coalesceMs: 1500 });
+        };
+        reorderShadedBlocks();
 
         const resolveColumnsCount = (entry, pageNumber) => {
             if (entry && (entry.columns === 1 || entry.columns === 2)) return entry.columns;
@@ -1247,6 +1330,25 @@ export const Renderer = {
         let columns = getColumnsForEntry(contentPages[contentIndex].entry, currentPage, contentPages[contentIndex].pageNumber);
         let colIndex = 0;
         let curCol = columns[colIndex];
+        let lastUsedContentIndex = -1;
+        const markPageUsed = (index) => {
+            if (index > lastUsedContentIndex) lastUsedContentIndex = index;
+        };
+        const applyHeaderMetaForBlock = (block, entry) => {
+            if (!entry) return;
+            if (block && block.headerMeta && typeof block.headerMeta === 'object') {
+                applyHeaderChange(block.headerMeta);
+                headerOverrideActive = true;
+                currentHeaderSourceId = block.id || null;
+                applyHeaderOverrideForEntry(entry);
+                if (currentHeaderSourceId) headerOverrideSources.set(entry.id, currentHeaderSourceId);
+                return;
+            }
+            if (headerOverrideActive && !headerOverrides.has(entry.id)) {
+                applyHeaderOverrideForEntry(entry);
+                if (currentHeaderSourceId) headerOverrideSources.set(entry.id, currentHeaderSourceId);
+            }
+        };
 
         const moveToNextColumn = () => {
             colIndex++;
@@ -1264,14 +1366,72 @@ export const Renderer = {
             curCol = columns[colIndex];
         };
 
+        const placeBlockElement = (block) => {
+            const el = this.createBlock(block);
+            let entryIndex = contentIndex;
+            let entry = contentPages[entryIndex]?.entry;
+            curCol.appendChild(el);
+            if (curCol.scrollHeight > curCol.clientHeight + 5) {
+                if (curCol.children.length === 1) {
+                    moveToNextColumn();
+                } else {
+                    curCol.removeChild(el);
+                    moveToNextColumn();
+                    curCol.appendChild(el);
+                    entryIndex = contentIndex;
+                    entry = contentPages[entryIndex]?.entry;
+                }
+            }
+            return { entryIndex, entry };
+        };
+
         State.docData.blocks.forEach((block) => { 
-            if (block.type === 'break') { curCol.appendChild(this.createBlock(block)); moveToNextColumn(); return; } 
-            const el = this.createBlock(block); curCol.appendChild(el); 
-            if (curCol.scrollHeight > curCol.clientHeight + 5) { 
-                if (curCol.children.length === 1) { moveToNextColumn(); } 
-                else { curCol.removeChild(el); moveToNextColumn(); curCol.appendChild(el); } 
-            } 
+            if (block.type === 'break') {
+                const entryIndex = contentIndex;
+                const entry = contentPages[entryIndex]?.entry;
+                curCol.appendChild(this.createBlock(block));
+                applyHeaderMetaForBlock(block, entry);
+                markPageUsed(entryIndex);
+                moveToNextColumn();
+                return;
+            }
+            const { entryIndex, entry } = placeBlockElement(block);
+            applyHeaderMetaForBlock(block, entry);
+            markPageUsed(entryIndex);
         });
+
+        if (lastUsedContentIndex < 0 && contentPages.length) lastUsedContentIndex = 0;
+        if (contentPages.length && lastUsedContentIndex < contentPages.length - 1) {
+            const keepIds = new Set(contentPages.slice(0, lastUsedContentIndex + 1).map(item => item.entry.id));
+            const nextPlan = plan.filter(entry => entry.kind !== 'content' || keepIds.has(entry.id));
+            if (nextPlan.length !== plan.length) {
+                State.docData.pagePlan = nextPlan;
+                State.docData.chapterCovers = covers;
+                State.saveHistory(0, { reason: 'page-plan-auto', coalesceMs: 1500 });
+                this.renderPages();
+                return;
+            }
+        }
+
+        if (headerOverrides.size) {
+            contentPages.forEach(({ page, entry }) => {
+                const override = headerOverrides.get(entry.id);
+                if (!override) return;
+                const titleInput = page.querySelector('.meta-title');
+                const subtitleInput = page.querySelector('.meta-subtitle');
+                const sourceId = headerOverrideSources.get(entry.id);
+                if (titleInput) {
+                    titleInput.value = override.title || '';
+                    if (sourceId) titleInput.dataset.headerSourceId = sourceId;
+                    titleInput.title = 'AI 머릿말 태그로 연결됨';
+                }
+                if (subtitleInput) {
+                    subtitleInput.value = override.subtitle || '';
+                    if (sourceId) subtitleInput.dataset.headerSourceId = sourceId;
+                    subtitleInput.title = 'AI 머릿말 태그로 연결됨';
+                }
+            });
+        }
 
         if (planExpanded) {
             State.docData.chapterCovers = covers;

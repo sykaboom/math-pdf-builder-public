@@ -14,10 +14,15 @@ const extractHeaderTokens = (input = '') => {
     const meta = {};
     const normalizeValue = (value = '') => String(value).replace(/\s+/g, ' ').trim();
     const remaining = [];
+    let allowMeta = true;
     lines.forEach((line) => {
         const trimmedLine = line.trim();
+        if (!trimmedLine) {
+            remaining.push(line);
+            return;
+        }
         let consumed = false;
-        if (!consumed) {
+        if (allowMeta && !consumed) {
             const footerMatch = trimmedLine.match(new RegExp(`^\\[\\[${FOOTER_TAG}:([^\\]]*)\\]\\]\\s*:?\\s*(.*)$`));
             if (footerMatch) {
                 const inlineValue = normalizeValue(footerMatch[1] || '');
@@ -26,17 +31,20 @@ const extractHeaderTokens = (input = '') => {
                 consumed = true;
             }
         }
-        for (const { token, key } of HEADER_TOKENS) {
-            const regex = new RegExp(`^\\[\\[${token}\\]\\]\\s*:?\\s*(.*)$`);
-            const match = trimmedLine.match(regex);
-            if (match) {
-                const value = normalizeValue(match[1]);
-                if (value) meta[key] = value;
-                consumed = true;
-                break;
+        if (allowMeta) {
+            for (const { token, key } of HEADER_TOKENS) {
+                const regex = new RegExp(`^\\[\\[${token}\\]\\]\\s*:?\\s*(.*)$`);
+                const match = trimmedLine.match(regex);
+                if (match) {
+                    const value = normalizeValue(match[1]);
+                    if (value) meta[key] = value;
+                    consumed = true;
+                    break;
+                }
             }
         }
         if (!consumed) remaining.push(line);
+        if (!consumed) allowMeta = false;
     });
     return { text: remaining.join('\n').trim(), meta };
 };
@@ -46,6 +54,30 @@ export const ImportParser = {
         const blocks = [];
         const { text: cleanedText, meta } = extractHeaderTokens(text);
         const rawItems = cleanedText.split('[[').filter(s => s.trim().length > 0);
+        const normalizeValue = (value = '') => String(value).replace(/\s+/g, ' ').trim();
+        const stripLeadingColon = (value = '') => {
+            const trimmed = String(value || '').trim();
+            if (trimmed.startsWith(':')) return trimmed.slice(1).trim();
+            return trimmed;
+        };
+        const parseHeaderToken = (metaText, content) => {
+            const metaTrim = String(metaText || '').trim();
+            if (metaTrim === '머릿말_과정') {
+                return { kind: 'header', key: 'title', value: normalizeValue(stripLeadingColon(content)) };
+            }
+            if (metaTrim === '머릿말_단원') {
+                return { kind: 'header', key: 'subtitle', value: normalizeValue(stripLeadingColon(content)) };
+            }
+            if (metaTrim === FOOTER_TAG || metaTrim.startsWith(`${FOOTER_TAG}:`)) {
+                const inlineValue = metaTrim.startsWith(`${FOOTER_TAG}:`) ? metaTrim.slice(`${FOOTER_TAG}:`.length) : '';
+                const inline = normalizeValue(inlineValue);
+                const trailing = normalizeValue(stripLeadingColon(content));
+                return { kind: 'footer', value: inline || trailing };
+            }
+            return null;
+        };
+        let pendingHeader = null;
+        let hasContentBlock = false;
         const escapeHtml = (value = '') => {
             return String(value)
                 .replace(/&/g, '&amp;')
@@ -60,6 +92,24 @@ export const ImportParser = {
             let content = chunk.substring(closeIdx + 2).trim();
             if (content.startsWith(':')) content = content.substring(1).trim();
             const metaClean = blockMeta.trim();
+            const headerToken = parseHeaderToken(metaClean, content);
+            if (headerToken) {
+                if (headerToken.kind === 'header') {
+                    if (headerToken.value) {
+                        if (!hasContentBlock) {
+                            meta[headerToken.key] = headerToken.value;
+                        } else {
+                            if (!pendingHeader) pendingHeader = {};
+                            pendingHeader[headerToken.key] = headerToken.value;
+                        }
+                    }
+                } else if (headerToken.kind === 'footer') {
+                    if (!hasContentBlock) {
+                        meta.footerText = headerToken.value;
+                    }
+                }
+                return;
+            }
             let stylePart = '기본';
             let labelPart = metaClean;
             const underscoreIndex = metaClean.indexOf('_');
@@ -277,7 +327,12 @@ export const ImportParser = {
 
             const block = { id: `imp_${Date.now()}${Math.random()}`, type, content: label + ' ' + content, bordered, bgGray };
             if (variant) block.variant = variant;
+            if (pendingHeader) {
+                block.headerMeta = { ...pendingHeader };
+                pendingHeader = null;
+            }
             blocks.push(block);
+            hasContentBlock = true;
         });
         return { blocks, meta };
     }
