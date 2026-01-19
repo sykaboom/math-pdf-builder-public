@@ -1,0 +1,5 @@
+# Dependencies
+node_modules/
+
+# Vendor archives
+vendor/canvas-editor/*.zip*

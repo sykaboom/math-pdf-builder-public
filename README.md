@@ -126,3 +126,29 @@ Math Exam Editor v4.2 (Modular Architecture)
   - Windows: `Ctrl+Shift+R`
   - Mac: `Cmd+Shift+R`
 - `file://`로 열면 일부 기능이 제한될 수 있으니 GitHub Pages 또는 로컬 서버로 실행하세요.
+
+## 캔버스 마이그레이션 (실험)
+기존 레거시 앱은 루트(`index.html`)에서 그대로 유지합니다. 캔버스 기반 신규 앱은 `canvas-app/`에 별도로 구성됩니다.
+현재 `canvas-app/`은 Univer Docs UI 기반 PoC로 A4 페이지네이션 설정을 포함합니다.
+- `canvas-app/` 상단 컨트롤에서 이미지 삽입, MSK 저장/열기, Univer 스냅샷(JSON) 내보내기를 지원합니다.
+- 이미지 렌더링은 `@univerjs/docs-drawing` 플러그인을 통해 활성화됩니다.
+기능 매핑 표: `docs/univer-migration-map.md`
+
+Canvas-Editor 기반 신규 PoC는 `canvas-editor-app/`에 구성합니다.
+- `canvas-editor-app/`은 Canvas-Editor 엔진을 React UI로 감싸는 구조입니다.
+- Univer PoC는 비교/회귀 확인용으로 유지합니다.
+
+### 로컬 실행 (Vite)
+```
+cd canvas-app
+npm install
+npm run dev
+```
+
+### 로컬 실행 (Vite, Canvas-Editor)
+```
+cd canvas-editor-app
+npm install
+npm run dev
+```
+오프라인 환경에서는 `vendor/canvas-editor/canvas-editor-main/`에 소스가 있어야 합니다.

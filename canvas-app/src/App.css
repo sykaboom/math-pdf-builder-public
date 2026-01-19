@@ -1,0 +1,49 @@
+.app-root {
+  height: 100%;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.univer-root {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  position: relative;
+}
+
+.msk-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.12);
+  background: #f8fafc;
+}
+
+.msk-bar-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.msk-bar button {
+  border: 1px solid rgba(15, 23, 42, 0.16);
+  background: #ffffff;
+  color: #0f172a;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.msk-bar button:hover {
+  background: #f1f5f9;
+}
+
+.msk-file-input {
+  display: none;
+}

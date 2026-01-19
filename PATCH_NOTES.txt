@@ -1,5 +1,20 @@
 패치노트
 
+2026-01-19
+- 기능: 캔버스 마이그레이션용 Univer Docs UI PoC (canvas-app) 추가.
+- 기능: Canvas-Editor 기반 신규 PoC (canvas-editor-app) 추가.
+- 기능: Canvas-Editor PoC가 로컬 소스(alias)와 process shim으로 동작하도록 구성.
+- 버그: Univer PoC에서 Locale 초기화 누락으로 화면이 비어 보이던 문제를 수정.
+- 문서: MSK v2 스펙에 Univer 저장/로드 및 이미지 최적화 기준 추가.
+- 기능: canvas-app에서 MSK v2 저장/열기 및 Univer 스냅샷(JSON) 내보내기 추가.
+- 기능: canvas-app 이미지 저장 파이프라인(중복 제거, 리샘플링, 프리뷰 생성) 적용.
+- UI: canvas-app 상단에 MSK 저장/열기 컨트롤 추가.
+- UI: canvas-app 컨트롤을 상단 바 레이아웃으로 통합하고 이미지 삽입 버튼 추가.
+- 기능: canvas-app 이미지 렌더링을 위해 `@univerjs/docs-drawing` 플러그인 추가.
+- 버그: canvas-app 이미지 렌더링을 object URL 기반으로 통일하고 UUID는 저장 시에만 사용.
+- 기능: canvas-app 이미지 임시 저장소(OPFS, 미지원 시 메모리) 추가.
+- 버그: canvas-app UUID 이미지 로딩 경로에서 base64 캐시 의존 제거.
+
 2026-01-14
 - UI: 사이드바 머릿말/꼬릿말 전역 설정을 템플릿·높이 중심으로 구조화하고 템플릿별 옵션만 노출.
 - 기능: AI 입력 중간 머릿말 태그를 페이지 머릿말 변경 신호로 인식해 위치 기준으로 적용.
