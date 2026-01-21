@@ -6,6 +6,8 @@ Math Exam Editor v4.2 (Modular Architecture)
 - 미래 통합 기준과 코드 점검 원칙: `PROJECT_BLUEPRINT.md`
 - 개념빈칸 동작 명세: `docs/concept-blank.md`
 - MSK 패키지 포맷: `docs/msk-package.md`
+- Refactor plan (front/back separation): `docs/refactor-plan.md`
+- Canvas-Editor legacy integration plan: `docs/canvas-editor-legacy-plan.md`
 
 ## 사용하기 (배포판)
 - GitHub Pages: https://sykaboom.github.io/math-pdf-builder-public/
