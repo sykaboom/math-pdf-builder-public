@@ -129,6 +129,12 @@ Math Exam Editor v4.2 (Modular Architecture)
   - Mac: `Cmd+Shift+R`
 - `file://`로 열면 일부 기능이 제한될 수 있으니 GitHub Pages 또는 로컬 서버로 실행하세요.
 
+## 가드레일 점검 (스파게티 방지)
+- 한 번에 실행: `bash scripts/guardrails.sh`
+- 보고서만: `bash scripts/scan_guardrails.sh`
+- 커밋 전 필수 검사: `bash scripts/check_guardrails.sh`
+- 상세 규칙: `docs/repo-guardrails.md`
+
 ## 캔버스 마이그레이션 (실험)
 기존 레거시 앱은 루트(`index.html`)에서 그대로 유지합니다. 캔버스 기반 신규 앱은 `canvas-app/`에 별도로 구성됩니다.
 현재 `canvas-app/`은 Univer Docs UI 기반 PoC로 A4 페이지네이션 설정을 포함합니다.

@@ -1,5 +1,9 @@
 패치노트
 
+2026-02-07
+- 기능: 레포 전용 가드레일 스크립트(`scripts/scan_guardrails.sh`, `scripts/check_guardrails.sh`, `scripts/guardrails.sh`) 추가.
+- 기능: 가드레일 운영 문서(`docs/repo-guardrails.md`) 및 실행 안내를 README/AGENTS에 반영.
+
 2026-01-19
 - 기능: 캔버스 마이그레이션용 Univer Docs UI PoC (canvas-app) 추가.
 - 기능: Canvas-Editor 기반 신규 PoC (canvas-editor-app) 추가.
