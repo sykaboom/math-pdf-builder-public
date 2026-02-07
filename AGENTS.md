@@ -19,6 +19,9 @@ Patch notes should be concise and only cover:
   - `bash scripts/scan_guardrails.sh` (report only)
   - `bash scripts/check_guardrails.sh` (must pass)
   - `bash scripts/guardrails.sh` (run both)
-- Codex must run `bash scripts/check_guardrails.sh` before commit/push after code edits.
+- Timing rule (mandatory):
+  - Start of a task or large refactor: run `bash scripts/scan_guardrails.sh`
+  - During implementation (after each meaningful edit batch): run `bash scripts/check_guardrails.sh`
+  - Right before commit/push: run `bash scripts/guardrails.sh`
 - Hard checks currently apply to `canvas-editor-app/src`.
 - `js/` and `canvas-app/src` are legacy/reference zones and are scan-only for now.
