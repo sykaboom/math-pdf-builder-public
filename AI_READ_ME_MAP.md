@@ -41,6 +41,11 @@ canvas-editor-app/src/contracts
 canvas-editor-app/src/contracts/docxDraftContract.js
 canvas-editor-app/src/editor
 canvas-editor-app/src/editor/initCanvasEditor.js
+canvas-editor-app/src/features
+canvas-editor-app/src/features/exchange-playground
+canvas-editor-app/src/features/exchange-playground/ExchangePlayground.jsx
+canvas-editor-app/src/features/exchange-playground/index.js
+canvas-editor-app/src/features/exchange-playground/sampleToolResult.js
 canvas-editor-app/src/index.css
 canvas-editor-app/src/main.jsx
 canvas-editor-app/src/shims
@@ -122,6 +127,7 @@ codex_tasks/README.md
 codex_tasks/hotfix
 codex_tasks/hotfix/hotfix_template.md
 codex_tasks/task_001_docx_first_exchange_bootstrap.md
+codex_tasks/task_002_exchange_roundtrip_poc.md
 codex_tasks/task_template.md
 ```
 

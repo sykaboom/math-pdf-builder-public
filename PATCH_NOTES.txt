@@ -5,6 +5,7 @@
 - 기능: 가드레일 운영 문서(`docs/repo-guardrails.md`) 및 실행 안내를 README/AGENTS에 반영.
 - 기능: `canvas-editor-app`에 DOCX-친화 교환 스켈레톤 계약(`docx-draft`/`normalized-content`/`v10-draft`) 추가.
 - 기능: `ToolResult -> NormalizedContent -> DOCX/V10` 어댑터 초안 및 변환 루트 분리.
+- 기능: `canvas-editor-app`에 교환 라운드트립 디버그 패널(Task 002) 추가(`ToolResult -> Normalized -> DOCX/v10`, JSON export 포함).
 
 2026-01-19
 - 기능: 캔버스 마이그레이션용 Univer Docs UI PoC (canvas-app) 추가.

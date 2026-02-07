@@ -154,6 +154,7 @@ Canvas-Editor 기반 신규 PoC는 `canvas-editor-app/`에 구성합니다.
 - PDF 추출 결과는 신뢰도/검증 게이트와 사용자 확인 후 문서에 반영합니다.
 - 교환 스켈레톤(초안)은 `canvas-editor-app/src/contracts/docxDraftContract.js`와
   `canvas-editor-app/src/adapters/exchange/`에 배치합니다.
+- `Task 002`로 `ToolResult -> Normalized -> DOCX/v10` 라운드트립 디버그 패널을 추가했습니다.
 
 ### 로컬 실행 (Vite)
 ```

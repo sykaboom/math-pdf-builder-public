@@ -38,7 +38,7 @@
 }
 
 .app-panel {
-  width: 240px;
+  width: 360px;
   background: #ffffff;
   border: 1px solid #d9dde3;
   border-radius: 12px;
@@ -59,6 +59,65 @@
   font-size: 12px;
   color: #52606d;
   line-height: 1.4;
+}
+
+.exchange-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  height: 100%;
+}
+
+.exchange-input {
+  width: 100%;
+  min-height: 200px;
+  flex: 1;
+  box-sizing: border-box;
+  border: 1px solid #d9dde3;
+  border-radius: 8px;
+  padding: 8px;
+  font-family: ui-monospace, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  font-size: 12px;
+  line-height: 1.4;
+  resize: vertical;
+}
+
+.exchange-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.exchange-actions button {
+  border: 1px solid #cbd2d9;
+  background: #f8fafc;
+  color: #1f2933;
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.exchange-actions button:hover {
+  background: #edf2f7;
+}
+
+.exchange-summary {
+  font-size: 12px;
+  color: #334e68;
+  display: grid;
+  gap: 2px;
+}
+
+.exchange-error {
+  color: #b42318;
+  font-size: 12px;
+  line-height: 1.4;
+  border: 1px solid #fecdca;
+  background: #fef3f2;
+  border-radius: 6px;
+  padding: 6px 8px;
 }
 
 .editor-shell {

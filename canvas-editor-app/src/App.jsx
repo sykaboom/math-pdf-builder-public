@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { initCanvasEditor } from './editor/initCanvasEditor'
+import { ExchangePlayground } from './features/exchange-playground'
 import './App.css'
 
 function App() {
@@ -50,10 +51,7 @@ function App() {
       </div>
       <div className="app-body">
         <div className="app-panel">
-          <div className="panel-title">Controls</div>
-          <div className="panel-body">
-            UI hooks for toolbar, sidebar, and metadata will live here.
-          </div>
+          <ExchangePlayground />
         </div>
         <div className="editor-shell">
           <div className="editor-canvas" ref={containerRef} />
