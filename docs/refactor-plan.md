@@ -1,106 +1,123 @@
-# Repository Refactor Plan (Front/Back Separation)
+# Repository Refactor Plan (Session-Aligned)
 
-## Goals
-- Separate backend-like core logic from frontend UI so two agents can work in parallel.
-- Preserve the legacy app while building the Canvas-Editor app on a shared core.
-- Enforce the PROJECT_BLUEPRINT rules (no globals, decoupled logic, schema safety).
+Date: 2026-02-07  
+Scope: `math-pdf-builder-public-codex`
 
-## Constraints (PROJECT_BLUEPRINT)
-- No global scope pollution (no direct `window` assignments).
-- Core logic must run without DOM (Node-friendly).
-- Event-driven communication between modules.
-- Pure JSON data schema; settings separated from content (SSOT).
-- Sanitize and validate all external inputs; no `eval` or `new Function`.
-- No hardcoded API endpoints; config-driven.
-- Maintainable naming and JSDoc for major functions.
+## Session Alignment (What changed from old draft)
+- This repo remains the editor implementation workspace.
+- Platform-level integration (MCP gateway, community hub, API orchestration) is planned in the Next.js hub side (v10 ecosystem), not by rewriting this repo first.
+- Cross-app interoperability is direction-first for now:
+  - align with `NormalizedContent`/`RenderPlan`/`ToolResult` style
+  - keep schemas draft-level until both apps have more real features
+  - freeze versions later with migration notes
+- Legacy compatibility is not a mandatory product requirement.
 
-## Front/Back Module Split
-Backend-like (core) modules:
-- Document data model and schema validation.
-- Tag rules engine (AI insert rules, header/footer templates).
-- Parsing, normalization, tokenization, and serialization.
-- Layout computation (columns, margins, headers/footers, pagination).
-- History/undo model.
+## Current Runtime Zones
+- Production legacy zone: root `index.html`, `js/`, `css/`
+- Legacy canvas PoC zone (reference only): `canvas-app/`
+- Active migration zone: `canvas-editor-app/`
+- Vendor zone (read-only): `vendor/canvas-editor/canvas-editor-main/`
 
-Frontend modules:
-- Canvas-Editor UI (toolbar, sidebar, modals, panels).
-- Presentation-layer state (UI-only state, selection UI).
-- Styling, layout, animations, theming.
-- Input bindings and keyboard shortcuts (UI-side only).
+## Hard Constraints
+- No direct `window` globals in maintained code.
+- No `eval` / `new Function`.
+- No unsafe HTML sinks in maintained code.
+- Persist JSON-safe payloads only.
+- Do not modify vendor source in this repo; extend via wrappers/adapters.
 
-Adapter modules:
-- Canvas-Editor bridge (core <-> engine).
-- File I/O and storage (msk/zip, local storage).
-- Math rendering and image handling hooks.
+See also: `docs/repo-guardrails.md`
 
-## Proposed Directory Layout (Incremental)
-Keep the legacy app in place. Add new packages for the shared core and adapters.
+## Architecture Direction
 
+### 1) Core and adapter separation
+- Core-like modules own document model, schema validation, conversion, and command model.
+- UI owns view state and interaction widgets only.
+- Engine-specific logic stays in adapters.
+
+### 2) Contract-first interoperability
+- Internal editor format and legacy format are not exchange contracts.
+- Current phase policy:
+  - keep exchange model draft and lightweight
+  - avoid hard schema freeze too early
+  - co-evolve with v10 while preserving clear naming and boundaries
+- Later freeze target (after core features land):
+  - `NormalizedContent`
+  - `RenderPlan` (optional)
+  - `TTSScript` (when audio script exists)
+  - `ToolResult`
+
+### 3) MCP-ready tool flow
+- No ad-hoc direct parsing from LLM output into editor document.
+- Tool output path:
+  - Tool/MCP -> `ToolResult` -> `NormalizedContent` -> editor adapter
+- Keep model/provider-specific logic outside core.
+
+## Proposed Incremental Layout
 ```
 packages/
-  core/               # Pure logic, no DOM
-  rules/              # Tag rules + schema, JSON config loader
+  contracts/          # Draft exchange types and schema candidates (not frozen yet)
+  core/               # Pure logic (parse/normalize/serialize/commands), no DOM
   adapters/
-    canvas-editor/    # Engine bridge and render hooks
-  shared/             # Types, event payloads, helpers
+    canvas-editor/    # canvas-editor bridge
+    migration-tools/  # optional one-shot import tools
 canvas-editor-app/
   src/
-    ui/               # React UI and styling
-    app/              # App shell + dependency wiring
-    adapters/         # Thin UI adapters if needed
+    app/              # wiring
+    ui/               # visual components
+    editor/           # engine bootstrap wrappers
+docs/
+  refactor-plan.md
+  canvas-editor-legacy-plan.md
+  repo-guardrails.md
 ```
 
-## Core API Contract (Draft)
-- `core.createDocument(config, content)` -> `doc`
-- `core.applyCommand(doc, command)` -> `nextDoc`
-- `core.serialize(doc)` -> `msk/json`
-- `core.parse(input, rules)` -> `doc`
-- `core.events` (typed event bus)
-
-UI and engine adapters must only call the core through this contract.
-
 ## Migration Phases
-Phase 0: Inventory and dependency map
-- Tag each legacy module as `pure`, `dom`, or `mixed`.
-- Identify shared data schema and config sources.
 
-Phase 1: Core extraction
-- Move pure logic (parser, normalize, serializer, table utils) into `packages/core`.
-- Add JSDoc and minimal unit tests for core-only modules.
+### P0. Guardrail baseline (done)
+- Repo-specific guardrail scripts and timing rules added.
+- `scan` at task start, `check` during batches, full `guardrails` before commit/push.
 
-Phase 2: Rules engine
-- Define rule schema for tags and templates (`packages/rules`).
-- Provide validator and versioning for custom rule packs.
+### P1. Contract mirror in this repo
+- Add draft contract definitions for exchange payloads.
+- Mark as provisional and revise with real feature feedback from both apps.
+- Do not freeze major version until both sides validate real scenarios.
 
-Phase 3: Adapter layer
-- Implement Canvas-Editor adapter that consumes core events and emits commands.
-- Add file I/O adapters (msk/zip, storage) that depend on `packages/core`.
+### P2. Adapter-first data bridge
+- Implement conversion functions:
+  - AI/tool output -> normalized draft payload -> canvas-editor doc input
+  - optional one-shot legacy json/msk import -> normalized draft payload
+- Legacy compatibility path is optional migration tooling, not a long-term runtime requirement.
 
-Phase 4: UI integration
-- Build UI panels that bind to the core contract (no direct data mutation).
-- Keep UI state isolated from document state.
+### P3. Canvas editor feature migration
+- Move legacy features by domain (not by screen):
+  - text/math blocks
+  - blanks/concept blanks
+  - image/table
+  - page/header/footer/columns
+- Each domain ships with adapter tests and backward-load checks.
 
-Phase 5: Legacy coexistence
-- Legacy app remains as reference until parity.
-- Optionally add a compatibility layer to reuse core in legacy flow.
+### P4. MCP integration point
+- Define a stable boundary for tool ingestion:
+  - input: `ToolResult`
+  - output: `NormalizedContent`
+- Keep network/provider policy outside editor core.
 
-Phase 6: Hardening
-- Schema validation on all imports.
-- Sanitization of any HTML injected by UI.
-- Error boundaries and safe fallbacks for corrupt documents.
-
-## Collaboration Split (Codex vs Gemini)
-- Codex: core modules, adapters, refactors, tests, schema validation.
-- Gemini: UI/UX, layout, visual design, interaction patterns.
-- Shared: API contract shape and event payloads.
+### P5. Legacy coexistence and cutover
+- Legacy root app is reference-only unless explicitly needed.
+- Retire legacy paths when AI-first feature gates are met.
 
 ## Acceptance Criteria
-- Core passes Node-based tests without DOM.
-- No new globals introduced.
-- Import/export uses schema validation.
-- UI uses only the core contract and events.
+- `canvas-editor-app` remains guarded by repo rules (`scripts/check_guardrails.sh` passes).
+- Tool ingestion path is normalized and provider-agnostic (no parser-by-provider sprawl).
+- Exchange contract remains clearly documented as draft/provisional until freeze decision.
+- Migration plan does not require editing vendored engine source.
 
 ## Risks and Mitigations
-- Risk: Legacy logic tied to DOM. Mitigation: isolate pure logic first.
-- Risk: Divergent data models. Mitigation: establish a single schema early.
-- Risk: Canvas-Editor limitations. Mitigation: adapter fallbacks and feature flags.
+- Risk: contract drift between repos.
+  - Mitigation: shared naming conventions now, version freeze later.
+- Risk: mixed old/new paths causing spaghetti.
+  - Mitigation: adapter boundary and phased domain migration.
+- Risk: freezing schema too early can block product iteration.
+  - Mitigation: keep draft contract stage until implementation maturity.
+- Risk: vendor engine limits.
+  - Mitigation: wrapper strategy and fallback behavior per domain.

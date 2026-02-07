@@ -6,6 +6,9 @@ Math Exam Editor v4.2 (Modular Architecture)
 - 미래 통합 기준과 코드 점검 원칙: `PROJECT_BLUEPRINT.md`
 - 개념빈칸 동작 명세: `docs/concept-blank.md`
 - MSK 패키지 포맷: `docs/msk-package.md`
+- 협업 프로토콜: `GEMINI_CODEX_PROTOCOL.md`
+- AI 작업 컨텍스트: `AI_READ_ME.md`
+- 구조 맵 갱신: `bash scripts/gen_ai_read_me_map.sh`
 - Refactor plan (front/back separation): `docs/refactor-plan.md`
 - Canvas-Editor legacy integration plan: `docs/canvas-editor-legacy-plan.md`
 

@@ -1,92 +1,86 @@
-# Canvas-Editor Legacy Feature Integration Plan
+# Canvas-Editor Legacy Migration Plan (Session-Aligned)
 
-## Goals
-- Port legacy math exam editor features into the Canvas-Editor app.
-- Keep rules (header/footer/tag syntax) fully customizable by users.
-- Follow PROJECT_BLUEPRINT constraints for isolation, data safety, and maintainability.
+Date: 2026-02-07  
+Target app: `canvas-editor-app/`
 
-## Non-Goals (Initial)
-- Pixel-perfect parity with the legacy UI on day one.
-- Rewriting the Canvas-Editor engine core (only extend via adapters/plugins).
+## Context from this session
+- `canvas-editor-app` is the active implementation target.
+- `canvas-app` (Univer PoC) is kept as comparison/reference, not the primary migration target.
+- We optimize for long-term interoperability with v10 and MCP-based tool pipeline.
+- Legacy compatibility is optional, not mandatory.
 
-## Key Dependencies
-- `canvas-editor-app/` as the React shell.
-- `vendor/canvas-editor/` local source for offline development.
-- Legacy reference: root `index.html` + `js/` modules.
+## Primary Goal
+Build AI-first authoring capability in `canvas-editor-app` without creating a spaghetti migration path.
 
-## Feature Inventory (Legacy)
-- Document structure: pages, columns, headers/footers, TOC, theme settings.
-- Content blocks: text, math, concept blanks, images, tables, choice layouts.
-- Editing UX: context menus, inline edit modals, keyboard shortcuts.
-- Import/export: AI input parser, JSON/MSK, image assets, zip packaging.
-- Rendering: math rendering, placeholders, print preflight.
-- History: undo/redo, copy/duplicate, block split/merge.
+## Non-goals (current phase)
+- Full visual parity in one shot.
+- Rewriting Canvas-Editor vendor core in this repo.
+- Direct model/provider-specific parsing logic in editor core.
 
-## Rules Customization (Open Configuration)
-Design a rule pack that lives outside the UI:
-- `rules/schema.json`: JSON schema for tags, templates, and defaults.
-- `rules/default.json`: default tag rules (legacy-compatible).
-- `rules/overrides.json`: user overrides or custom rule packs.
-- `core/rules` loader merges rules with validation and versioning.
+## Migration Rules
+1. Exchange direction is aligned, but schema freeze is deferred:
+   - keep payload shape close to `NormalizedContent` style
+   - finalize versions after real feature maturity in both apps
+2. Tool output is standardized:
+   - `ToolResult` -> normalize -> `NormalizedContent` -> editor adapter.
+3. Legacy compatibility is optional:
+   - provide one-shot import tooling only if migration value is clear.
+4. Vendor source is read-only:
+   - behavior changes go through wrapper/adapters.
 
-The UI only edits rule packs, not internal logic. Core consumes rule packs.
+## Legacy Feature Domains
+- Layout: page size, margins, headers/footers, columns, breaks
+- Block model: text, math, blank/concept blank, image, table, choices
+- Authoring UX: commands, shortcuts, context actions
+- Data IO: json/msk, asset packaging, import/export
+- Validation: schema checks, sanitize, preflight
 
-## Integration Strategy
-1) Core-first: Build/validate the core model and rules engine.
-2) Adapter-first: Bridge core commands/events to Canvas-Editor.
-3) UI-first: Build UI shells that map to core commands.
+## Data Flow (target)
+1. AI/tool import:
+   - MCP/API tool -> `ToolResult` -> normalizer -> `NormalizedContent` -> editor model
+2. Export:
+   - editor model -> `NormalizedContent` (exchange)
+3. Optional migration import:
+   - legacy json/msk -> migration tool -> normalized payload -> editor model
 
 ## Milestones
-M0: Baseline Canvas-Editor boot
-- Load engine reliably (vendor fallback).
-- Minimal document render and selection.
 
-M1: Document model + layout
-- Page size, margins, columns.
-- Header/footer templates (static first).
+### M0. Stability baseline
+- Keep `canvas-editor-app` boot stable.
+- Guardrail scripts green.
 
-M2: Rules engine + parser
-- AI tag parsing and normalization.
-- External rule packs with validation.
+### M1. Contract adapters
+- Implement minimal normalized payload conversion:
+  - `ToolResult`/AI output -> normalized payload
+  - normalized payload -> editor seed data
+- Keep as draft contract; collect mismatch feedback before freeze.
 
-M3: Core block types
-- Text blocks with inline math tokens.
-- Concept blanks and generic blank placeholders.
-- Image placeholders and insertion hooks.
-- Table and choice layout data models.
+### M2. Block domain migration
+- M2-1 text/math
+- M2-2 blanks/concept blanks
+- M2-3 image/table
+- Each sub-step is validated against AI-first authoring scenarios.
 
-M4: Editing and commands
-- Insert/delete/duplicate blocks.
-- Context menu actions mapped to core commands.
-- Undo/redo wired to core history.
+### M3. Layout domain migration
+- Headers/footers/page/column behavior moved behind commands/adapters.
+- Keep page-level behavior deterministic.
 
-M5: UI parity pass
-- Toolbar + sidebar actions.
-- Find/replace and edit modals.
-- Zoom and view controls.
+### M4. Tool pipeline hookup
+- Add ingestion boundary for MCP/API results through `ToolResult`.
+- Block direct provider parsing in feature code.
 
-M6: File I/O and export
-- Load/save JSON and MSK.
-- Image asset packaging and recovery.
-- Print/preflight checks.
-
-M7: Regression and hardening
-- Document schema validation on load.
-- Sanitized rendering of any HTML-like content.
-- Error recovery and telemetry hooks (local).
-
-## Parallel Work Split
-- Codex: core rules, parsers, data model, adapters, file I/O.
-- Gemini: UI layout, panels, interaction design, responsive behavior.
-- Shared: command list and event payloads.
+### M5. Legacy parity gate
+- Legacy parity is not a gate.
+- Use capability gates based on current product scenarios and AI workflow readiness.
 
 ## Acceptance Criteria
-- Core runs without DOM.
-- Tag rules can be changed without code edits.
-- Legacy documents load and render (with documented gaps).
-- All imports validated; unsafe content sanitized.
+- AI/tool ingest path uses `ToolResult` and `NormalizedContent`.
+- No vendor edits required for migrated features.
+- Guardrail checks pass during implementation cycles.
+- Contract freeze decision is explicitly deferred until feature maturity checkpoint.
 
 ## Known Risks
-- Canvas-Editor gaps for tables or complex layouts.
-- Performance with large documents.
-- Rule pack drift from legacy behavior.
+- Complex layout behavior may require staged fallback.
+- Legacy HTML-heavy edge cases can reintroduce unsafe paths.
+- Contract updates across repos can drift without version discipline.
+- Removing legacy compatibility may block a subset of old documents.
