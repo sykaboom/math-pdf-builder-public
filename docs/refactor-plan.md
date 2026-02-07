@@ -15,6 +15,9 @@ Scope: `math-pdf-builder-public-codex`
   - `.hwpx`
   - `.docx` (preferred over legacy binary `.doc`)
   - optional `.doc` via conversion bridge
+- Long-term ingestion target includes scanned/digital PDF:
+  - `PDF -> Multimodal LLM -> NormalizedContent -> editor model`
+  - human-review and confidence gates are required before commit/save
 
 ## Current Runtime Zones
 - Production legacy zone: root `index.html`, `js/`, `css/`
@@ -63,6 +66,19 @@ See also: `docs/repo-guardrails.md`
   - `.hwpx/.docx` <-> normalized draft payload <-> editor model
   - use AI assist for semantic recovery (labels, problem structure), not for raw binary parsing.
 - Avoid coupling UI flows directly to format internals.
+
+### 5) PDF multimodal ingestion boundary
+- PDF ingestion should not bypass normalized contracts.
+- Required flow:
+  - PDF input -> multimodal extraction result (`ToolResult`)
+  - normalize to `NormalizedContent`
+  - validation + confidence scoring
+  - user review/approval
+  - commit to editor document
+- Keep model/provider-specific prompts outside core modules.
+- Cost policy:
+  - core editing and DOCX exchange path must run without premium LLM calls
+  - premium/API LLM is fallback for low-confidence fragments only
 
 ## Proposed Incremental Layout
 ```
@@ -124,6 +140,17 @@ docs/
 - Treat legacy `.doc` as optional bridge path through pre-conversion tooling.
 - Add regression fixtures for round-trip checks at adapter boundary.
 
+### P7. PDF -> multimodal -> editor pipeline (long-term)
+- Start with import-only (no guaranteed round-trip).
+- Scope v1 to classroom-critical blocks:
+  - paragraph/run
+  - equation tokens
+  - image/table anchors
+- Include quality gates:
+  - block-level confidence threshold
+  - unresolved fragment queue for manual fix
+  - audit trace from source PDF span to normalized block
+
 ## Acceptance Criteria
 - `canvas-editor-app` remains guarded by repo rules (`scripts/check_guardrails.sh` passes).
 - Tool ingestion path is normalized and provider-agnostic (no parser-by-provider sprawl).
@@ -139,3 +166,5 @@ docs/
   - Mitigation: keep draft contract stage until implementation maturity.
 - Risk: vendor engine limits.
   - Mitigation: wrapper strategy and fallback behavior per domain.
+- Risk: multimodal extraction hallucination or math layout loss from PDF.
+  - Mitigation: confidence gating, manual review queue, and source-span traceability.

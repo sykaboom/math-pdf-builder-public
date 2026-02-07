@@ -150,6 +150,10 @@ Canvas-Editor 기반 신규 PoC는 `canvas-editor-app/`에 구성합니다.
 - Univer PoC는 비교/회귀 확인용으로 유지합니다.
 - 장기 방향: `.hwpx/.docx` 호환 브릿지를 어댑터 계층에서 구축합니다.
 - 레거시 `.doc`은 직접 파싱보다 사전 변환(bridge) 경로를 우선합니다.
+- 장기 방향: `PDF -> 멀티모달 LLM -> 정규화 문서` 경로를 도입합니다.
+- PDF 추출 결과는 신뢰도/검증 게이트와 사용자 확인 후 문서에 반영합니다.
+- 교환 스켈레톤(초안)은 `canvas-editor-app/src/contracts/docxDraftContract.js`와
+  `canvas-editor-app/src/adapters/exchange/`에 배치합니다.
 
 ### 로컬 실행 (Vite)
 ```

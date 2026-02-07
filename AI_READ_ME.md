@@ -15,6 +15,9 @@
 - Active migration: `canvas-editor-app/`
 - Reference PoC: `canvas-app/`
 - Read-only vendor: `vendor/canvas-editor/canvas-editor-main/`
+- Exchange bootstrap modules:
+  - `canvas-editor-app/src/contracts/docxDraftContract.js`
+  - `canvas-editor-app/src/adapters/exchange/`
 
 ## Key invariants
 - Legacy zones are reference sources unless a task explicitly requires migration import.
@@ -25,6 +28,9 @@
 - Long-term format bridge direction:
   - prioritize `.hwpx/.docx` interoperability at adapter boundary
   - keep legacy `.doc` on optional conversion-bridge path
+- Long-term PDF ingestion direction:
+  - `PDF -> Multimodal LLM -> ToolResult -> NormalizedContent -> editor`
+  - require validation/confidence gate and user review before final commit
 - Do not place provider-specific logic in core modules.
 
 ## Guardrail timing

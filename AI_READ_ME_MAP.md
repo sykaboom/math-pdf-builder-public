@@ -9,6 +9,7 @@ Do not hand-edit. Regenerate after structure changes.
 AGENTS.md
 AI_READ_ME.md
 AI_READ_ME_MAP.md
+GEMINI.md
 GEMINI_CODEX_PROTOCOL.md
 LLMprompt
 PATCH_NOTES.txt
@@ -30,6 +31,14 @@ vendor
 ```text
 canvas-editor-app/src/App.css
 canvas-editor-app/src/App.jsx
+canvas-editor-app/src/adapters
+canvas-editor-app/src/adapters/exchange
+canvas-editor-app/src/adapters/exchange/docxExchangeAdapter.js
+canvas-editor-app/src/adapters/exchange/index.js
+canvas-editor-app/src/adapters/exchange/toolResultAdapter.js
+canvas-editor-app/src/adapters/exchange/v10ExchangeAdapter.js
+canvas-editor-app/src/contracts
+canvas-editor-app/src/contracts/docxDraftContract.js
 canvas-editor-app/src/editor
 canvas-editor-app/src/editor/initCanvasEditor.js
 canvas-editor-app/src/index.css
@@ -112,6 +121,7 @@ scripts/scan_guardrails.sh
 codex_tasks/README.md
 codex_tasks/hotfix
 codex_tasks/hotfix/hotfix_template.md
+codex_tasks/task_001_docx_first_exchange_bootstrap.md
 codex_tasks/task_template.md
 ```
 
