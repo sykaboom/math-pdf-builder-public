@@ -22,6 +22,10 @@
 ## Key invariants
 - Legacy zones are reference sources unless a task explicitly requires migration import.
 - Maintained area guardrails apply to `canvas-editor-app/src`.
+- Medium/large changes follow spec-gated flow:
+  - write task spec -> self-review -> user approval -> implement -> closeout in same task
+- Codex owns implementation lifecycle; Gemini is layout/SVG-specialized only.
+- Layout/structure tasks should use `design_drafts/` + numeric redline notes in task specs.
 - Exchange contract direction:
   - align toward `NormalizedContent` / `RenderPlan` / `ToolResult`
   - treat schema/version as provisional until implementation maturity

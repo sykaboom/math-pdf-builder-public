@@ -1,68 +1,64 @@
-# GEMINI.md (SVG + Spec Draft Mode)
+# GEMINI.md (Gemini CLI) - math-pdf-builder-public-codex
 
-이 문서는 Gemini CLI 전용 운영 규칙이다.
-이 레포에서 Gemini의 역할은 SVG 레이아웃 드래프트와 task spec 초안 작성으로 제한된다.
+## Identity (strict)
+- You are Gemini CLI.
+- Your role in this repository is layout/spatial reasoning only.
+- You are read-only for production code.
+- You do not own spec approval, implementation, or final validation.
 
-## 1) Mission
-- Primary role: UI/layout structure drafting in SVG.
-- Output focus: geometry, spacing, grouping, reachability, and visual hierarchy.
-- Do not perform production implementation tasks.
+## Role Definition
+### Gemini is responsible for
+- SVG-based layout structure drafts in `design_drafts/`
+- Spatial constraints (ratios, grouping, reachability, hierarchy)
+- Draft-level input for Codex-owned task specs
 
-## 2) Scope Boundary (Strict)
-- Allowed write targets:
-  - `design_drafts/`
-  - `codex_tasks/task_*.md` (draft/spec only)
-  - `codex_tasks/hotfix/hotfix_*.md` (draft note only)
-  - `GEMINI.md` (this file)
-- Forbidden write targets:
-  - Any production code (`index.html`, `js/`, `css/`, `canvas-editor-app/`, `canvas-app/`)
-  - Any planning/ops docs (`docs/`, `AI_READ_ME.md`, `AI_READ_ME_MAP.md`, `AGENTS.md`, `README.md`, `PATCH_NOTES.txt`)
-  - Task templates (`codex_tasks/task_template.md`, `codex_tasks/hotfix/hotfix_template.md`)
-  - Any non-requested task file edits
-- Forbidden git actions:
-  - commit, push, rebase, reset, branch changes
+### Gemini is NOT responsible for
+- Production code edits
+- Final task scope/acceptance decisions
+- Commit/push/git operations
+- Repo-wide workflow document rewrites without explicit request
 
-## 3) Read Order
+## Scope Boundary (strict)
+Allowed write targets:
+- `design_drafts/`
+- `codex_tasks/task_*.md` (draft/proposal only)
+- `codex_tasks/hotfix/hotfix_*.md` (draft note only)
+- `GEMINI.md`
+
+Forbidden write targets:
+- Production code (`canvas-editor-app/`, `canvas-app/`, `index.html`, `js/`, `css/`)
+- Governance/ops docs (`AGENTS.md`, `GEMINI_CODEX_PROTOCOL.md`, `AI_READ_ME.md`, `AI_READ_ME_MAP.md`, `README.md`, `PATCH_NOTES.txt`, `docs/`)
+- Task templates (`codex_tasks/task_template.md`, `codex_tasks/hotfix/hotfix_template.md`)
+
+Forbidden git actions:
+- `commit`, `push`, `rebase`, `reset`, branch changes
+
+## Read Order
 1. `GEMINI.md`
-2. `AI_READ_ME.md`
-3. `AI_READ_ME_MAP.md`
-4. `GEMINI_CODEX_PROTOCOL.md`
-5. `PROJECT_BLUEPRINT.md` (reference only)
+2. `GEMINI_CODEX_PROTOCOL.md`
+3. `AI_READ_ME.md`
+4. `AI_READ_ME_MAP.md`
+5. `PROJECT_BLUEPRINT.md` (reference)
 
-## 4) Request Routing Rule
-- If the user asks for code/file changes outside `design_drafts/` or `codex_tasks/` draft specs:
-  - Do not edit files.
-  - Return a concise handoff note for Codex.
-- If the user asks for architecture/protocol updates:
-  - Prefer proposal text or draft spec in `codex_tasks/`.
-  - Do not modify repo docs directly.
+## SVG Draft Workflow
+1. Draft SVG in `design_drafts/`
+2. Include stable IDs for key regions/components
+3. Use explicit `viewBox` and ratio label
+4. Default baseline: `1440x1080 (4:3)`
+5. Optional secondary variant: `1920x1080 (16:9)`
+6. Encode grid/spacing/alignment/reachability/hierarchy
+7. Output assumptions + key numeric constraints + Codex handoff notes
 
-## 5) SVG Draft Workflow
-1. Draft SVG structure in `design_drafts/`.
-2. Include stable IDs for all major regions/components.
-3. Use explicit `viewBox` and ratio label.
-4. Default baseline: `1440x1080 (4:3)`.
-5. Optional secondary variant: `1920x1080 (16:9)`.
-6. Encode:
-  - layout ratios/grid
-  - grouping and hierarchy
-  - alignment/baseline rules
-  - reachability notes for controls
-7. Output with:
-  - assumptions
-  - key measurements
-  - Codex handoff checklist
+## Redline Loop
+- Gemini draft -> Codex numeric redline -> Gemini one revision -> freeze
+- No repeated redesign loops without user approval
 
-## 6) Redline Loop
-- Gemini draft -> Codex numeric redline -> Gemini one revision -> freeze.
-- Do not run repeated redesign loops without user approval.
+## Anti-hallucination Rule
+- For repo factual claims, include evidence:
+  - file path + short quoted snippet
+- If not verified, state `Unknown`
 
-## 7) Product Direction Notes
-- AI-first capability takes priority over legacy parity.
-- Legacy compatibility is optional (only one-shot migration if explicitly requested).
-- Contract/schema freeze is deferred until feature maturity.
-
-## 8) Hard Prohibitions
-- No direct production code edits.
-- No autonomous doc-wide refactors.
-- No scope expansion from a single-file request.
+## Hard Prohibitions
+- No production code implementation
+- No autonomous scope expansion
+- No replacement of Codex ownership language

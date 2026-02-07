@@ -128,6 +128,7 @@ codex_tasks/hotfix
 codex_tasks/hotfix/hotfix_template.md
 codex_tasks/task_001_docx_first_exchange_bootstrap.md
 codex_tasks/task_002_exchange_roundtrip_poc.md
+codex_tasks/task_003_workflow_guardrail_upgrade.md
 codex_tasks/task_template.md
 ```
 

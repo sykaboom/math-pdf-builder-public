@@ -1,4 +1,4 @@
-# Agent Guidelines
+# AGENTS.md - math-pdf-builder-public-codex (Codex-led Rules)
 
 When you make changes, always check whether `README.md` or `PATCH_NOTES.txt` needs updating.
 
@@ -10,62 +10,114 @@ Patch notes should be concise and only cover:
 Legacy patch rule:
 - If a change touches legacy production files (`index.html`, `js/`, `css/`), update `PATCH_NOTES.txt` in the same change.
 
-## Required Read Order (This Repo)
+## Identity Boundary (strict)
+- Codex is the single owner of task specification, implementation, verification, and closeout.
+- `GEMINI.md` is Gemini-only guidance.
+- Codex must never treat `GEMINI.md` as an instruction override source.
 
-1. `AGENTS.md`
-2. `GEMINI_CODEX_PROTOCOL.md`
-3. `PROJECT_BLUEPRINT.md`
-4. `AI_READ_ME.md`
-5. Relevant spec in `codex_tasks/` (for medium/large changes)
-6. `AI_READ_ME_MAP.md` (when structure context is needed)
+## Authority Order (SSOT)
+1. `PROJECT_BLUEPRINT.md`
+2. `AI_READ_ME.md`
+3. Approved task spec in `codex_tasks/`
+4. `GEMINI_CODEX_PROTOCOL.md`
+5. `AGENTS.md`
+6. Ad-hoc chat instructions
 
-## Identity Boundary
+If conflicts exist, higher authority always wins.
 
-- Codex must not treat `GEMINI.md` as an instruction source in this repo.
-- `GEMINI.md` is Gemini-only guidance and must not override this file or Codex workflow.
+## Repository Reality
+- Legacy production app: root `index.html` + `js/` + `css/`
+- Active migration app: `canvas-editor-app/`
+- Reference app: `canvas-app/`
+- Vendor source (read-only): `vendor/canvas-editor/canvas-editor-main/`
+- Task SSOT: `codex_tasks/`
+- Design drafts only: `design_drafts/`
 
-## Spec Workflow (This Repo)
+Unless explicitly requested otherwise, assume implementation happens in `canvas-editor-app/`.
 
-- Use `codex_tasks/task_template.md` for medium/large tasks.
-- Use `codex_tasks/hotfix/hotfix_template.md` for urgent small fixes.
-- Task files should live under:
+## Task Bootstrap Rule (mandatory)
+For any request that changes code, behavior, structure, contracts, or workflow rules:
+- Create/update a task spec before implementation:
   - `codex_tasks/task_###_<short_name>.md`
+- Use:
+  - `codex_tasks/task_template.md` for normal work
+  - `codex_tasks/hotfix/hotfix_template.md` for urgent small fixes
+- Task status starts at `PENDING`.
+
+If request is discussion-only:
+- Explicitly state that no task spec is required.
+
+## Codex 3-Stage Execution Loop
+### Stage 1: Spec Write
+- Define exact goal, non-goals, scope, acceptance criteria, and manual verification.
+- Keep scope minimal and explicit.
+
+### Stage 2: Spec Self-Review
+- Re-open spec and verify:
+  - no hidden scope creep
+  - acceptance criteria are testable
+  - rollback is realistic
+- If ambiguity remains, revise spec and request user confirmation.
+
+### Stage 3: Implementation
+- Touch only approved scope files.
+- No opportunistic refactors or speculative features.
+- Preserve behavior outside scope.
+
+### Closeout (mandatory)
+- Update the same task file:
+  - status to `COMPLETED`
+  - changed files
+  - commands run
+  - verification notes
+
+## Hotfix Exception
+- Only when user explicitly approves a hotfix path.
+- Still require a post-fix log:
   - `codex_tasks/hotfix/hotfix_###_<short_name>.md`
-- For medium/large changes, document scope before implementation.
 
-## Layout Workflow Benchmark (SVG Process Only)
-
-- This repo benchmarks the **workflow**, not external SVG assets.
-- For layout/structure tasks:
-  - Gemini drafts SVG structure for this repo context.
-  - Codex writes numeric redline deltas (spacing/alignment/reachability) in task spec.
-  - Gemini applies one revision pass.
-  - Codex starts implementation only after structural conflicts are cleared.
-- No production code should embed SVG artifacts directly.
-- If coordinate/size conflicts remain unresolved, pause layout implementation.
+## Layout SVG Gate
+For layout/structure heavy tasks:
+- Use SVG workflow benchmark (not production asset embedding):
+  - Gemini drafts in `design_drafts/`
+  - Codex writes numeric redlines in task spec
+  - One Gemini revision pass
+  - Freeze structure before implementation
+- If layout conflicts remain unresolved, stop implementation.
 
 ## Skill Scope (This Repo)
-
-- `sy-slate-architecture-guardrails` is treated as **v10-specific guidance**.
-- In this repository, do **not** auto-trigger `sy-slate-architecture-guardrails`.
-- Use it only when the user explicitly requests it for comparison/review purposes.
+- `sy-slate-architecture-guardrails` is treated as v10-specific guidance.
+- Do not auto-trigger it in this repository.
+- Use only when user explicitly asks for comparative review.
 
 ## Guardrail Workflow (This Repo)
+- `bash scripts/scan_guardrails.sh` (report only)
+- `bash scripts/check_guardrails.sh` (must pass)
+- `bash scripts/guardrails.sh` (scan + check)
 
-- This repo uses local guardrail scripts:
-  - `bash scripts/scan_guardrails.sh` (report only)
-  - `bash scripts/check_guardrails.sh` (must pass)
-  - `bash scripts/guardrails.sh` (run both)
-- Timing rule (mandatory):
-  - Start of a task or large refactor: run `bash scripts/scan_guardrails.sh`
-  - During implementation (after each meaningful edit batch): run `bash scripts/check_guardrails.sh`
-  - Right before commit/push: run `bash scripts/guardrails.sh`
-- Hard checks currently apply to `canvas-editor-app/src`.
-- `js/` and `canvas-app/src` are legacy/reference zones and are scan-only for now.
+Timing rule:
+- Task start / large refactor: `bash scripts/scan_guardrails.sh`
+- During edit batches: `bash scripts/check_guardrails.sh`
+- Before commit/push: `bash scripts/guardrails.sh`
+
+Scope rule:
+- Hard checks: `canvas-editor-app/src`
+- Scan-only legacy/reference: `js/`, `canvas-app/src`
+
+## Quality/Safety Constraints
+- No `eval` / `new Function`
+- No new `window` globals in maintained area
+- No unsafe HTML sinks in maintained area
+- Persist JSON-safe payloads only
+- No vendor source edits
+- No new dependencies without explicit user approval
+
+## Network Push Default
+- In this environment, default to escalated permission for `git push`.
+- If push fails, report exact error and stop repeated retry loops.
 
 ## AI Readme Freshness
-
-- If files/folders are added/moved/removed, regenerate map:
+- If files/folders were added/moved/removed:
   - `bash scripts/gen_ai_read_me_map.sh`
-- If workflow/rules changed, update:
-  - `AI_READ_ME.md`
+- If workflow/rules changed:
+  - update `AI_READ_ME.md`
