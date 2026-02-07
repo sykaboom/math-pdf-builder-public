@@ -29,7 +29,7 @@ function App() {
     if (!univer) return null
     try {
       return univer.__getInjector().get(IDocClipboardService)
-    } catch (error) {
+    } catch {
       return null
     }
   }

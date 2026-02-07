@@ -148,6 +148,8 @@ Math Exam Editor v4.2 (Modular Architecture)
 Canvas-Editor 기반 신규 PoC는 `canvas-editor-app/`에 구성합니다.
 - `canvas-editor-app/`은 Canvas-Editor 엔진을 React UI로 감싸는 구조입니다.
 - Univer PoC는 비교/회귀 확인용으로 유지합니다.
+- 장기 방향: `.hwpx/.docx` 호환 브릿지를 어댑터 계층에서 구축합니다.
+- 레거시 `.doc`은 직접 파싱보다 사전 변환(bridge) 경로를 우선합니다.
 
 ### 로컬 실행 (Vite)
 ```

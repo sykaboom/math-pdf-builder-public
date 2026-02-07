@@ -6,13 +6,12 @@ function App() {
   const containerRef = useRef(null)
   const editorRef = useRef(null)
   const destroyRef = useRef(null)
-  const [status, setStatus] = useState('Initializing...')
+  const [status, setStatus] = useState('Loading engine...')
 
   useEffect(() => {
     if (!containerRef.current) return undefined
     let active = true
 
-    setStatus('Loading engine...')
     const start = async () => {
       try {
         const { instance, destroy } = await initCanvasEditor(containerRef.current, {

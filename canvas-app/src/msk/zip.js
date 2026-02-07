@@ -60,7 +60,6 @@ const encodeString = (value) => textEncoder.encode(String(value || ''))
 const decodeString = (bytes) => textDecoder.decode(bytes)
 
 const findEndOfCentralDirectory = (data) => {
-  const signature = 0x06054b50
   const minOffset = Math.max(0, data.length - 65557)
   for (let i = data.length - 22; i >= minOffset; i -= 1) {
     if (

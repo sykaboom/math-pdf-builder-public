@@ -11,6 +11,10 @@ Scope: `math-pdf-builder-public-codex`
   - keep schemas draft-level until both apps have more real features
   - freeze versions later with migration notes
 - Legacy compatibility is not a mandatory product requirement.
+- Long-term compatibility target includes external classroom document formats:
+  - `.hwpx`
+  - `.docx` (preferred over legacy binary `.doc`)
+  - optional `.doc` via conversion bridge
 
 ## Current Runtime Zones
 - Production legacy zone: root `index.html`, `js/`, `css/`
@@ -51,6 +55,14 @@ See also: `docs/repo-guardrails.md`
 - Tool output path:
   - Tool/MCP -> `ToolResult` -> `NormalizedContent` -> editor adapter
 - Keep model/provider-specific logic outside core.
+
+### 4) External format bridge boundary
+- External file compatibility is a bridge concern, not core editor concern.
+- Keep format-specific parsing/writing in adapters or isolated services.
+- Recommended long-term bridge route:
+  - `.hwpx/.docx` <-> normalized draft payload <-> editor model
+  - use AI assist for semantic recovery (labels, problem structure), not for raw binary parsing.
+- Avoid coupling UI flows directly to format internals.
 
 ## Proposed Incremental Layout
 ```
@@ -105,6 +117,12 @@ docs/
 ### P5. Legacy coexistence and cutover
 - Legacy root app is reference-only unless explicitly needed.
 - Retire legacy paths when AI-first feature gates are met.
+
+### P6. External format interoperability (long-term)
+- Define minimal import/export scenarios first (text/math/image/table).
+- Prioritize `.hwpx/.docx` compatibility.
+- Treat legacy `.doc` as optional bridge path through pre-conversion tooling.
+- Add regression fixtures for round-trip checks at adapter boundary.
 
 ## Acceptance Criteria
 - `canvas-editor-app` remains guarded by repo rules (`scripts/check_guardrails.sh` passes).

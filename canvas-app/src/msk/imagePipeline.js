@@ -109,8 +109,6 @@ const toBlob = (canvas, mime, quality) =>
 
 const renderImage = async ({
   image,
-  width,
-  height,
   targetWidth,
   targetHeight,
   mime,
@@ -173,11 +171,9 @@ export const optimizeImageAssets = async (snapshot, imageStore, options = {}) =>
     let optimizedBlob = entry.originalBlob
 
     if (needsReencode) {
-      const { image, width, height, type } = await ImageUtils.loadBitmap(entry.originalBlob)
+      const { image, type } = await ImageUtils.loadBitmap(entry.originalBlob)
       optimizedBlob = await renderImage({
         image,
-        width,
-        height,
         targetWidth,
         targetHeight,
         mime: targetMime,
@@ -194,8 +190,6 @@ export const optimizeImageAssets = async (snapshot, imageStore, options = {}) =>
     const { image: previewImage, type: previewType } = await ImageUtils.loadBitmap(entry.originalBlob)
     const previewBlob = await renderImage({
       image: previewImage,
-      width: entry.width,
-      height: entry.height,
       targetWidth: previewWidth,
       targetHeight: previewHeight,
       mime: 'image/jpeg',

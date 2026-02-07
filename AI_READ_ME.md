@@ -22,6 +22,9 @@
 - Exchange contract direction:
   - align toward `NormalizedContent` / `RenderPlan` / `ToolResult`
   - treat schema/version as provisional until implementation maturity
+- Long-term format bridge direction:
+  - prioritize `.hwpx/.docx` interoperability at adapter boundary
+  - keep legacy `.doc` on optional conversion-bridge path
 - Do not place provider-specific logic in core modules.
 
 ## Guardrail timing

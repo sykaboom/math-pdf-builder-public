@@ -55,7 +55,7 @@ const registerClipboardHook = (univer, imageStore) => {
   let clipboardService = null
   try {
     clipboardService = univer.__getInjector().get(IDocClipboardService)
-  } catch (error) {
+  } catch {
     return null
   }
 
@@ -67,7 +67,7 @@ const registerClipboardHook = (univer, imageStore) => {
         const url = await imageStore.getImageUrl(entry.imageId)
         if (!url) return null
         return { source: url, imageSourceType: ImageSourceType.URL }
-      } catch (error) {
+      } catch {
         return null
       }
     },

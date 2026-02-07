@@ -25,7 +25,7 @@ export class TempImageStorage {
       const root = await navigator.storage.getDirectory()
       this._dirHandle = await root.getDirectoryHandle(TEMP_DIR_NAME, { create: true })
       return this._dirHandle
-    } catch (error) {
+    } catch {
       this._dirHandle = null
       return null
     }
@@ -46,7 +46,7 @@ export class TempImageStorage {
       await writable.write(blob)
       await writable.close()
       return { mode: 'opfs', filename }
-    } catch (error) {
+    } catch {
       this._memoryBlobs.set(imageId, blob)
       return { mode: 'memory' }
     }
@@ -60,7 +60,7 @@ export class TempImageStorage {
       try {
         const handle = await dir.getFileHandle(filename)
         return await handle.getFile()
-      } catch (error) {
+      } catch {
         // Fall through to memory cache.
       }
     }
@@ -74,7 +74,7 @@ export class TempImageStorage {
       const filename = buildFileName(imageId, extension)
       try {
         await dir.removeEntry(filename)
-      } catch (error) {
+      } catch {
         // Ignore missing entries.
       }
     }
@@ -88,7 +88,7 @@ export class TempImageStorage {
         for await (const [name] of dir.entries()) {
           await dir.removeEntry(name)
         }
-      } catch (error) {
+      } catch {
         // Ignore OPFS cleanup failures.
       }
     }
