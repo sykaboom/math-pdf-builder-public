@@ -35,6 +35,7 @@ canvas-editor-app/src/adapters
 canvas-editor-app/src/adapters/exchange
 canvas-editor-app/src/adapters/exchange/docxExchangeAdapter.js
 canvas-editor-app/src/adapters/exchange/index.js
+canvas-editor-app/src/adapters/exchange/mcpApiAdapter.js
 canvas-editor-app/src/adapters/exchange/toolResultAdapter.js
 canvas-editor-app/src/adapters/exchange/v10ExchangeAdapter.js
 canvas-editor-app/src/contracts
@@ -136,6 +137,7 @@ codex_tasks/task_006_subagent_oneclick_playbook_port.md
 codex_tasks/task_007_template_and_hotfix_workflow_transplant_localized.md
 codex_tasks/task_008_ai_readme_workflow_sync_localized.md
 codex_tasks/task_009_workflow_transplant_consistency_gate.md
+codex_tasks/task_010_mcp_api_invocation_scaffold.md
 codex_tasks/task_template.md
 ```
 

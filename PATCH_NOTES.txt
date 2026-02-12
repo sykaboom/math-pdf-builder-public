@@ -1,5 +1,11 @@
 패치노트
 
+2026-02-12
+- 기능: `canvas-editor-app` Exchange 패널에 원격 호출 슬라이스(Task 010) 추가.
+  - `MCP tools/call` 요청 입력(엔드포인트/헤더/툴명/인자)
+  - 일반 API 요청 입력(메서드/엔드포인트/헤더/본문)
+  - 원격 응답을 ToolResult 입력으로 로드 후 기존 `Normalized -> DOCX/v10` 변환 흐름 재사용
+
 2026-02-07
 - 기능: 레포 전용 가드레일 스크립트(`scripts/scan_guardrails.sh`, `scripts/check_guardrails.sh`, `scripts/guardrails.sh`) 추가.
 - 기능: 가드레일 운영 문서(`docs/repo-guardrails.md`) 및 실행 안내를 README/AGENTS에 반영.

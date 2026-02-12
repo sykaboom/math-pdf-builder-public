@@ -1,7 +1,7 @@
 # AI_READ_ME (repo-local SSOT summary)
 
 이 문서는 이 레포에서 AI 에이전트가 먼저 파악해야 하는 운영 기준을 요약합니다.
-권한 충돌 시 최종 판단은 `AGENTS.md`를 따릅니다.
+실무 시작점은 `AGENTS.md`로 두되, 권한 충돌 시 최종 판단은 아래 SSOT 순서를 따릅니다.
 
 ## Decision authority (SSOT)
 1. `PROJECT_BLUEPRINT.md`
