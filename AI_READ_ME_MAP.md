@@ -124,11 +124,18 @@ scripts/scan_guardrails.sh
 ## codex_tasks
 ```text
 codex_tasks/README.md
+codex_tasks/_PLAYBOOK_subagent_oneclick.md
 codex_tasks/hotfix
 codex_tasks/hotfix/hotfix_template.md
 codex_tasks/task_001_docx_first_exchange_bootstrap.md
 codex_tasks/task_002_exchange_roundtrip_poc.md
 codex_tasks/task_003_workflow_guardrail_upgrade.md
+codex_tasks/task_004_agents_workflow_full_transplant.md
+codex_tasks/task_005_protocol_v5_alignment_transplant.md
+codex_tasks/task_006_subagent_oneclick_playbook_port.md
+codex_tasks/task_007_template_and_hotfix_workflow_transplant_localized.md
+codex_tasks/task_008_ai_readme_workflow_sync_localized.md
+codex_tasks/task_009_workflow_transplant_consistency_gate.md
 codex_tasks/task_template.md
 ```
 
